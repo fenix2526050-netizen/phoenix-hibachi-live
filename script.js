@@ -365,7 +365,7 @@ const modalPackage = document.getElementById('modalPackage');
 
 // Supabase real backend connection (V151 legacy anon key compatibility)
 // Public/publishable key is safe in browser only when RLS policies are enabled.
-const SUPABASE_URL = 'https://kyjiwwsqeyhlmzhncap.supabase.co';
+const SUPABASE_URL = 'https://kyjiwwsqeyhllmzhncap.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZ6aXqUJXfFVavnAKshSOQ_HZLTfDTi';
 let supabaseClient = null;
 let supabaseSession = null;

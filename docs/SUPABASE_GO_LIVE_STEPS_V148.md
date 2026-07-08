@@ -36,7 +36,7 @@ where lower(email) = lower('你的后台邮箱');
 打开 `script.js`，找到：
 
 ```js
-const SUPABASE_URL = 'https://kyjiwwsqeyhlmzhncap.supabase.co';
+const SUPABASE_URL = 'https://kyjiwwsqeyhllmzhncap.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZ6aXqUJXfFVavnAKshSOQ_HZLTfDTi';
 ```
 

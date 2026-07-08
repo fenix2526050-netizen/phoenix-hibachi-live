@@ -1,8 +1,8 @@
-# Phoenix Hibachi V156 — Live Clean Supabase Connected
+# Phoenix Hibachi V156B — Live Clean Supabase URL Corrected
 
 This package is prepared for the new clean Supabase project:
 
-`https://kyjiwwsqeyhlmzhncap.supabase.co`
+`https://kyjiwwsqeyhllmzhncap.supabase.co`
 
 ## What changed
 
