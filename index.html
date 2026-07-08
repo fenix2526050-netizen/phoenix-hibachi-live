@@ -821,13 +821,10 @@
         <strong>First-party reward reminder</strong>
         <p>First completed party over $600 may receive $50 off after manager review. Coupons cannot be combined and cannot be used for travel fee or tips.</p>
       </div>
-      <div class="payment-choice-box" id="paymentChoiceBox">
-        <strong>Choose how you want to hold this request</strong>
-        <p class="small-muted">No payment is collected on this screen. For now, Phoenix Hibachi accepts transfer/Zelle for deposit or full payment. Onsite cash/Zelle can be selected, but unpaid requests may be moved or cancelled if the route fills up.</p>
-        <label class="payment-choice"><input type="radio" name="paymentPreference" value="Deposit transfer / Zelle" checked><span><b>Pay deposit by transfer/Zelle</b><small>Minimum deposit: $200. This is the best way to hold your preferred date and time window.</small></span></label>
-        <label class="payment-choice"><input type="radio" name="paymentPreference" value="Full payment transfer / Zelle"><span><b>Pay full amount by transfer/Zelle</b><small>Manager will send final total and transfer instructions after review.</small></span></label>
-        <label class="payment-choice"><input type="radio" name="paymentPreference" value="Onsite cash / Zelle"><span><b>Pay onsite by cash/Zelle</b><small>Available by request, but without deposit your time may change or be cancelled. We will notify you at least 24 hours before the event.</small></span></label>
-        <button type="button" class="outline-btn" id="savePaymentPreferenceBtn">Save payment preference</button>
+      <div class="payment-choice-box payment-cash-only-note" id="paymentChoiceBox">
+        <strong>Payment note</strong>
+        <p class="small-muted"><b>Cash only at the event.</b> No payment is collected on this screen. Phoenix Hibachi will review your request and contact you before final confirmation.</p>
+        <input type="hidden" name="paymentPreference" value="Cash only at event">
       </div>
       <div class="post-confirm-box">
         <strong>Confirm your booking request</strong>

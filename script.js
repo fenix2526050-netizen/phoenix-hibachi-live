@@ -1,4 +1,4 @@
-window.PHX_BUILD_VERSION = 'V156_LIVE_CLEAN_SUPABASE';
+window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
 
 /* ======================================================================
    V78 TOP-LAYER DIALOG DELETE FIX + NO LOGIN SUCCESS POPUP
@@ -348,7 +348,7 @@ window.PHX_BUILD_VERSION = 'V156_LIVE_CLEAN_SUPABASE';
 })();
 
 
-window.PHX_BUILD_VERSION = 'V156_LIVE_CLEAN_SUPABASE';
+window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
 
 
 
@@ -2844,26 +2844,29 @@ function guestInvoiceHtml(order) {
   const m = calculateOrderMoney(order);
   const ref = printSafe(order.id || generateOrderId('PHX'));
   const addonsRows = m.addons.length ? m.addons.map(item => `<div class="invoice-row"><span>${printSafe(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><span>Total: ${money(item.price)}</span></div>`).join('') : `<div class="invoice-row"><span>Add-ons</span><span>Total: $0</span></div>`;
-  const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${money(m.proteinUpcharge)}</b></div>` : '';
+  const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row invoice-food-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${money(m.proteinUpcharge)}</b></div>` : '';
   const proteinLine = `${m.proteinSelectedTotal || 0}/${m.proteinRequiredTotal || 0} portions ${proteinSummary(m.proteinSelections)}`;
   const allergies = (order.allergies || []).join(', ') || order.allergyNotes || 'None listed';
+  const tipTotal20 = m.guestTotalAfterDeposit + m.tip20;
+  const tipTotal25 = m.guestTotalAfterDeposit + m.tip25;
+  const tipTotal30 = m.guestTotalAfterDeposit + m.tip30;
   return `<section class="guest-invoice">
     <div class="invoice-top-line"></div>
     <div class="invoice-ref">Ref ID: ${ref}</div>
     <div class="invoice-brand"><strong>PHOENIX HIBACHI</strong><span>347-471-9190</span><span>www.phoenixhibachi.com</span></div>
     <div class="invoice-main-grid">
       <div class="invoice-labels">
-        <div><b>When:</b><span>${printSafe(invoiceDateLine(order))}</span></div>
-        <div><b>Name:</b><span>${printSafe(order.name)}</span></div>
-        <div><b>Phone:</b><span>${printSafe(order.phone)}</span></div>
-        <div><b>Address:</b><span>${printSafe(order.address)}</span></div>
+        <div class="invoice-highlight-yellow"><b>When:</b><span>${printSafe(invoiceDateLine(order))}</span></div>
+        <div class="invoice-highlight-yellow"><b>Name:</b><span>${printSafe(order.name)}</span></div>
+        <div class="invoice-highlight-yellow"><b>Phone:</b><span>${printSafe(order.phone)}</span></div>
+        <div class="invoice-highlight-yellow"><b>Address:</b><span>${printSafe(order.address)}</span></div>
         <div><b>Number of Adult:</b><span>${m.adults}</span></div>
         <div><b>Number of Kids:</b><span>${m.kids}</span></div>
       </div>
-      <div class="invoice-money-block">
-        <div class="invoice-row"><span>Adult</span><em>Total: ${m.adults}</em><b>Total: ${money(m.adultFoodTotal)}</b></div>
-        <div class="invoice-row"><span>Kid</span><em>Total: ${m.kids}</em><b>Total: ${money(m.kidFoodTotal)}</b></div>
-        <div class="invoice-row"><span>Package charge</span><em>${printSafe(m.packageName)}</em><b>Total: ${money(m.packageSubtotal)}</b></div>
+      <div class="invoice-money-block invoice-food-summary">
+        <div class="invoice-row invoice-food-row"><span>Adult</span><em>Total: ${m.adults}</em><b>Total: ${money(m.adultFoodTotal)}</b></div>
+        <div class="invoice-row invoice-food-row"><span>Kid</span><em>Total: ${m.kids}</em><b>Total: ${money(m.kidFoodTotal)}</b></div>
+        <div class="invoice-row invoice-food-row"><span>Package charge</span><em>${printSafe(m.packageName)}</em><b>Total: ${money(m.packageSubtotal)}</b></div>
         ${premiumProteinRow}
         ${addonsRows}
         <div class="invoice-row"><span>Travel Fee</span><em></em><b>Total: ${money(m.travelFee)}</b></div>
@@ -2881,8 +2884,9 @@ function guestInvoiceHtml(order) {
       <div><b>Balance due:</b><span>${money(m.guestTotalAfterDeposit)}</span></div>
       <small>(Food/package balance and tax belong to Phoenix Hibachi. Travel fee and optional tips belong to the chef.)</small>
     </div>
-    <div class="invoice-notes"><b>Any food allergies?</b><span>${printSafe(allergies)}</span></div>
-    <div class="invoice-protein-detail"><b>Protein selections</b><span>${printSafe(proteinLine)}</span></div>
+    <div class="invoice-cash-note"><b>Payment note:</b><span>Cash only at the event unless Phoenix Hibachi confirms another payment method before service.</span></div>
+    <div class="invoice-notes invoice-food-alert"><b>FOOD ALLERGIES</b><span>${printSafe(allergies)}</span></div>
+    <div class="invoice-protein-detail invoice-food-alert"><b>PROTEIN SELECTIONS</b><span>${printSafe(proteinLine)}</span></div>
     <div class="invoice-rule-box">
       <b>Member / Coupon Rules</b>
       <span>Member credit special: add $1,000 Phoenix Party Credit and receive $100 bonus credit after staff activation.</span>
@@ -2890,7 +2894,18 @@ function guestInvoiceHtml(order) {
       <span>Birthday month: $50 coupon, valid for parties over $600.</span>
       <span>Confirmed/completed-event social share: $50 next-party coupon after staff review, valid only for the next party over $600.</span>
     </div>
-    <div class="tip-suggestions"><b>Tip Suggestions:</b><div>20% = ${money(m.tip20)} <span>Total: ${money(m.guestTotalAfterDeposit + m.tip20)}</span></div><div>25% = ${money(m.tip25)} <span>Total: ${money(m.guestTotalAfterDeposit + m.tip25)}</span></div><div>30% = ${money(m.tip30)} <span>Total: ${money(m.guestTotalAfterDeposit + m.tip30)}</span></div></div>
+    <div class="tip-suggestions-final">
+      <b>Tip Suggestions <small>cash only · optional</small></b>
+      <table>
+        <thead><tr><th>Rate</th><th>Tip</th><th>Total if added</th></tr></thead>
+        <tbody>
+          <tr><td>20%</td><td>${money(m.tip20)}</td><td>${money(tipTotal20)}</td></tr>
+          <tr><td>25%</td><td>${money(m.tip25)}</td><td>${money(tipTotal25)}</td></tr>
+          <tr><td>30%</td><td>${money(m.tip30)}</td><td>${money(tipTotal30)}</td></tr>
+        </tbody>
+      </table>
+      <em>Tips are optional and always appreciated. Tips are cash only.</em>
+    </div>
     <div class="invoice-footer-red">THIS IS AN AUTOMATED EMAIL / INVOICE. PLEASE DO NOT REPLY TO THIS MESSAGE.</div>
   </section>`;
 }
@@ -3908,7 +3923,7 @@ document.addEventListener('click', (event) => {
 });
 function saveLastSubmittedPaymentPreference(extra = {}) {
   if (!lastSubmittedOrder) return null;
-  const choice = document.querySelector('input[name="paymentPreference"]:checked')?.value || 'Not selected';
+  const choice = document.querySelector('input[name="paymentPreference"]:checked')?.value || 'Cash only at event';
   lastSubmittedOrder = {
     ...lastSubmittedOrder,
     paymentPreference: choice,
@@ -3937,7 +3952,7 @@ document.getElementById('confirmBookingRequestBtn')?.addEventListener('click', (
     membershipOptional: true
   });
   successModal?.close();
-  alert('Booking request confirmed. Membership is optional. Your payment preference was saved as: ' + choice + '. Phoenix Hibachi will review and contact you.');
+  alert('Booking request confirmed. Phoenix Hibachi will review and contact you. Payment note: cash only at the event unless another method is confirmed before service.');
 });
 document.getElementById('printGuestInvoiceBtn')?.addEventListener('click', () => openPrintModalForOrder(lastSubmittedOrder, 'guest'));
 document.getElementById('printChefSettlementBtn')?.addEventListener('click', () => openPrintModalForOrder(lastSubmittedOrder, 'chef'));
@@ -13060,4 +13075,19 @@ setTimeout(() => {
   }
 
   setTimeout(syncAllAddons, 200);
+})();
+
+
+/* V159: defensive cleanup for cached/payment UI */
+(function phoenixV159PaymentPrintCleanup(){
+  function cleanup(){
+    document.querySelectorAll('#savePaymentPreferenceBtn').forEach(el => el.remove());
+    document.querySelectorAll('button').forEach(btn => {
+      const t = (btn.textContent || '').trim().toLowerCase();
+      if (t === 'save payment preference' || t === 'save payment') btn.remove();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cleanup);
+  else cleanup();
+  window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
 })();
