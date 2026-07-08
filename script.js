@@ -13355,3 +13355,82 @@ setTimeout(() => {
     };
   }
 })();
+
+/*
+   PHX V163 — Booking email field cleanup for Make notifications
+   - Store final_total / balance_due in Supabase bookings rows.
+   - Add dedicated protein_summary / protein_selections / service_notes fields when the V163 SQL migration is installed.
+   - Stop mixing protein selections into admin_notes for new public bookings.
+*/
+(function phoenixV163BookingEmailFields(){
+  window.PHX_BUILD_VERSION = 'V163_BOOKING_EMAIL_FIELDS';
+
+  const oldOrderToBookingRowV163 = typeof orderToBookingRow === 'function' ? orderToBookingRow : null;
+  if (oldOrderToBookingRowV163 && !window.__PHX_V163_BOOKING_ROW_PATCH__) {
+    window.__PHX_V163_BOOKING_ROW_PATCH__ = true;
+    orderToBookingRow = function(order){
+      const row = oldOrderToBookingRowV163(order) || {};
+      const m = typeof calculateOrderMoney === 'function' ? calculateOrderMoney(order || {}) : {};
+      const selections = (order && order.proteinSelections) || (typeof proteinSelectionsFromText === 'function' ? proteinSelectionsFromText(row.admin_notes || '') : {});
+      const proteinText = typeof proteinSummary === 'function' ? proteinSummary(selections) : String(order?.proteinSummary || '');
+      const serviceNotes = [order?.specialNotes || ''].filter(Boolean).join('\n').trim();
+
+      row.final_total = Number(m.guestTotalBeforeDeposit || order?.final_total || order?.total || 0);
+      row.balance_due = Number(m.guestTotalAfterDeposit || order?.balance_due || row.final_total || 0);
+      row.travel_fee = Number(m.travelFee || order?.travelFee || row.travel_fee || 0);
+      row.paid_amount = Number(order?.paidAmount || order?.paid_amount || 0);
+
+      // These columns are added by supabase/migrations/phoenix_hibachi_live_v163_booking_email_fields.sql.
+      // They make Make/Gmail order notifications clean without abusing admin_notes.
+      row.protein_selections = selections || {};
+      row.protein_summary = proteinText || '';
+      row.protein_upcharge = Number(m.proteinUpcharge || order?.proteinUpcharge || 0);
+      row.food_subtotal = Number(m.foodSubtotal || 0);
+      row.sales_tax = Number(m.salesTax || 0);
+      row.service_notes = serviceNotes || null;
+      row.preferred_arrival_window = order?.eventTime || row.event_time || null;
+
+      // Keep admin notes for staff/internal comments and timing notes only.
+      if (typeof attachPreferredTimeNote === 'function') {
+        row.admin_notes = attachPreferredTimeNote(serviceNotes, order?.eventTime || '', order?.customTimeRequest || '');
+      }
+      return row;
+    };
+  }
+
+  const oldBookingRowToOrderV163 = typeof bookingRowToOrder === 'function' ? bookingRowToOrder : null;
+  if (oldBookingRowToOrderV163 && !window.__PHX_V163_BOOKING_READ_PATCH__) {
+    window.__PHX_V163_BOOKING_READ_PATCH__ = true;
+    bookingRowToOrder = function(row){
+      const order = oldBookingRowToOrderV163(row) || {};
+      const selections = row?.protein_selections && typeof row.protein_selections === 'object'
+        ? row.protein_selections
+        : (typeof proteinSelectionsFromText === 'function' ? proteinSelectionsFromText(row?.protein_summary || row?.admin_notes || '') : {});
+      order.proteinSelections = selections;
+      if (typeof proteinSummary === 'function') order.proteinSummary = row?.protein_summary || proteinSummary(selections);
+      order.proteinUpcharge = Number(row?.protein_upcharge || order.proteinUpcharge || 0);
+      order.travelFee = Number(row?.travel_fee || order.travelFee || 0);
+      order.finalTotal = Number(row?.final_total || order.finalTotal || 0);
+      order.balanceDue = Number(row?.balance_due || order.balanceDue || 0);
+      if (row?.service_notes) order.specialNotes = row.service_notes;
+      return order;
+    };
+  }
+
+  // Update the guest invoice coupon text if the V162 override has not already done so in cache.
+  if (typeof guestInvoiceHtml === 'function' && typeof calculateOrderMoney === 'function' && !window.__PHX_V163_INVOICE_COUPON_COPY__) {
+    window.__PHX_V163_INVOICE_COUPON_COPY__ = true;
+    const originalGuestInvoiceV163 = guestInvoiceHtml;
+    guestInvoiceHtml = function(order){
+      let html = originalGuestInvoiceV163(order);
+      html = html.replace(/<span>First completed party over \$600: \$50 off, not combinable with other coupons\.<\/span>/g,
+        '<span>First booking with food/package subtotal before tax over $700: receive a $50 coupon for the next Phoenix Hibachi party after staff review.</span>');
+      html = html.replace(/<span>Birthday month: \$50 coupon, valid for parties over \$600\.<\/span>/g,
+        '<span>Birthday party: eligible guests may receive one starter such as edamame or gyoza. Birthday must be noted when booking, and birthday guest must show ID to the chef on event day.</span>');
+      html = html.replace(/<span>Confirmed\/completed-event social share: \$50 next-party coupon after staff review, valid only for the next party over \$600\.<\/span>/g,
+        '<span>Confirmed/completed-event social share: $50 next-party coupon after staff review. Show the approved coupon to the chef for confirmation.</span><span style="color:#c00000;font-weight:700;">Coupons cannot be combined. One coupon or promotion per party. Coupons have no cash value and cannot be used for travel fee, tax, or tips.</span>');
+      html = html.replace(/<b>Tip Suggestions <small>cash only · optional<\/small><\/b>/g, '<b>Tip Suggestions</b>');
+      return html;
+    };
+  }
+})();
