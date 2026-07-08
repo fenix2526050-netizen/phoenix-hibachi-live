@@ -4589,3 +4589,59 @@ body.light-theme .v140-list-card.v146-social-admin-card .v146-social-admin-media
   body.printing-invoice #printArea .tip-suggestions-final td{padding:1px 3px!important;}
   body.printing-invoice #printArea .tip-suggestions-final em{font-size:6.7pt!important;line-height:1.05!important;}
 }
+
+/* ======================================================================
+   PHX V160 — invoice cleanup + route calendar focus cleanup
+   ====================================================================== */
+/* Calendar: only the selected date should look selected. Do not outline the whole weekday column. */
+.phx-v120-cal-cell.weekday-active{outline:none!important;box-shadow:none!important;}
+.phx-v120-cal-cell.in-selected-week{box-shadow:none!important;background:rgba(244,181,54,.045)!important;}
+.phx-v120-cal-cell.active{outline:2px solid #f4b536!important;box-shadow:0 0 0 4px rgba(244,181,54,.12)!important;}
+body.light-theme .phx-v120-cal-cell.weekday-active{outline:none!important;box-shadow:none!important;}
+body.light-theme .phx-v120-cal-cell.in-selected-week{box-shadow:none!important;background:#fff8e6!important;}
+body.light-theme .phx-v120-cal-cell.active{outline:2px solid #d99a16!important;box-shadow:0 0 0 4px rgba(217,154,22,.14)!important;}
+
+/* Invoice: highlight values only, not the full rows. */
+.invoice-highlight-yellow{background:transparent!important;border:0!important;padding:0!important;border-radius:0!important;}
+.invoice-highlight-yellow span{display:inline-block!important;background:#fff3a3!important;border:1px solid #dfb800!important;padding:2px 5px!important;border-radius:2px!important;min-width:185px!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;}
+.invoice-cash-note{display:grid!important;grid-template-columns:118px 1fr!important;gap:8px!important;margin:6px 0 8px!important;padding:0!important;border:0!important;background:transparent!important;color:#111!important;font-weight:700!important;}
+.invoice-cash-note span{display:inline-block!important;background:#fff3a3!important;border:1px solid #dfb800!important;padding:3px 6px!important;border-radius:2px!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;}
+.invoice-food-alert{display:grid!important;grid-template-columns:120px 1fr!important;gap:8px!important;background:transparent!important;border:0!important;color:#111!important;padding:0!important;margin:7px 0!important;border-radius:0!important;}
+.invoice-food-alert b{color:#d00000!important;font-weight:950!important;letter-spacing:.04em!important;align-self:center!important;}
+.invoice-food-alert span{display:block!important;background:#fff3a3!important;border:1.7px solid #d00000!important;color:#111!important;font-weight:850!important;padding:3px 6px!important;border-radius:2px!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;}
+
+/* Invoice money block: keep normal colors and align item / detail / total cleanly. */
+.invoice-food-summary{border-left:0!important;padding-left:0!important;}
+.invoice-food-row span,.invoice-food-row b{color:#111!important;font-weight:700!important;}
+.invoice-money-block{display:grid!important;gap:3px!important;align-content:start!important;}
+.invoice-money-block .invoice-row{display:grid!important;grid-template-columns:1.25fr .78fr .92fr!important;column-gap:8px!important;align-items:start!important;min-height:17px!important;}
+.invoice-money-block .invoice-row span{font-weight:700!important;color:#111!important;}
+.invoice-money-block .invoice-row em{font-style:normal!important;color:#111!important;text-align:left!important;}
+.invoice-money-block .invoice-row b{text-align:right!important;color:#111!important;font-weight:800!important;white-space:nowrap!important;}
+
+/* Tip table: remove the little cash/optional label from the title and keep the table aligned. */
+.tip-suggestions-final{grid-template-columns:120px 1fr!important;gap:6px 12px!important;padding:7px 9px!important;}
+.tip-suggestions-final>b small{display:none!important;}
+.tip-suggestions-final table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}
+.tip-suggestions-final th:nth-child(1),.tip-suggestions-final td:nth-child(1){width:25%!important;text-align:left!important;}
+.tip-suggestions-final th:nth-child(2),.tip-suggestions-final td:nth-child(2){width:25%!important;text-align:right!important;}
+.tip-suggestions-final th:nth-child(3),.tip-suggestions-final td:nth-child(3){width:50%!important;text-align:right!important;font-weight:900!important;}
+.tip-suggestions-final em{grid-column:2!important;font-size:10.5px!important;color:#b00000!important;}
+
+@media print{
+  body.printing-invoice #printArea .invoice-highlight-yellow{background:transparent!important;border:0!important;padding:0!important;}
+  body.printing-invoice #printArea .invoice-highlight-yellow span{font-size:7.5pt!important;min-width:120px!important;padding:1px 3px!important;}
+  body.printing-invoice #printArea .invoice-cash-note{grid-template-columns:72px 1fr!important;background:transparent!important;border:0!important;padding:0!important;margin:2px 0 3px!important;font-size:7.1pt!important;}
+  body.printing-invoice #printArea .invoice-cash-note span{padding:1px 3px!important;}
+  body.printing-invoice #printArea .invoice-food-summary{border-left:0!important;padding-left:0!important;}
+  body.printing-invoice #printArea .invoice-food-row span,
+  body.printing-invoice #printArea .invoice-food-row b{color:#111!important;font-weight:700!important;}
+  body.printing-invoice #printArea .invoice-food-alert{grid-template-columns:78px 1fr!important;background:transparent!important;border:0!important;padding:0!important;margin:2px 0 3px!important;}
+  body.printing-invoice #printArea .invoice-food-alert b{font-size:7.1pt!important;color:#d00000!important;}
+  body.printing-invoice #printArea .invoice-food-alert span{font-size:7.2pt!important;padding:1px 3px!important;border:1.2px solid #d00000!important;}
+  body.printing-invoice #printArea .invoice-money-block .invoice-row{grid-template-columns:1.24fr .74fr .95fr!important;gap:4px!important;font-size:7.4pt!important;line-height:1.05!important;}
+  body.printing-invoice #printArea .tip-suggestions-final{grid-template-columns:74px 1fr!important;gap:2px 5px!important;padding:3px 5px!important;margin:4px 0!important;}
+  body.printing-invoice #printArea .tip-suggestions-final>b small{display:none!important;}
+  body.printing-invoice #printArea .tip-suggestions-final table{font-size:7.1pt!important;table-layout:fixed!important;}
+  body.printing-invoice #printArea .tip-suggestions-final em{font-size:6.4pt!important;}
+}

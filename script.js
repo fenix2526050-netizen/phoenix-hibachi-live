@@ -1,4 +1,4 @@
-window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
+window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
 
 /* ======================================================================
    V78 TOP-LAYER DIALOG DELETE FIX + NO LOGIN SUCCESS POPUP
@@ -348,7 +348,7 @@ window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
 })();
 
 
-window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
+window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
 
 
 
@@ -2304,7 +2304,11 @@ function assistantReply(question) {
     return;
   }
   if (q.includes('late') || q.includes('delay') || q.includes('迟到')) {
-    addAiMessage('Route/weather delays can happen. The booking form asks whether you can accept a 15 or 30 minute chef arrival window, and how long the chef should wait if guests are late.', 'bot');
+    addAiMessage('Phoenix Hibachi uses the confirmed event time as the scheduled service time. Chefs may arrive early for setup, but service timing is based on the confirmed appointment. If the host or guests are not ready, the chef may begin prep/service on schedule because there may be other events later that day.', 'bot');
+    return;
+  }
+  if (q.includes('cancel') || q.includes('reschedule') || q.includes('取消') || q.includes('改期')) {
+    addAiMessage('Phoenix Hibachi uses a 72-hour cancellation policy. Cancellations made more than 72 hours before the event may be reviewed by management. Inside 72 hours, deposits are non-refundable and the available option is manager-approved rescheduling, subject to availability.', 'bot');
     return;
   }
   if (q.includes('complaint') || q.includes('refund') || q.includes('feedback') || q.includes('投诉') || q.includes('退钱')) {
@@ -2595,12 +2599,12 @@ function eventBlockMinutes(order) {
 function canCancelOrder(order) {
   const eventStart = parseOrderDateTime(order);
   if (!eventStart) return false;
-  return (eventStart.getTime() - Date.now()) > 48 * 60 * 60 * 1000;
+  return (eventStart.getTime() - Date.now()) > 72 * 60 * 60 * 1000;
 }
 function cancellationMessage(order) {
   return canCancelOrder(order)
-    ? 'Eligible: more than 48 hours before event. Customer can request cancellation for manager review.'
-    : 'Inside 48 hours: deposit is non-refundable. Reschedule only, subject to chef availability.';
+    ? 'Eligible: more than 72 hours before event. Customer can request cancellation for manager review.'
+    : 'Inside 72 hours: deposit is non-refundable. Reschedule only, subject to chef availability.';
 }
 function orderPoint(order) {
   return { lat:Number(order.addressLat || 0), lon:Number(order.addressLon || 0) };
@@ -3438,7 +3442,7 @@ function renderDashboard(role = 'Admin') {
     const feedback = [...getStoredFeedback(), ...getSocialCouponRequests().map(socialCouponToFeedback)];
     const apps = getDashboardApplications();
     if (dashboardTitle) dashboardTitle.textContent = `${role} Dashboard`;
-    if (dashboardHelp) dashboardHelp.innerHTML = `<span class="role-badge">${escapeHtml(role)}</span> ${Array.isArray(remoteOrdersCache) ? '<span class="role-badge">Supabase live</span>' : '<span class="role-badge">Local demo</span>'} ${role === 'Member' ? 'Member portal: cancellation is available only more than 48 hours before the event. Inside 48 hours, reschedule only and deposit is non-refundable.' : role === 'Chef' ? 'Chef view: assigned parties, customer information, map, travel time and travel fee.' : 'Staff dashboard: orders, customer contacts, complaints, chef applications and dispatch are separated by tabs.'}`;
+    if (dashboardHelp) dashboardHelp.innerHTML = `<span class="role-badge">${escapeHtml(role)}</span> ${Array.isArray(remoteOrdersCache) ? '<span class="role-badge">Supabase live</span>' : '<span class="role-badge">Local demo</span>'} ${role === 'Member' ? 'Member portal: cancellation is available only more than 72 hours before the event. Inside 72 hours, reschedule only and deposit is non-refundable.' : role === 'Chef' ? 'Chef view: assigned parties, customer information, map, travel time and travel fee.' : 'Staff dashboard: orders, customer contacts, complaints, chef applications and dispatch are separated by tabs.'}`;
     const statNew = document.getElementById('statNew');
     const statPending = document.getElementById('statPending');
     const statFeedback = document.getElementById('statFeedback');
@@ -3658,7 +3662,7 @@ function contactSettingsToDbV68(settings = getContactSettingsV60()) {
     support_email: settings.supportEmail || settings.bookingEmail || DEFAULT_V60_CONTACTS.supportEmail,
     business_name: 'Phoenix Hibachi',
     service_area_text: 'NY, NJ, CT, Long Island',
-    cancellation_policy_title: '48-Hour Policy',
+    cancellation_policy_title: '72-Hour Policy',
     cancellation_policy_text: settings.policy || DEFAULT_V60_CONTACTS.policy
   };
 }
@@ -4488,7 +4492,7 @@ const DEFAULT_V60_CONTACTS = {
   textPhone: '3474719190',
   bookingEmail: 'phoenix4719190@gmail.com',
   supportEmail: 'phoenix4719190@gmail.com',
-  policy: 'Over 48 hours: cancellation can be reviewed. Inside 48 hours: deposit is non-refundable; reschedule only.'
+  policy: 'Over 72 hours: cancellation can be reviewed. Inside 72 hours: deposit is non-refundable; reschedule only.'
 };
 function formatPhoneV60(value){
   const digits=String(value||'').replace(/\D/g,'');
@@ -4510,7 +4514,7 @@ function applyContactSettingsV60(){
   document.querySelectorAll('a[href^="tel:+10000000000"],a[href^="tel:+13474719190"]').forEach(a=>a.href=`tel:+1${phoneDigits}`);
   document.querySelectorAll('a[href^="sms:+10000000000"],a[href^="sms:+13474719190"]').forEach(a=>a.href=`sms:+1${textDigits}`);
   document.querySelectorAll('a[href^="mailto:bookings@phoenixhibachi.com"],a[href^="mailto:phoenix4719190@gmail.com"]').forEach(a=>a.href=`mailto:${email}`);
-  const policyBox=[...document.querySelectorAll('.contact-modal .contact-card, .contact-modal .policy-box, .contact-modal [class*="policy"]')].find(el=>/48-hour/i.test(el.textContent||''));
+  const policyBox=[...document.querySelectorAll('.contact-modal .contact-card, .contact-modal .policy-box, .contact-modal [class*="policy"]')].find(el=>/72-hour/i.test(el.textContent||''));
   if(policyBox){ const p=policyBox.querySelector('p,span') || policyBox; if(p) p.textContent=s.policy; }
   const phoneInput=document.getElementById('sitePhoneInput'); if(phoneInput) phoneInput.value=s.phone;
   const textInput=document.getElementById('siteTextPhoneInput'); if(textInput) textInput.value=s.textPhone;
@@ -9332,7 +9336,7 @@ setTimeout(() => {
           <label>AM/PM<select data-v111-ampm="${esc(orderId)}">${ampmOptions(parts.ampm)}</select></label>
           <input type="hidden" data-v110-exact-time="${esc(orderId)}" value="${esc(current24)}">
         </div>
-        <div class="v110-schedule-policy"><b>Customer notice:</b> the party start time saved here is the latest Phoenix record shown to the customer, chef, and staff. Customer service should call/text the guest. Time changes must be manually confirmed through Phoenix and completed at least 48 hours before the party whenever possible.</div>`;
+        <div class="v110-schedule-policy"><b>Customer notice:</b> the party start time saved here is the latest Phoenix record shown to the customer, chef, and staff. Customer service should call/text the guest. Time changes must be manually confirmed through Phoenix and completed at least 72 hours before the party whenever possible.</div>`;
       const row = section.querySelector('.v102-row, .v101-row') || section;
       row.insertAdjacentHTML('beforeend', insert);
       panel.querySelectorAll('[data-v102-save-time], [data-v101-save-time]').forEach(btn => {
@@ -9463,7 +9467,7 @@ setTimeout(() => {
       <b>Chef:</b> ${esc(publicChef(order))}<br>
       <b>Payment:</b> ${esc(paymentLine)}</p>
       <div class="lookup-policy-v110"><b>Payment notice:</b> Orders may not be fully confirmed until Phoenix Hibachi confirms the deposit/payment has been received. If you paid by transfer, please allow customer service to verify it manually.</div>
-      <div class="lookup-policy-v110"><b>Schedule change policy:</b> Event time changes must be handled by Phoenix customer service and manually confirmed. Please request changes at least 48 hours before the party whenever possible.</div>
+      <div class="lookup-policy-v110"><b>Schedule change policy:</b> Event time changes must be handled by Phoenix customer service and manually confirmed. Please request changes at least 72 hours before the party whenever possible.</div>
       ${pay.note ? `<div class="lookup-payment-v107">${esc(pay.note)}</div>` : ''}
       <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${esc(id)}">Print invoice</button><a href="tel:13474719190">Call Phoenix</a></div>
       <small>Use this order number to check updates anytime. This page shows the latest Phoenix Hibachi record.</small>
@@ -9480,7 +9484,7 @@ setTimeout(() => {
         let html = previousCustomerCard(order);
         html = String(html).replace(/<p><b>Event date \/ time<\/b><br>[\s\S]*?<\/p>/, `<p><b>Party start time</b><br>${esc(exactScheduleLine(order))}<br><small>Latest Phoenix Hibachi record</small></p>`);
         if (!html.includes('lookup-policy-v110')) {
-          html = html.replace('</div>\n      <div class="order-actions">', `<div class="lookup-policy-v110"><b>Payment notice:</b> Orders may not be fully confirmed until the deposit/payment is verified.</div><div class="lookup-policy-v110"><b>Schedule changes:</b> Call/text Phoenix customer service. Changes should be requested at least 48 hours before the event whenever possible.</div></div>\n      <div class="order-actions">`);
+          html = html.replace('</div>\n      <div class="order-actions">', `<div class="lookup-policy-v110"><b>Payment notice:</b> Orders may not be fully confirmed until the deposit/payment is verified.</div><div class="lookup-policy-v110"><b>Schedule changes:</b> Call/text Phoenix customer service. Changes should be requested at least 72 hours before the event whenever possible.</div></div>\n      <div class="order-actions">`);
         }
         return html;
       };
@@ -13089,5 +13093,97 @@ setTimeout(() => {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cleanup);
   else cleanup();
-  window.PHX_BUILD_VERSION = 'V159_PAYMENT_PRINT_FINAL';
+  window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
+})();
+
+/* ======================================================================
+   PHX V160 — invoice text cleanup + persistent profile avatar helper
+   ====================================================================== */
+(function phoenixV160InvoiceAvatarCleanup(){
+  window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
+
+  // Keep final invoice wording clean even when older wrapped invoice functions are cached.
+  try {
+    const previousGuestInvoiceHtmlV160 = typeof guestInvoiceHtml === 'function' ? guestInvoiceHtml : null;
+    if (previousGuestInvoiceHtmlV160 && !window.__PHX_V160_INVOICE_WRAP__) {
+      window.__PHX_V160_INVOICE_WRAP__ = true;
+      guestInvoiceHtml = function(order = {}){
+        let html = previousGuestInvoiceHtmlV160.apply(this, arguments);
+        html = String(html || '')
+          .replace(/<b>\s*Tip Suggestions\s*<small>cash only\s*·\s*optional<\/small>\s*<\/b>/i, '<b>Tip Suggestions</b>')
+          .replace(/<small>cash only\s*·\s*optional<\/small>/ig, '')
+          .replace(/Tips are optional and always appreciated\. Tips are cash only\./ig, 'Tips are optional and appreciated. Cash tips only.')
+          .replace(/Cash only at the event unless Phoenix Hibachi confirms another payment method before service\./ig, 'Cash only at the event unless Phoenix Hibachi confirms another payment method before service.');
+        return html;
+      };
+    }
+  } catch (error) { console.warn('V160 invoice cleanup skipped:', error); }
+
+  // Avatar explanation: V133 used browser localStorage only. V160 additionally saves to profiles.avatar_url.
+  function currentProfileId(){
+    try { return window.supabaseSession?.user?.id || window.supabaseProfile?.id || ''; } catch { return ''; }
+  }
+  function currentAvatarUrl(){
+    try { return window.supabaseProfile?.avatar_url || window.supabaseSession?.user?.user_metadata?.avatar_url || ''; } catch { return ''; }
+  }
+  function setAvatarDom(url){
+    if (!url) return;
+    document.querySelectorAll('[data-member-avatar-preview-v133],[data-member-profile-avatar-v133]').forEach(target => {
+      if (!target) return;
+      const current = target.querySelector('img')?.getAttribute('src') || '';
+      if (current === url) return;
+      target.innerHTML = `<img src="${String(url).replace(/"/g, '&quot;')}" alt="Profile photo">`;
+    });
+  }
+  async function saveAvatarToSupabase(dataUrl){
+    const id = currentProfileId();
+    const client = (typeof getSupabaseClient === 'function' ? getSupabaseClient() : null);
+    if (!id || !client || !dataUrl) return;
+    const { error } = await client.from('profiles').update({ avatar_url: dataUrl, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    try { window.supabaseProfile = { ...(window.supabaseProfile || {}), avatar_url: dataUrl }; } catch {}
+  }
+  function fileToSmallDataUrl(file, maxSize = 360){
+    return new Promise((resolve, reject) => {
+      if (!file || !String(file.type || '').startsWith('image/')) { reject(new Error('Please choose an image file.')); return; }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read image.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Could not load image.'));
+        img.onload = () => {
+          const scale = Math.min(1, maxSize / Math.max(img.width || 1, img.height || 1));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
+          canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
+          canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = String(reader.result || '');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  document.addEventListener('change', async (event) => {
+    const input = event.target?.closest?.('[data-member-avatar-input-v133]');
+    if (!input || !input.files?.[0]) return;
+    try {
+      const dataUrl = await fileToSmallDataUrl(input.files[0]);
+      await saveAvatarToSupabase(dataUrl);
+      setAvatarDom(dataUrl);
+    } catch (error) {
+      console.warn('V160 Supabase avatar save skipped:', error);
+    }
+  }, true);
+  document.addEventListener('click', async (event) => {
+    if (!event.target?.closest?.('[data-member-avatar-remove-v133]')) return;
+    const id = currentProfileId();
+    const client = (typeof getSupabaseClient === 'function' ? getSupabaseClient() : null);
+    if (!id || !client) return;
+    try {
+      await client.from('profiles').update({ avatar_url: null, updated_at: new Date().toISOString() }).eq('id', id);
+      try { if (window.supabaseProfile) window.supabaseProfile.avatar_url = null; } catch {}
+    } catch (error) { console.warn('V160 Supabase avatar remove skipped:', error); }
+  }, true);
+  setInterval(() => { const url = currentAvatarUrl(); if (url) setAvatarDom(url); }, 1200);
 })();
