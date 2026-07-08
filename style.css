@@ -4645,3 +4645,32 @@ body.light-theme .phx-v120-cal-cell.active{outline:2px solid #d99a16!important;b
   body.printing-invoice #printArea .tip-suggestions-final table{font-size:7.1pt!important;table-layout:fixed!important;}
   body.printing-invoice #printArea .tip-suggestions-final em{font-size:6.4pt!important;}
 }
+
+
+/* PHX V162 — invoice alignment, coupon rules, and portal jitter cleanup */
+html{scrollbar-gutter:stable both-edges;}
+body{overflow-y:scroll;}
+.login-modal[open], .dashboard-modal[open]{overscroll-behavior:contain;}
+.login-modal .modal-card, .dashboard-modal .modal-card{transform:none!important;animation:none!important;}
+.coupon-red-warning{color:#b00000!important;font-weight:900!important;display:block;margin-top:4px;}
+.guest-invoice-v162{font-size:12px!important;line-height:1.22!important;}
+.guest-invoice-v162 .invoice-main-grid{display:grid!important;grid-template-columns:1.05fr 1fr!important;gap:26px!important;align-items:start!important;}
+.guest-invoice-v162 .invoice-labels>div{display:grid!important;grid-template-columns:88px 1fr!important;gap:8px!important;margin:2px 0!important;align-items:start!important;}
+.guest-invoice-v162 .invoice-highlight-value{background:#fff29b!important;border:1px solid #e4be38!important;padding:2px 5px!important;display:inline-block!important;min-height:14px!important;}
+.guest-invoice-v162 .invoice-money-block{display:grid!important;gap:3px!important;}
+.guest-invoice-v162 .invoice-money-block .invoice-row{display:grid!important;grid-template-columns:1.2fr .75fr .88fr!important;gap:10px!important;align-items:start!important;white-space:normal!important;}
+.guest-invoice-v162 .invoice-money-block .invoice-row span{font-weight:700!important;color:#111!important;}
+.guest-invoice-v162 .invoice-money-block .invoice-row em{font-style:normal!important;text-align:left!important;color:#111!important;}
+.guest-invoice-v162 .invoice-money-block .invoice-row b{text-align:right!important;color:#111!important;white-space:nowrap!important;}
+.guest-invoice-v162 .invoice-selected-items,.guest-invoice-v162 .invoice-cash-note{display:none!important;}
+.guest-invoice-v162 .invoice-totals small{display:none!important;}
+.guest-invoice-v162 .invoice-food-alert{display:grid!important;grid-template-columns:110px 1fr!important;gap:10px!important;margin:7px 0!important;align-items:stretch!important;}
+.guest-invoice-v162 .invoice-food-alert b{color:#d00000!important;letter-spacing:.07em!important;line-height:1.05!important;}
+.guest-invoice-v162 .invoice-food-alert span{background:#fff29b!important;border:1px solid #e53935!important;padding:4px 8px!important;color:#111!important;}
+.guest-invoice-v162 .invoice-rule-box-v162 span{display:block!important;color:#111!important;margin:2px 0!important;}
+.guest-invoice-v162 .tip-suggestions-v162{display:grid!important;grid-template-columns:120px 1fr!important;gap:10px!important;align-items:start!important;border:1px solid #111!important;margin-top:12px!important;padding:7px!important;}
+.guest-invoice-v162 .tip-suggestions-v162>b{color:#111!important;text-transform:uppercase!important;}
+.guest-invoice-v162 .tip-suggestions-v162 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;}
+.guest-invoice-v162 .tip-suggestions-v162 th,.guest-invoice-v162 .tip-suggestions-v162 td{border-bottom:1px dotted #999!important;text-align:right!important;padding:2px 4px!important;color:#111!important;}
+.guest-invoice-v162 .tip-suggestions-v162 th:first-child,.guest-invoice-v162 .tip-suggestions-v162 td:first-child{text-align:left!important;}
+.guest-invoice-v162 .tip-suggestions-v162 em{grid-column:2!important;color:#b00000!important;font-style:normal!important;font-weight:800!important;font-size:10px!important;}

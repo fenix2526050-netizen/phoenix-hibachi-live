@@ -1303,7 +1303,7 @@ const PHX_DEFAULT_PRICING_V140 = {
     firstPartyCoupon: 50,
     birthdayCoupon: 50,
     socialCoupon: 50,
-    couponMinimumParty: 600,
+    couponMinimumParty: 700,
     chefAdultRate: 15,
     chefKidRate: 7.5,
     chefMinimumPayout: 150,
@@ -4201,14 +4201,14 @@ document.getElementById('socialCouponForm')?.addEventListener('submit', (event) 
     platform: fd.get('platform') || 'Social',
     postLink: link,
     orderId: lastSubmittedOrder?.id || '',
-    coupon: '$50 next-party coupon only · minimum next party $600 · cannot combine',
+    coupon: '$50 next-party coupon only · show approved coupon to chef · cannot combine',
     status: 'pending staff review after order acceptance/completion'
   };
   const list = JSON.parse(localStorage.getItem(SOCIAL_COUPON_KEY) || '[]');
   list.unshift(request);
   localStorage.setItem(SOCIAL_COUPON_KEY, JSON.stringify(list));
   event.currentTarget.reset();
-  alert('Share link submitted. Staff will review it before issuing the $50 next-party coupon.');
+  alert('Share link submitted. Staff will review it before issuing the $50 next-party coupon. Show the approved coupon to the chef for confirmation.');
 });
 
 
@@ -13186,4 +13186,172 @@ setTimeout(() => {
     } catch (error) { console.warn('V160 Supabase avatar remove skipped:', error); }
   }, true);
   setInterval(() => { const url = currentAvatarUrl(); if (url) setAvatarDom(url); }, 1200);
+})();
+
+
+/* ======================================================================
+   PHX V162 — Customer Service role fix + invoice/coupon cleanup
+   ====================================================================== */
+(function phoenixV162FinalCleanup(){
+  window.PHX_BUILD_VERSION = 'V162_COUPON_INVOICE_ROLE_CLEANUP';
+
+  function escV162(value){
+    try { return (typeof escapeHtml === 'function' ? escapeHtml(value ?? '') : String(value ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))); }
+    catch { return String(value ?? ''); }
+  }
+  function moneyV162(value){
+    try { return (typeof money === 'function' ? money(value) : '$' + Number(value || 0).toFixed(2).replace(/\.00$/,'')); }
+    catch { return '$' + Number(value || 0).toFixed(2); }
+  }
+  function uiRoleFromProfileV162(profileRole){
+    const raw = String(profileRole || '').toLowerCase();
+    if (raw === 'admin') return 'Admin';
+    if (raw === 'manager') return 'Manager';
+    if (raw === 'customer_service' || raw === 'customerservice' || raw === 'customer service') return 'Customer Service';
+    if (raw === 'chef') return 'Chef';
+    return 'Member';
+  }
+  function selectedLoginRoleV162(form){
+    return form?.querySelector?.('.login-tabs .active')?.textContent?.trim() || 'Member';
+  }
+  function resolveDashboardRoleV162(profile, selected){
+    const actual = uiRoleFromProfileV162(profile?.role);
+    const choice = selected || 'Member';
+    if (actual === 'Admin') {
+      // Admin can preview other portals, but default Member selection should not accidentally downgrade admin login.
+      return choice && choice !== 'Member' ? choice : 'Admin';
+    }
+    if (actual === 'Manager') {
+      return ['Customer Service','Chef'].includes(choice) ? choice : 'Manager';
+    }
+    if (actual === 'Customer Service') return 'Customer Service';
+    if (actual === 'Chef') return 'Chef';
+    return 'Member';
+  }
+
+  // Stop old login handler from forcing the wrong dashboard role. This also fixes the customer-service/member mismatch.
+  const form = document.getElementById('portalLoginForm');
+  if (form && !window.__PHX_V162_LOGIN_CAPTURE__) {
+    window.__PHX_V162_LOGIN_CAPTURE__ = true;
+    form.addEventListener('submit', async function(event){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const email = form.querySelector('input[type="email"]')?.value?.trim();
+      const password = form.querySelector('input[type="password"]')?.value || '';
+      const chosen = selectedLoginRoleV162(form);
+      if (!email || !password) { alert('Please enter your portal email and password.'); return; }
+      try {
+        const profile = await signInPortal(email, password);
+        const role = resolveDashboardRoleV162(profile, chosen);
+        try { setPortalSessionMeta(role, email); } catch {}
+        try { await loadDashboardDataFromSupabase(); } catch (loadError) { console.warn('Dashboard live data load warning:', loadError); }
+        try { document.getElementById('loginModal')?.close(); } catch {}
+        if (typeof isPortalRoute === 'function' && isPortalRoute()) {
+          renderDashboard(role);
+          const modal = document.getElementById('dashboardModal');
+          if (modal && typeof modal.showModal === 'function' && !modal.open) modal.showModal();
+        } else if (typeof openPortalInNewTab === 'function') {
+          openPortalInNewTab();
+        } else {
+          window.location.href = '#portal';
+        }
+      } catch (error) {
+        alert('Login failed: ' + (error?.message || error));
+      }
+    }, true);
+  }
+
+  // Make the dispatch tab useful when no orders are assigned yet.
+  function improveDispatchEmptyV162(){
+    const panel = document.getElementById('chefDispatch');
+    if (!panel) return;
+    const text = (panel.textContent || '').trim();
+    if (/Assigned routes will appear here/i.test(text)) {
+      panel.innerHTML = '<div class="empty-state"><b>No assigned routes yet.</b><br>Chef Dispatch is for assigning accepted bookings to chefs, reviewing the route order, customer address, map link, travel fee, and chef notes. Accept or assign orders from the Orders tab first; then routes will appear here.</div>';
+    }
+  }
+  const previousRenderDashboardV162 = typeof renderDashboard === 'function' ? renderDashboard : null;
+  if (previousRenderDashboardV162 && !window.__PHX_V162_RENDER_WRAP__) {
+    window.__PHX_V162_RENDER_WRAP__ = true;
+    renderDashboard = function(role){
+      const out = previousRenderDashboardV162.apply(this, arguments);
+      setTimeout(improveDispatchEmptyV162, 80);
+      return out;
+    };
+  }
+  setTimeout(improveDispatchEmptyV162, 400);
+
+  // Clean guest invoice from the source instead of relying on CSS hiding old blocks.
+  if (typeof guestInvoiceHtml === 'function' && typeof calculateOrderMoney === 'function' && !window.__PHX_V162_INVOICE_REPLACED__) {
+    window.__PHX_V162_INVOICE_REPLACED__ = true;
+    guestInvoiceHtml = function(order = {}){
+      const m = calculateOrderMoney(order);
+      const ref = escV162(order.id || (typeof generateOrderId === 'function' ? generateOrderId('PHX') : 'PHX'));
+      const addonsRows = (m.addons || []).length
+        ? m.addons.map(item => `<div class="invoice-row"><span>${escV162(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><em></em><b>Total: ${moneyV162(item.price)}</b></div>`).join('')
+        : `<div class="invoice-row"><span>Add-ons</span><em></em><b>Total: $0</b></div>`;
+      const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${moneyV162(m.proteinUpcharge)}</b></div>` : '';
+      const proteinLine = `${m.proteinSelectedTotal || 0}/${m.proteinRequiredTotal || 0} portions ${typeof proteinSummary === 'function' ? proteinSummary(m.proteinSelections) : ''}`;
+      const allergies = (order.allergies || []).join(', ') || order.allergyNotes || 'None listed';
+      const tipTotal20 = m.guestTotalAfterDeposit + m.tip20;
+      const tipTotal25 = m.guestTotalAfterDeposit + m.tip25;
+      const tipTotal30 = m.guestTotalAfterDeposit + m.tip30;
+      return `<section class="guest-invoice guest-invoice-v162">
+        <div class="invoice-top-line"></div>
+        <div class="invoice-ref">Ref ID: ${ref}</div>
+        <div class="invoice-brand"><strong>PHOENIX HIBACHI</strong><span>347-471-9190</span><span>www.phoenixhibachi.com</span></div>
+        <div class="invoice-main-grid">
+          <div class="invoice-labels invoice-labels-v162">
+            <div><b>When:</b><span class="invoice-highlight-value">${escV162(typeof invoiceDateLine === 'function' ? invoiceDateLine(order) : [order.eventDate, order.eventTime].filter(Boolean).join(' '))}</span></div>
+            <div><b>Name:</b><span class="invoice-highlight-value">${escV162(order.name)}</span></div>
+            <div><b>Phone:</b><span class="invoice-highlight-value">${escV162(order.phone)}</span></div>
+            <div><b>Address:</b><span class="invoice-highlight-value">${escV162(order.address)}</span></div>
+            <div><b>Number of Adult:</b><span>${m.adults}</span></div>
+            <div><b>Number of Kids:</b><span>${m.kids}</span></div>
+          </div>
+          <div class="invoice-money-block invoice-money-block-v162">
+            <div class="invoice-row"><span>Adult</span><em>Total: ${m.adults}</em><b>Total: ${moneyV162(m.adultFoodTotal)}</b></div>
+            <div class="invoice-row"><span>Kid</span><em>Total: ${m.kids}</em><b>Total: ${moneyV162(m.kidFoodTotal)}</b></div>
+            <div class="invoice-row"><span>Package charge</span><em>${escV162(m.packageName)}</em><b>Total: ${moneyV162(m.packageSubtotal)}</b></div>
+            ${premiumProteinRow}
+            ${addonsRows}
+            <div class="invoice-row"><span>Travel Fee</span><em></em><b>Total: ${moneyV162(m.travelFee)}</b></div>
+            <div class="invoice-row"><span>Sales Tax</span><em>${escV162(m.taxLabel)}</em><b>Total: ${moneyV162(m.salesTax)}</b></div>
+          </div>
+        </div>
+        <div class="invoice-totals invoice-totals-v162">
+          <div><b>Promotion code:</b><span>${order.couponCode ? escV162(order.couponCode) : ''}</span></div>
+          <div><b>Discount:</b><span>${moneyV162(m.discount)}</span></div>
+          <div><b>Subtotal before tax:</b><span>${moneyV162(m.foodSubtotal + m.travelFee)}</span></div>
+          <div><b>Sales tax:</b><span>${moneyV162(m.salesTax)}</span></div>
+          <div><b>Total:</b><span>${moneyV162(m.guestTotalBeforeDeposit)}</span></div>
+          <div><b>Deposit paid:</b><span>${moneyV162(m.depositPaid)}</span></div>
+          <div><b>Balance due:</b><span>${moneyV162(m.guestTotalAfterDeposit)}</span></div>
+        </div>
+        <div class="invoice-notes invoice-food-alert"><b>FOOD ALLERGIES</b><span>${escV162(allergies)}</span></div>
+        <div class="invoice-protein-detail invoice-food-alert"><b>PROTEIN SELECTIONS</b><span>${escV162(proteinLine)}</span></div>
+        <div class="invoice-rule-box invoice-rule-box-v162">
+          <b>Member / Coupon Rules</b>
+          <span>Member credit special: add $1,000 Phoenix Party Credit and receive $100 bonus credit after staff activation.</span>
+          <span>First booking with food/package subtotal before tax over $700: receive a $50 coupon for your next Phoenix Hibachi party after staff review.</span>
+          <span>Birthday party: one free starter tray such as edamame or gyoza may be offered when noted during booking. Birthday guest must show valid ID to the chef on event day.</span>
+          <span>Confirmed/completed-event social share: $50 next-party coupon after staff review. Show the approved coupon to the chef for confirmation.</span>
+          <strong class="coupon-red-warning">Coupons cannot be combined. One coupon or promotion per party. Coupons have no cash value and cannot be used for travel fee, tax, or tips.</strong>
+        </div>
+        <div class="tip-suggestions-final tip-suggestions-v162">
+          <b>Tip Suggestions</b>
+          <table>
+            <thead><tr><th>Rate</th><th>Tip</th><th>Total if added</th></tr></thead>
+            <tbody>
+              <tr><td>20%</td><td>${moneyV162(m.tip20)}</td><td>${moneyV162(tipTotal20)}</td></tr>
+              <tr><td>25%</td><td>${moneyV162(m.tip25)}</td><td>${moneyV162(tipTotal25)}</td></tr>
+              <tr><td>30%</td><td>${moneyV162(m.tip30)}</td><td>${moneyV162(tipTotal30)}</td></tr>
+            </tbody>
+          </table>
+          <em>Tips are optional and appreciated. Cash tips only.</em>
+        </div>
+        <div class="invoice-footer-red">THIS IS AN AUTOMATED EMAIL / INVOICE. PLEASE DO NOT REPLY TO THIS MESSAGE.</div>
+      </section>`;
+    };
+  }
 })();

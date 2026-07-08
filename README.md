@@ -1,11 +1,12 @@
-# Phoenix Hibachi V161 — 72-Hour Policy & Media Terms Update
+# Phoenix Hibachi V162 — Coupon, Invoice & Portal Cleanup
 
-This version updates customer-facing cancellation language from 72-hour and adds a promotional photo/video notice to the booking terms.
+Connected to the clean live Supabase project.
 
 Main changes:
-- Replaced customer-facing 72-hour cancellation language throughout the site.
-- Updated assistant/AI helper policy responses to match the 72-hour policy.
-- Added promotional photos/videos disclaimer to the booking Terms & Waiver modal.
-- Kept the clean live Supabase connection from the current live build.
+- Fixed Customer Service/Admin portal role handling so staff does not accidentally open Member dashboard.
+- Reworked guest invoice: aligned right-side totals, removed duplicate yellow payment/food notes, cleaned tip table.
+- Updated coupon wording across customer-facing pages and invoice.
+- Added red coupon non-combination warning.
+- Added small UI stability fixes for login/dashboard jitter.
 
-Upload the extracted files and folders directly to the GitHub repository root. Do not upload this ZIP file itself.
+Upload extracted files to GitHub repository root. Do not upload this ZIP itself.
