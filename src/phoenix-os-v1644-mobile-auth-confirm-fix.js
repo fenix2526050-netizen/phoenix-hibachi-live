@@ -240,6 +240,7 @@
   }
 
   window.addEventListener('submit', async (event) => {
+    if (window.__PHX_OS_V1646_LOGIN_ASSISTANT_FINALIZE__) return;
     const form = event.target?.closest?.('#portalLoginForm');
     if (!form) return;
     event.preventDefault();

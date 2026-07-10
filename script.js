@@ -189,7 +189,7 @@ window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
 
       const ok = await confirmDialog({
         title: 'Delete this order?',
-        message: `确定删除订单 ${orderId} 吗？确认后后台会隐藏；如果连接 Supabase，会标记为 deleted。`,
+        message: `确定删除订单 ${orderId} 吗？确认后后台会隐藏，并同步把 Supabase 里的该订单状态设为 deleted。`,
         okText: 'Yes, delete order',
         cancelText: 'Cancel'
       });
@@ -5022,14 +5022,14 @@ document.addEventListener('click', async (event) => {
   const orderId = btn.dataset.deleteOrder || btn.closest('.order-card')?.querySelector('strong')?.textContent?.match(/\bPHX-[A-Z0-9-]+\b/i)?.[0] || '';
   const ok = await window.phoenixConfirmV71({
     title: 'Delete this order?',
-    message: `Order ${orderId || ''} will be hidden from this dashboard. Connected Supabase orders will be marked deleted. Continue?`,
+    message: `Order ${orderId || ''} will be hidden from this dashboard and synced to Supabase as status = deleted. Continue?`,
     okText: 'Yes, delete order',
     cancelText: 'Cancel'
   });
   if (!ok) return;
   btn.disabled = true;
   await deleteOrderV71(orderId);
-  window.phoenixToastV71(`Order ${orderId} deleted/hidden.`, 'success');
+  window.phoenixToastV71(`Order ${orderId} deleted and synced.`, 'success');
 }, true);
 
 const previousRenderDashboardV71 = typeof renderDashboard === 'function' ? renderDashboard : null;
@@ -5257,14 +5257,14 @@ document.addEventListener('click', async (event) => {
     const orderId = deleteOrderBtn.dataset.deleteOrder || extractOrderIdFromCardV70(deleteOrderBtn.closest('.order-card'));
     const ok = await window.phoenixConfirmV70({
       title: 'Delete this order?',
-      message: `Order ${orderId || ''} will be hidden from this dashboard. If connected to Supabase, it will be marked deleted. Continue?`,
+      message: `Order ${orderId || ''} will be hidden from this dashboard and synced to Supabase as status = deleted. Continue?`,
       okText: 'Yes, delete order',
       cancelText: 'Cancel'
     });
     if (!ok) return;
     deleteOrderBtn.disabled = true;
     await deleteOrderRecordV70(orderId);
-    toastV70(`Order ${orderId} deleted/hidden.`, 'success');
+    toastV70(`Order ${orderId} deleted and synced.`, 'success');
     return;
   }
 
@@ -5286,7 +5286,7 @@ document.addEventListener('click', async (event) => {
     }
     deletePersonBtn.closest('.customer-row, .order-card, .application-card')?.remove();
     try { renderDashboard(currentDashboardRole || 'Admin'); } catch {}
-    toastV70('Record deleted/hidden from dashboard.', 'success');
+    toastV70('Record deleted and synced.', 'success');
   }
 }, true);
 

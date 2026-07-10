@@ -317,11 +317,13 @@
     const user = session?.user || window.supabaseSession?.user || null;
     let profile = window.supabaseProfile || null;
     if (user?.id && client.from) {
-      const res = await client.from('profiles').select('*').eq('id', user.id).maybeSingle().catch(() => ({}));
-      if (res?.data) {
-        profile = res.data;
-        try { window.supabaseProfile = profile; } catch {}
-      }
+      try {
+        const res = await client.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        if (res?.data) {
+          profile = res.data;
+          try { window.supabaseProfile = profile; } catch {}
+        }
+      } catch {}
     }
     return { client, session, user, profile };
   }
@@ -358,7 +360,9 @@
     setLocalAvatar('');
     refreshAvatarDom('');
     if (client && user?.id) {
-      await client.from('profiles').update({ avatar_url:null, updated_at: new Date().toISOString() }).eq('id', user.id).catch(() => {});
+      try {
+        await client.from('profiles').update({ avatar_url:null, updated_at: new Date().toISOString() }).eq('id', user.id);
+      } catch {}
       try { window.supabaseProfile = { ...(window.supabaseProfile || {}), avatar_url:null }; } catch {}
       setAvatarStatus('Profile photo removed.', 'ok');
     }
