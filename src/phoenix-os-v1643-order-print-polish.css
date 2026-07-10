@@ -1,0 +1,228 @@
+/* Phoenix OS V164.3 — Order age and clean one-page invoice print. */
+
+.phx-v1643-order-header {
+  display: grid !important;
+  grid-template-columns: minmax(160px, 1fr) auto auto !important;
+  align-items: start !important;
+  gap: 10px !important;
+}
+.phx-v1643-order-age {
+  justify-self: end;
+  align-self: start;
+  border: 1px solid rgba(255, 203, 82, .24);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: rgba(255, 238, 190, .92);
+  background: rgba(255, 205, 89, .07);
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+[data-v120-action="time"] { display: none !important; }
+
+.print-modal[open] .print-card #printArea.phx-v1643-print-polish,
+.print-modal[open] .print-card #printArea.phx-force-one-page-v1641.phx-v1643-print-polish {
+  width: 8.05in !important;
+  max-width: none !important;
+  padding: .26in .30in !important;
+  margin: 0 auto 14px !important;
+  zoom: .96 !important;
+  background: #fff !important;
+  color: #111 !important;
+}
+.print-modal[open] .print-card #printArea.phx-v1643-print-polish .guest-invoice {
+  font-size: 12.4px !important;
+  line-height: 1.13 !important;
+}
+.print-modal[open] .print-card #printArea.phx-v1643-print-polish .invoice-top-line { background: #888 !important; height: 1px !important; }
+.print-modal[open] .print-card #printArea.phx-v1643-print-polish .invoice-highlight-yellow span,
+.print-modal[open] .print-card #printArea.phx-v1643-print-polish .invoice-food-alert span { background: #fff8c9 !important; }
+
+@media print {
+  @page { size: Letter portrait; margin: 4.5mm; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish,
+  body.printing-invoice #printArea.phx-v1643-print-polish.invoice-paper,
+  body.printing-invoice #printArea.phx-force-one-page-v1641.phx-v1643-print-polish,
+  body.printing-invoice #printArea.phx-force-one-page-v1641.phx-v1643-print-polish.invoice-paper {
+    width: 100% !important;
+    min-height: auto !important;
+    height: auto !important;
+    max-height: 10.58in !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    print-color-adjust: economy !important;
+    -webkit-print-color-adjust: economy !important;
+  }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .guest-invoice {
+    width: 7.72in !important;
+    max-width: 7.72in !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    max-height: 10.48in !important;
+    overflow: hidden !important;
+    font-size: 8.05pt !important;
+    line-height: 1.06 !important;
+    color: #111 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish[data-print-fit="compact"] .guest-invoice { font-size: 7.55pt !important; line-height: 1.03 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish[data-print-fit="ultra"] .guest-invoice { font-size: 7.05pt !important; line-height: 1.0 !important; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-top-line {
+    height: 1px !important;
+    background: #777 !important;
+    margin: 0 0 5px !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-ref {
+    font-size: 6.6pt !important;
+    margin: 0 0 3px !important;
+    color: #333 !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-brand {
+    gap: 1px !important;
+    margin: 0 0 7px !important;
+    color: #183b78 !important;
+    letter-spacing: .06em !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-logo-v103,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-logo-v164 {
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0 auto 1px !important;
+    opacity: .9 !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-brand strong { font-size: 9.4pt !important; color:#143d98 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-brand span { font-size: 5.9pt !important; color:#222 !important; letter-spacing:0 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-brand-contact { display:flex !important; justify-content:center !important; gap:8px !important; flex-wrap:wrap !important; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-main-grid {
+    display: grid !important;
+    grid-template-columns: .96fr 1.06fr !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-labels { gap: 1px !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-labels div,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-notes,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-protein-detail,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-remark {
+    display: grid !important;
+    grid-template-columns: 82px 1fr !important;
+    gap: 4px !important;
+    margin: 0 0 2px !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-labels b,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-notes b,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-protein-detail b { color:#111 !important; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-highlight-yellow span,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-highlight-value,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-food-alert span {
+    background: #fff8ce !important;
+    border: 1px solid #e8d889 !important;
+    padding: 2px 5px !important;
+    min-height: auto !important;
+    color: #111 !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-food-alert b {
+    color: #a80000 !important;
+    letter-spacing: .035em !important;
+  }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-money-block { gap: 1px !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-row {
+    display: grid !important;
+    grid-template-columns: 1.13fr .62fr .84fr !important;
+    gap: 5px !important;
+    line-height: 1.05 !important;
+    align-items: start !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-row span { font-weight: 650 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-row em { font-style: normal !important; color:#333 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-row b { text-align:right !important; white-space:nowrap !important; color:#111 !important; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-payment-grid-v164,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-ledger-grid-v164,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-rule-box,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-security-seal-v103,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-security-seal-v164,
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions,
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final,
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-clean {
+    margin: 5px 0 !important;
+    padding: 4px 6px !important;
+    gap: 2px !important;
+    border-color: #cfcfcf !important;
+    background: #fffdf4 !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-payment-grid-v164 div,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-ledger-grid-v164 div {
+    display:flex !important;
+    justify-content:space-between !important;
+    gap:10px !important;
+    border-bottom: 1px dotted #c9c9c9 !important;
+    padding: 0 0 2px !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .balance-due-v164 span,
+  body.printing-invoice #printArea.phx-v1643-print-polish .balance-due-v164 b {
+    color:#b00000 !important;
+    font-size: 10.4pt !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-rule-box { background:#fbfbfb !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-rule-box b { font-size: 7.5pt !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-rule-box span,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-security-seal-v103 span,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-security-seal-v164 span {
+    font-size: 6.45pt !important;
+    line-height: 1.05 !important;
+    color:#333 !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .coupon-red-warning { font-size: 6.8pt !important; color:#a80000 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-cash-note { display:none !important; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final {
+    display:grid !important;
+    grid-template-columns: 88px 1fr !important;
+    align-items:start !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final b { text-transform:uppercase !important; color:#111 !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final table {
+    width:100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    font-size: 6.6pt !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final th,
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final td {
+    border-bottom: 1px dotted #d4d4d4 !important;
+    padding: 1px 3px !important;
+    text-align:right !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final th:first-child,
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final td:first-child { text-align:left !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .tip-suggestions-final em { grid-column: 2 !important; font-size: 6pt !important; color:#9b0000 !important; }
+
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-security-seal-v164,
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-security-seal-v103 {
+    border: 1px dashed #d7b456 !important;
+    background: #fffdf2 !important;
+  }
+  body.printing-invoice #printArea.phx-v1643-print-polish .invoice-footer-red { display:none !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .guest-invoice-v164::before,
+  body.printing-invoice #printArea.phx-v1643-print-polish .guest-invoice-v103::before { color: rgba(20,61,152,.035) !important; }
+  body.printing-invoice #printArea.phx-v1643-print-polish .guest-invoice-v164::after,
+  body.printing-invoice #printArea.phx-v1643-print-polish .guest-invoice-v103::after { display:none !important; }
+}
+
+@media (max-width: 760px) {
+  .phx-v1643-order-header { grid-template-columns: 1fr auto !important; }
+  .phx-v1643-order-age { grid-column: 1 / -1; justify-self: start; }
+}

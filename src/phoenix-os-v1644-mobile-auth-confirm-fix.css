@@ -1,0 +1,170 @@
+/* Phoenix OS V164.4 — mobile overlay + clean auth UX
+   No database schema changes. Works with V164.2 SQL/profile policies. */
+
+/* Put mobile menu above floating quick buttons and page sections. */
+.mobile-nav.open {
+  position: fixed !important;
+  top: calc(env(safe-area-inset-top, 0px) + 74px) !important;
+  left: 12px !important;
+  right: 12px !important;
+  z-index: 2147482000 !important;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 92px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  box-shadow: 0 32px 90px rgba(0,0,0,.82), 0 0 0 9999px rgba(0,0,0,.18) !important;
+}
+.mobile-nav.open a,
+.mobile-nav.open button {
+  position: relative;
+  z-index: 1;
+}
+body.phx-mobile-menu-open .floating-book,
+body.phx-mobile-menu-open .quick-actions,
+body.phx-mobile-menu-open .assist-dock,
+body.phx-mobile-menu-open [data-floating-actions] {
+  z-index: 10 !important;
+  pointer-events: none !important;
+  opacity: .28 !important;
+}
+
+/* Remove the confusing mixed Chinese/English login explainer box. */
+.unified-login-note,
+.phx-v1642-login-helper {
+  display: none !important;
+}
+
+/* Make the login card cleaner after removing helper blocks. */
+.login-card .modal-help {
+  margin-bottom: 18px;
+}
+.login-card label {
+  margin-top: 14px;
+}
+
+/* V164.4 resend/confirmation dialog */
+.phx-v1644-confirm-dialog {
+  border: 0;
+  padding: 0;
+  width: min(92vw, 520px);
+  max-width: min(92vw, 520px);
+  background: transparent;
+  color: #fff;
+  z-index: 2147483647;
+}
+.phx-v1644-confirm-dialog::backdrop {
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(10px);
+}
+.phx-v1644-confirm-card {
+  position: relative;
+  border: 1px solid rgba(244,198,93,.34);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(244,198,93,.22), transparent 36%),
+    linear-gradient(145deg, rgba(12,10,8,.99), rgba(39,24,12,.99));
+  box-shadow: 0 34px 100px rgba(0,0,0,.78), inset 0 1px 0 rgba(255,255,255,.08);
+  padding: 28px 24px 24px;
+  text-align: left;
+  overflow: hidden;
+}
+.phx-v1644-confirm-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ffe8a8, #dda13a, #fff3bf);
+}
+.phx-v1644-confirm-card h3 {
+  margin: 0 0 10px;
+  font-size: clamp(24px, 5vw, 34px);
+  line-height: 1.08;
+  color: #fff7df;
+}
+.phx-v1644-eyebrow {
+  margin: 0 0 8px;
+  color: #f8cf74;
+  text-transform: uppercase;
+  letter-spacing: .17em;
+  font-weight: 900;
+  font-size: 11px;
+}
+.phx-v1644-confirm-card p {
+  margin: 0 0 14px;
+  color: rgba(255,255,255,.82);
+  line-height: 1.55;
+}
+.phx-v1644-confirm-card label {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  font-weight: 850;
+  color: rgba(255,255,255,.86);
+}
+.phx-v1644-confirm-card input {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(244,198,93,.28);
+  background: rgba(0,0,0,.42);
+  color: #fff;
+  padding: 0 14px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.phx-v1644-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.phx-v1644-confirm-actions button,
+.phx-v1644-close {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.phx-v1644-confirm-actions .primary {
+  color: #211407;
+  background: linear-gradient(135deg, #ffe7a3, #d99a32);
+  box-shadow: 0 12px 30px rgba(218,151,45,.22);
+}
+.phx-v1644-confirm-actions .secondary,
+.phx-v1644-close {
+  color: #fff7dd;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+}
+.phx-v1644-confirm-actions button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.phx-v1644-status {
+  min-height: 18px;
+  margin-top: 10px;
+  color: #ffe0a3;
+  font-size: 13px;
+  font-weight: 800;
+}
+.phx-v1644-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+/* Better inline login errors when an exact message is shown. */
+.phx-v1644-login-error {
+  margin: 14px 0;
+  border: 1px solid rgba(255,102,102,.55);
+  border-radius: 18px;
+  background: rgba(90,10,10,.48);
+  color: #ffe4e4;
+  padding: 14px;
+  font-weight: 850;
+  line-height: 1.42;
+}
