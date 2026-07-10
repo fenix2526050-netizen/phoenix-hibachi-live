@@ -1,0 +1,119 @@
+/* Phoenix OS V164.6 — login isolation + dashboard assistant top-layer tools */
+.phx-v1646-login-error {
+  margin: 14px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255,88,88,.68);
+  border-radius: 20px;
+  background: rgba(85, 12, 10, .72);
+  color: #fff5ec;
+  font-weight: 900;
+  line-height: 1.35;
+}
+.phx-v1646-confirm-display,
+.phx-v1644-confirm-dialog [data-v1645-confirm-display] {
+  display:block;
+  margin: 14px 0 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(245,196,82,.36);
+  border-radius: 18px;
+  background: rgba(0,0,0,.42);
+  color: #fff7df;
+  word-break: break-word;
+}
+.phx-v1646-confirm-display small,
+.phx-v1644-confirm-dialog [data-v1645-confirm-display] small {
+  display:block;
+  margin-bottom: 4px;
+  opacity:.72;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-size: .74em;
+}
+.phx-v1644-confirm-dialog [data-v1644-email-wrap] { display:none !important; }
+#phxV1646AssistantDialog,
+#phxV1646ContactToolsDialog,
+#phxV1646AssistantDialog[open],
+#phxV1646ContactToolsDialog[open] {
+  z-index: 2147483640 !important;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff8e8;
+  max-width: min(92vw, 720px);
+  width: min(92vw, 720px);
+}
+#phxV1646AssistantDialog::backdrop,
+#phxV1646ContactToolsDialog::backdrop {
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(8px);
+}
+.phx-v1646-assistant-card,
+.phx-v1646-contact-card {
+  position: relative;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid rgba(245,196,82,.42);
+  border-radius: 28px;
+  background: radial-gradient(circle at 18% 0%, rgba(255,209,92,.18), transparent 34%), rgba(15,11,7,.96);
+  box-shadow: 0 28px 90px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.phx-v1646-x {
+  position:absolute;
+  right: 18px;
+  top: 18px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(245,196,82,.35);
+  background: rgba(255,255,255,.08);
+  color:#fff8e8;
+  font-size: 28px;
+  font-weight: 900;
+}
+.phx-v1646-eyebrow {
+  margin: 0 54px 8px 0;
+  color:#ffd777;
+  text-transform:uppercase;
+  letter-spacing:.16em;
+  font-weight:900;
+  font-size:.8rem;
+}
+.phx-v1646-assistant-card h3,
+.phx-v1646-contact-card h3 {
+  margin: 0 54px 12px 0;
+  font-family: Georgia, serif;
+  font-size: clamp(30px, 5vw, 48px);
+  line-height: 1;
+}
+.phx-v1646-help { color: rgba(255,248,232,.72); line-height:1.45; font-weight:700; }
+.phx-v1646-tool-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; margin:20px 0; }
+.phx-v1646-tool-grid button,
+.phx-v1646-contact-list a {
+  display:block;
+  border: 1px solid rgba(245,196,82,.38);
+  border-radius: 18px;
+  background: rgba(255,255,255,.05);
+  color:#fff2ce;
+  padding: 16px 18px;
+  text-decoration:none;
+  font-weight:900;
+}
+.phx-v1646-tool-grid button:hover,
+.phx-v1646-contact-list a:hover { background: rgba(245,196,82,.13); }
+.phx-v1646-contact-list { display:grid; gap:12px; margin-top:18px; }
+.phx-v1646-contact-list span { display:block; margin-top:4px; color: rgba(255,248,232,.68); font-weight:700; }
+.phx-v1646-answer {
+  min-height: 58px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.34);
+  color:#fff8e8;
+  line-height:1.45;
+}
+@media (max-width: 620px) {
+  .phx-v1646-tool-grid { grid-template-columns: 1fr; }
+  #phxV1646AssistantDialog,
+  #phxV1646ContactToolsDialog { width: calc(100vw - 24px); max-width: calc(100vw - 24px); }
+  .phx-v1646-assistant-card,
+  .phx-v1646-contact-card { border-radius: 24px; }
+}
