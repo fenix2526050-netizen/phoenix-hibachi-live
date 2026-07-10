@@ -2857,7 +2857,7 @@ function guestInvoiceHtml(order) {
   return `<section class="guest-invoice">
     <div class="invoice-top-line"></div>
     <div class="invoice-ref">Ref ID: ${ref}</div>
-    <div class="invoice-brand"><strong>PHOENIX HIBACHI</strong><span>347-471-9190</span><span>www.phoenixhibachi.com</span></div>
+    <div class="invoice-brand"><strong>PHOENIX HIBACHI</strong><span>(516) 518-3325</span><span>phoenix-hibachi.com</span></div>
     <div class="invoice-main-grid">
       <div class="invoice-labels">
         <div class="invoice-highlight-yellow"><b>When:</b><span>${printSafe(invoiceDateLine(order))}</span></div>
@@ -3071,7 +3071,7 @@ function showBookingSuccess(order) {
     ].map(([label,value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     if (isLocalFallback) {
       const smsBody = encodeURIComponent(localFallbackSmsBody(order));
-      successReceipt.insertAdjacentHTML('afterbegin', `<div class="local-fallback-warning"><span>Important</span><strong>Server connection failed on this device. <a href="sms:13474719190?&body=${smsBody}">Text this request to Phoenix Hibachi</a>.</strong></div>`);
+      successReceipt.insertAdjacentHTML('afterbegin', `<div class="local-fallback-warning"><span>Important</span><strong>Server connection failed on this device. <a href="sms:15165183325?&body=${smsBody}">Text this request to Phoenix Hibachi</a>.</strong></div>`);
     }
   }
   if (typeof successModal?.showModal === 'function') successModal.showModal();
@@ -3996,14 +3996,14 @@ function clearBookingSubmitNoticeV98(){
 function showBookingSubmitNoticeV98(error){
   const box = ensureBookingSubmitNoticeV98();
   const cleanError = String(error || 'Unknown booking error').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-  const supportPhone = '347-471-9190';
+  const supportPhone = '(516) 518-3325';
   if (!box) {
     alert('Your booking was NOT submitted. Please call/text Phoenix Hibachi at ' + supportPhone + ' or try again. Error: ' + error);
     return;
   }
   box.innerHTML = `
     <strong>Booking was not submitted.</strong>
-    <span>Please check the highlighted issue, try again, or call/text Phoenix Hibachi at <a href="tel:13474719190">${supportPhone}</a>.</span>
+    <span>Please check the highlighted issue, try again, or call/text Phoenix Hibachi at <a href="tel:15165183325">${supportPhone}</a>.</span>
     <small>Error: ${cleanError}</small>
   `;
   box.hidden = false;
@@ -4488,10 +4488,10 @@ document.addEventListener('click', (event) => {
 const V60_CONTACT_SETTINGS_KEY = 'phoenixHibachiContactSettingsV60';
 const V60_FORCE_PASSWORD_KEY = 'phoenixHibachiForcePasswordChangeV60';
 const DEFAULT_V60_CONTACTS = {
-  phone: '3474719190',
-  textPhone: '3474719190',
-  bookingEmail: 'phoenix4719190@gmail.com',
-  supportEmail: 'phoenix4719190@gmail.com',
+  phone: '5165183325',
+  textPhone: '5165183325',
+  bookingEmail: 'booking@phoenix-hibachi.com',
+  supportEmail: 'support@phoenix-hibachi.com',
   policy: 'Over 72 hours: cancellation can be reviewed. Inside 72 hours: deposit is non-refundable; reschedule only.'
 };
 function formatPhoneV60(value){
@@ -4511,9 +4511,9 @@ function applyContactSettingsV60(){
   const call=document.getElementById('contactCallCard'); if(call){ call.href=`tel:+1${phoneDigits}`; call.querySelector('span') && (call.querySelector('span').textContent=formatPhoneV60(s.phone)); }
   const text=document.getElementById('contactTextCard'); if(text){ text.href=`sms:+1${textDigits}`; text.querySelector('span') && (text.querySelector('span').textContent=`${formatPhoneV60(s.textPhone||s.phone)} · Fastest for same-week party questions`); }
   const mail=document.getElementById('contactEmailCard'); if(mail){ mail.href=`mailto:${email}`; mail.querySelector('span') && (mail.querySelector('span').textContent=email); }
-  document.querySelectorAll('a[href^="tel:+10000000000"],a[href^="tel:+13474719190"]').forEach(a=>a.href=`tel:+1${phoneDigits}`);
-  document.querySelectorAll('a[href^="sms:+10000000000"],a[href^="sms:+13474719190"]').forEach(a=>a.href=`sms:+1${textDigits}`);
-  document.querySelectorAll('a[href^="mailto:bookings@phoenixhibachi.com"],a[href^="mailto:phoenix4719190@gmail.com"]').forEach(a=>a.href=`mailto:${email}`);
+  document.querySelectorAll('a[href^="tel:+10000000000"],a[href^="tel:+15165183325"]').forEach(a=>a.href=`tel:+1${phoneDigits}`);
+  document.querySelectorAll('a[href^="sms:+10000000000"],a[href^="sms:+15165183325"]').forEach(a=>a.href=`sms:+1${textDigits}`);
+  document.querySelectorAll('a[href^="mailto:booking@phoenix-hibachi.com"],a[href^="mailto:booking@phoenix-hibachi.com"]').forEach(a=>a.href=`mailto:${email}`);
   const policyBox=[...document.querySelectorAll('.contact-modal .contact-card, .contact-modal .policy-box, .contact-modal [class*="policy"]')].find(el=>/72-hour/i.test(el.textContent||''));
   if(policyBox){ const p=policyBox.querySelector('p,span') || policyBox; if(p) p.textContent=s.policy; }
   const phoneInput=document.getElementById('sitePhoneInput'); if(phoneInput) phoneInput.value=s.phone;
@@ -6842,7 +6842,7 @@ setTimeout(() => {
   }
 
   function formatPhoneV96(value){
-    try { return formatPhoneV60?.(value) || value || '347-471-9190'; } catch { return value || '347-471-9190'; }
+    try { return formatPhoneV60?.(value) || value || '(516) 518-3325'; } catch { return value || '(516) 518-3325'; }
   }
 
   function assignedChefInfoV96(order = {}){
@@ -6865,8 +6865,8 @@ setTimeout(() => {
     const accepted = statusKey.includes('accepted') || statusKey.includes('confirmed') || statusKey.includes('prep') || statusKey.includes('completed');
     const m = calculateOrderMoney(order);
     const settings = contactSettingsV96();
-    const supportPhone = settings.textPhone || settings.phone || '3474719190';
-    const supportEmail = settings.supportEmail || settings.bookingEmail || 'phoenix4719190@gmail.com';
+    const supportPhone = settings.textPhone || settings.phone || '5165183325';
+    const supportEmail = settings.supportEmail || settings.bookingEmail || 'support@phoenix-hibachi.com';
     const chef = assignedChefInfoV96(order);
     const statusText = typeof humanOrderStatus === 'function' ? humanOrderStatus(order.status) : (order.status || 'Pending manager review');
     const chefLine = chef.phone ? `${chef.name} · ${formatPhoneV96(chef.phone)}` : chef.name;
@@ -7832,8 +7832,8 @@ setTimeout(() => {
     const m = calculateOrderMoney(order);
     const chef = v101ConfirmedChef(order);
     const settings = (() => { try { return getContactSettingsV60?.() || {}; } catch { return {}; } })();
-    const supportPhone = settings.textPhone || settings.phone || '3474719190';
-    const supportEmail = settings.supportEmail || settings.bookingEmail || 'phoenix4719190@gmail.com';
+    const supportPhone = settings.textPhone || settings.phone || '5165183325';
+    const supportEmail = settings.supportEmail || settings.bookingEmail || 'support@phoenix-hibachi.com';
     const status = typeof humanOrderStatus === 'function' ? humanOrderStatus(order.status) : (order.status || 'Pending manager review');
     const confirmed = String(order.status || '').toLowerCase().match(/confirm|accept|assigned|complete|updated/);
     const chefLine = chef.phone ? `${chef.name} · ${chef.phone}` : chef.name;
@@ -8459,7 +8459,7 @@ setTimeout(() => {
         <b>Payment:</b> ${esc(order.paymentStatus || order.payment_status || 'Not paid yet')}</p>
         <div class="lookup-actions-v103">
           <button type="button" class="gold-btn-mini" data-print-lookup="${esc(id)}">Print invoice</button>
-          <a href="tel:13474719190">Call Phoenix</a>
+          <a href="tel:15165183325">Call Phoenix</a>
         </div>
         <small>${esc(visibleNote || 'Use this order number to check updates anytime.')}</small>
       </div>`;
@@ -8916,7 +8916,7 @@ setTimeout(() => {
         <b>Chef:</b> ${esc(chef.phone ? `${chef.name} · ${chef.phone}` : chef.name)}<br>
         <b>Payment:</b> ${esc(meta.status || order.paymentStatus || order.payment_status || 'Not paid yet')}${meta.method ? ` · ${esc(meta.method)}` : ''}</p>
         ${meta.customerNote ? `<div class="lookup-payment-v107">${esc(meta.customerNote)}</div>` : ''}
-        <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${esc(id)}">Print invoice</button><a href="tel:13474719190">Call Phoenix</a></div>
+        <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${esc(id)}">Print invoice</button><a href="tel:15165183325">Call Phoenix</a></div>
         <small>Use this order number to check updates anytime.</small>
       </div>`;
     };
@@ -9074,7 +9074,7 @@ setTimeout(() => {
       <b>Payment:</b> ${escV109(paymentLine)}</p>
       ${meta.customerNote ? `<div class="lookup-note-v109">${escV109(meta.customerNote)}</div>` : ''}
       ${meta.paymentNote ? `<div class="lookup-payment-v107">${escV109(meta.paymentNote)}</div>` : ''}
-      <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${escV109(id)}">Print invoice</button><a href="tel:13474719190">Call Phoenix</a></div>
+      <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${escV109(id)}">Print invoice</button><a href="tel:15165183325">Call Phoenix</a></div>
       <small>Use this order number to check updates anytime. The schedule shown above is the latest Phoenix Hibachi record.</small>
     </div>`;
   }
@@ -9469,7 +9469,7 @@ setTimeout(() => {
       <div class="lookup-policy-v110"><b>Payment notice:</b> Orders may not be fully confirmed until Phoenix Hibachi confirms the deposit/payment has been received. If you paid by transfer, please allow customer service to verify it manually.</div>
       <div class="lookup-policy-v110"><b>Schedule change policy:</b> Event time changes must be handled by Phoenix customer service and manually confirmed. Please request changes at least 72 hours before the party whenever possible.</div>
       ${pay.note ? `<div class="lookup-payment-v107">${esc(pay.note)}</div>` : ''}
-      <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${esc(id)}">Print invoice</button><a href="tel:13474719190">Call Phoenix</a></div>
+      <div class="lookup-actions-v103"><button type="button" class="gold-btn-mini" data-print-lookup="${esc(id)}">Print invoice</button><a href="tel:15165183325">Call Phoenix</a></div>
       <small>Use this order number to check updates anytime. This page shows the latest Phoenix Hibachi record.</small>
     </div>`;
   }
@@ -12813,13 +12813,13 @@ setTimeout(() => {
     return String(value || '').replace(/[<>]/g, '').trim();
   }
   function supportTextPhoneV143(){
-    let raw = '3474719190';
+    let raw = '5165183325';
     try {
       const settings = typeof getContactSettingsV60 === 'function' ? getContactSettingsV60() : null;
       raw = settings?.textPhone || settings?.phone || raw;
     } catch {}
     const digits = String(raw || '').replace(/\D/g, '');
-    return digits.length === 10 ? `+1${digits}` : (digits.startsWith('1') ? `+${digits}` : `+1${digits || '3474719190'}`);
+    return digits.length === 10 ? `+1${digits}` : (digits.startsWith('1') ? `+${digits}` : `+1${digits || '5165183325'}`);
   }
   function refreshPackageOptionsV143(){
     if (!quotePackageSelect) return;
@@ -13299,7 +13299,7 @@ setTimeout(() => {
       return `<section class="guest-invoice guest-invoice-v162">
         <div class="invoice-top-line"></div>
         <div class="invoice-ref">Ref ID: ${ref}</div>
-        <div class="invoice-brand"><strong>PHOENIX HIBACHI</strong><span>347-471-9190</span><span>www.phoenixhibachi.com</span></div>
+        <div class="invoice-brand"><strong>PHOENIX HIBACHI</strong><span>(516) 518-3325</span><span>phoenix-hibachi.com</span></div>
         <div class="invoice-main-grid">
           <div class="invoice-labels invoice-labels-v162">
             <div><b>When:</b><span class="invoice-highlight-value">${escV162(typeof invoiceDateLine === 'function' ? invoiceDateLine(order) : [order.eventDate, order.eventTime].filter(Boolean).join(' '))}</span></div>

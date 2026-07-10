@@ -31,9 +31,9 @@ In Supabase CLI or dashboard, set these secrets:
 
 ```bash
 supabase secrets set RESEND_API_KEY="re_xxx"
-supabase secrets set ADMIN_EMAIL="phoenix4719190@gmail.com"
+supabase secrets set ADMIN_EMAIL="phoenixhibachi.team@gmail.com"
 supabase secrets set FROM_EMAIL="Phoenix Hibachi <orders@yourdomain.com>"
-supabase secrets set SITE_PHONE="347-471-9190"
+supabase secrets set SITE_PHONE="(516) 518-3325"
 supabase secrets set ORDER_PDF_BUCKET="order-pdfs"
 ```
 

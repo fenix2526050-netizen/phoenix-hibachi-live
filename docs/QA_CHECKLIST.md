@@ -56,6 +56,6 @@
 - [ ] Domain connected
 - [ ] HTTPS active
 - [ ] Google Business link points to domain
-- [ ] Contact phone is 347-471-9190
-- [ ] Contact email is phoenix4719190@gmail.com
+- [ ] Contact phone is (516) 518-3325
+- [ ] Contact email is phoenixhibachi.team@gmail.com
 - [ ] Test booking deleted after QA

@@ -1,9 +1,9 @@
-export const PHOENIX_APP_VERSION = 'V88_ARCHITECTURE_FOUNDATION';
+export const PHOENIX_APP_VERSION = 'V164_PHOENIX_OS_MASTER_BUILD';
 
 export const CONTACT_DEFAULTS = Object.freeze({
   businessName: 'Phoenix Hibachi',
-  adminEmail: 'phoenix4719190@gmail.com',
-  phone: '3474719190',
+  adminEmail: 'phoenixhibachi.team@gmail.com',
+  phone: '5165183325',
 });
 
 export const STORAGE_BUCKETS = Object.freeze({

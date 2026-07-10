@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, degrees } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,9 +11,11 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "phoenix4719190@gmail.com";
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Phoenix Hibachi <orders@phoenixhibachi.com>";
-const SITE_PHONE = Deno.env.get("SITE_PHONE") || "347-471-9190";
+const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "orders@phoenix-hibachi.com";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Phoenix Hibachi <orders@phoenix-hibachi.com>";
+const SITE_PHONE = Deno.env.get("SITE_PHONE") || "(516) 518-3325";
+const SITE_URL = Deno.env.get("SITE_URL") || "https://phoenix-hibachi.com";
+const BOOKING_EMAIL = Deno.env.get("BOOKING_EMAIL") || "booking@phoenix-hibachi.com";
 const BUCKET = Deno.env.get("ORDER_PDF_BUCKET") || "order-pdfs";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -34,6 +36,7 @@ function bookingHtml(b: Booking, pdfUrl?: string) {
   return `
   <div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f160f">
     <h2 style="margin:0 0 8px;color:#8a4f10">Phoenix Hibachi Booking Confirmation</h2>
+    <p style="margin:0 0 12px;color:#6b4a18"><b>Website:</b> ${SITE_URL} · <b>Text/Call:</b> ${SITE_PHONE} · <b>Email:</b> ${BOOKING_EMAIL}</p>
     <p>Thank you for your booking request. Phoenix Hibachi will review the details and confirm the final arrival window.</p>
     <table cellpadding="8" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;width:100%;max-width:720px">
       <tr><td><b>Order #</b></td><td>${number}</td></tr>
@@ -50,7 +53,8 @@ function bookingHtml(b: Booking, pdfUrl?: string) {
       <tr><td><b>Status</b></td><td>${value(b.status)}</td></tr>
     </table>
     ${pdfUrl ? `<p><a href="${pdfUrl}">Download PDF invoice</a></p>` : ""}
-    <p>Questions? Call or text ${SITE_PHONE}.</p>
+    <p>Questions? Call or text ${SITE_PHONE}, email ${BOOKING_EMAIL}, or visit <a href="${SITE_URL}">${SITE_URL}</a>.</p>
+    <p style="font-size:12px;color:#7a5a2a">Coupons cannot be combined. Gift card/wallet credits are payment methods, not coupons. Zelle payments must be manually confirmed by Phoenix Hibachi before the balance is marked paid.</p>
   </div>`;
 }
 
@@ -64,6 +68,7 @@ async function makePdf(b: Booking): Promise<Uint8Array> {
     page.drawText(text.slice(0, 95), { x: 54, y, size, font: isBold ? bold : font, color: rgb(0.12, 0.09, 0.06) });
     y -= size + 9;
   };
+  page.drawText("PHOENIX HIBACHI", { x: 82, y: 405, size: 44, font: bold, color: rgb(0.95, 0.82, 0.48), opacity: 0.10, rotate: degrees(-28) });
   draw("PHOENIX HIBACHI", 20, true);
   draw(`Order PDF / Booking Confirmation`, 13, true);
   y -= 8;
@@ -79,8 +84,14 @@ async function makePdf(b: Booking): Promise<Uint8Array> {
     ["Package", value(b.package_name)],
     ["Add-ons", Array.isArray(b.add_ons) ? b.add_ons.map((x: any) => x.name || x).join(", ") : value(b.add_ons)],
     ["Allergies", Array.isArray(b.allergies) ? b.allergies.join(", ") : value(b.allergies)],
+    ["Proteins", value(b.protein_summary)],
+    ["Food Subtotal", money(b.food_subtotal)],
+    ["Sales Tax", money(b.sales_tax)],
     ["Travel Fee", money(b.travel_fee)],
+    ["Final Total", money(b.final_total)],
     ["Deposit", money(b.deposit_amount)],
+    ["Paid Amount", money(b.paid_amount)],
+    ["Balance Due", money(b.balance_due)],
     ["Payment Status", value(b.payment_status)],
     ["Status", value(b.status)],
     ["Notes", value(b.admin_notes)],
@@ -90,8 +101,9 @@ async function makePdf(b: Booking): Promise<Uint8Array> {
     draw(`${label}: ${text}`, 11, label === "Order #");
   }
   y -= 12;
-  draw(`Contact: ${SITE_PHONE}`, 10, true);
+  draw(`Contact: ${SITE_PHONE} | ${BOOKING_EMAIL} | ${SITE_URL}`, 10, true);
   draw("This PDF was generated automatically by Phoenix Hibachi booking system.", 9);
+  draw("Coupons cannot be combined. Zelle payments require manual confirmation.", 9);
   return await pdf.save();
 }
 

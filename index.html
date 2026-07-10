@@ -10,6 +10,7 @@
   <meta property="og:type" content="website" />
   <link rel="icon" href="assets/phoenix-logo-transparent-64.png" type="image/png">
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="src/phoenix-os-master-v164.css" />
 </head>
 <body>
   <div class="top-strip service-strip compact-service-strip">
@@ -301,7 +302,7 @@
 
   <footer class="footer">
     <div class="container footer-grid">
-      <div><a class="brand footer-brand" href="#home"><span class="logo-badge"><img src="assets/phoenix-logo-transparent.png" alt="Phoenix Hibachi 3D phoenix logo"></span><span class="brand-text"><strong>Phoenix Hibachi</strong><small>Private Backyard Catering</small></span></a><p>Private hibachi catering in NY, NJ, CT & Long Island. Fire, food, and showmanship — right in your backyard.</p><p class="muted">📍 Brooklyn, Queens, Long Island, NJ, CT<br>✉ phoenix4719190@gmail.com</p></div>
+      <div><a class="brand footer-brand" href="#home"><span class="logo-badge"><img src="assets/phoenix-logo-transparent.png" alt="Phoenix Hibachi 3D phoenix logo"></span><span class="brand-text"><strong>Phoenix Hibachi</strong><small>Private Backyard Catering</small></span></a><p>Private hibachi catering in NY, NJ, CT & Long Island. Fire, food, and showmanship — right in your backyard.</p><p class="muted">📍 Brooklyn, Queens, Long Island, NJ, CT<br>✉ booking@phoenix-hibachi.com</p></div>
       <div><h4>Service Areas</h4><p>Brooklyn & Queens<br>Long Island East & West<br>New Jersey<br>Connecticut</p></div>
       <div><h4>Packages</h4><p>Classic — $55 / person<br>Premium — $65 / person<br>Signature — $110 / person</p></div>
       <div><h4>Add-ons</h4><p>Sushi Roll Tray<br>Premium Sushi Tray<br>Gyoza & Edamame<br>Noodle / Yakisoba Tray</p></div>
@@ -321,9 +322,9 @@
       <p class="modal-help">For new events, booking questions, chef timing, rain plan, complaints, cancellation/reschedule requests, or allergy concerns, send us a message and a manager can review it.</p>
       <div class="policy-alert compact"><strong>72-hour policy</strong><span>Over 72 hours: cancellation can be reviewed. Inside 72 hours: deposit is non-refundable; reschedule only.</span></div>
       <div class="contact-options">
-        <a href="tel:+13474719190" id="contactCallCard"><strong>Call Phoenix Hibachi</strong><span id="contactPhoneText">347-471-9190</span></a>
-        <a href="sms:+13474719190" id="contactTextCard"><strong>Text Us</strong><span id="contactTextPhoneText">347-471-9190 · Fastest for same-week party questions</span></a>
-        <a href="mailto:phoenix4719190@gmail.com" id="contactEmailCard"><strong>Email Us</strong><span id="contactEmailText">phoenix4719190@gmail.com</span></a>
+        <a href="tel:+15165183325" id="contactCallCard"><strong>Call Phoenix Hibachi</strong><span id="contactPhoneText">(516) 518-3325</span></a>
+        <a href="sms:+15165183325" id="contactTextCard"><strong>Text Us</strong><span id="contactTextPhoneText">(516) 518-3325 · Fastest for same-week party questions</span></a>
+        <a href="mailto:booking@phoenix-hibachi.com" id="contactEmailCard"><strong>Email Us</strong><span id="contactEmailText">booking@phoenix-hibachi.com</span></a>
         <button type="button" data-contact-feedback><strong>Guest Feedback</strong><span>Suggestions, compliments or complaints</span></button>
       </div>
       <div class="contact-actions">
@@ -390,7 +391,7 @@
       <label>Notes / question<textarea name="quoteNotes" placeholder="Birthday party, sushi tray, kids soda, allergy, parking, rain plan, exact address later..."></textarea></label>
       <div class="quick-quote-total" id="quoteEstimateText">Estimated total will appear here.</div>
       <div class="quick-quote-actions">
-        <a class="gold-btn" id="quoteTextBtn" href="sms:+13474719190">Text This Quote</a>
+        <a class="gold-btn" id="quoteTextBtn" href="sms:+15165183325">Text This Quote</a>
         <button type="button" class="outline-btn" id="quoteStartBookingBtn">Go to Full Booking</button>
       </div>
       <small class="quote-disclaimer">Final price still depends on exact address, tolls, parking, date/time availability, tax, add-ons, and manager confirmation.</small>
@@ -710,14 +711,12 @@
     <form method="dialog" class="modal-card login-card" id="portalLoginForm">
       <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
       <p class="eyebrow">Login</p>
-      <h2>Phoenix Portal</h2>
-      <p class="modal-help">Use your Phoenix Hibachi portal account. Email and password are required. After successful login, your dashboard opens in a new tab and stays signed in for 8 hours.</p>
-      <div class="login-tabs" role="tablist" aria-label="Login role">
+      <h2>Phoenix Account Login</h2>
+      <p class="modal-help">Use one Phoenix Hibachi account login. After login, the system opens the right dashboard for your account role.</p>
+      <div class="login-tabs phx-unified-login-tabs" role="presentation" aria-hidden="true">
         <button type="button" class="active">Member</button>
-        <button type="button">Chef</button>
-        <button type="button">Customer Service</button>
-        <button type="button">Admin</button>
       </div>
+      <div class="unified-login-note">One login入口 · Member / Chef / Customer Service / Manager / Admin dashboards open automatically by account role.</div>
       <label>Email<input type="email" placeholder="email@example.com" required></label>
       <label>Password<input type="password" placeholder="Password" required></label>
       <button class="gold-btn" value="submit">Login</button>
@@ -1025,6 +1024,7 @@
   <script src="script.js"></script>
   <script src="src/orders-dispatch-v120.js"></script>
   <script src="src/phoenix-v140-admin-content.js"></script>
+  <script src="src/phoenix-os-master-v164.js"></script>
   <script type="module" src="src/app/main.js"></script>
   <!-- v7 uses Geoapify Autocomplete directly in script.js.
        Before launch, restrict the API key to your Replit preview domain and final website domain in Geoapify settings. -->

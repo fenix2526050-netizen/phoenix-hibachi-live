@@ -1,0 +1,171 @@
+/* Phoenix OS Master Build V164
+   Purpose: final customer-facing overrides without patch-stacking core flows.
+   Scope: unified login, invoice branding, modal scroll/focus, public contact privacy.
+*/
+:root {
+  --phx-business-phone: "(516) 518-3325";
+}
+
+/* One neutral public login入口. Role routing happens after authentication. */
+.phx-unified-login-tabs { display: none !important; }
+.unified-login-note {
+  border: 1px solid rgba(255,215,121,.22);
+  background: rgba(255,215,121,.07);
+  border-radius: 16px;
+  padding: 10px 12px;
+  color: var(--soft, #d9c7a6);
+  font-size: .82rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+/* Modal / dropdown repair: the dialog shell can hide overflow, but the card must scroll. */
+dialog[open] { overflow: hidden; }
+.booking-modal[open], .login-modal[open], .dashboard-modal[open], .print-modal[open] {
+  max-height: 100dvh;
+}
+.booking-modal .modal-card,
+.login-modal .modal-card,
+.dashboard-modal .modal-card,
+.print-modal .modal-card,
+#changePasswordModal .modal-card {
+  max-height: calc(100dvh - 24px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.mobile-nav.open {
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Clean close icon. Remove ugly mobile blue focus ring, keep accessible focus-visible. */
+.modal-close {
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-grid !important;
+  place-items: center;
+  line-height: 0;
+  font-size: 0 !important;
+}
+.modal-close:focus { outline: none !important; box-shadow: none !important; }
+.modal-close:focus-visible {
+  outline: 2px solid rgba(243,190,76,.82) !important;
+  outline-offset: 3px;
+}
+.modal-close svg { width: 17px; height: 17px; display: block; pointer-events: none; }
+
+/* V164 invoice branding: restored logo + watermark + official contact. */
+.guest-invoice-v164 {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.guest-invoice-v164::before {
+  content: attr(data-watermark);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%) rotate(-28deg);
+  width: 160%;
+  text-align: center;
+  font-size: 42px;
+  font-weight: 950;
+  letter-spacing: .16em;
+  color: rgba(20,61,152,.060);
+  white-space: normal;
+  z-index: -1;
+}
+.guest-invoice-v164::after {
+  content: "PHOENIX HIBACHI • AUTHENTIC ORDER • PHOENIX HIBACHI • AUTHENTIC ORDER";
+  position: absolute;
+  left: -40px;
+  right: -40px;
+  bottom: 86px;
+  transform: rotate(-12deg);
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: .22em;
+  color: rgba(214,154,22,.14);
+  text-align: center;
+  z-index: -1;
+}
+.invoice-brand-v164 {
+  text-align: center;
+  position: relative;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+.invoice-logo-v164 {
+  width: 88px !important;
+  height: 88px !important;
+  object-fit: contain !important;
+  display: block !important;
+  margin: 0 auto 3px !important;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.invoice-brand-v164 .invoice-brand-contact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #3b2a17;
+}
+.invoice-security-seal-v164 {
+  border: 1px dashed #ba8500;
+  background: rgba(255,246,213,.76);
+  padding: 10px 12px;
+  margin: 16px 0;
+  display: grid;
+  gap: 4px;
+  color: #111;
+}
+.invoice-security-seal-v164 b {
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.invoice-security-seal-v164 span { font-size: 13px; color: #333; }
+.invoice-payment-grid-v164,
+.invoice-ledger-grid-v164 {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+  border: 1px solid rgba(0,0,0,.13);
+  background: rgba(255,255,255,.72);
+  padding: 12px;
+}
+.invoice-ledger-grid-v164 div,
+.invoice-payment-grid-v164 div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px dotted rgba(0,0,0,.18);
+  padding-bottom: 5px;
+}
+.invoice-ledger-grid-v164 div:last-child,
+.invoice-payment-grid-v164 div:last-child { border-bottom: 0; }
+.invoice-ledger-grid-v164 b,
+.invoice-payment-grid-v164 b { color: #111; }
+.invoice-ledger-grid-v164 .balance-due-v164 b,
+.invoice-ledger-grid-v164 .balance-due-v164 span {
+  font-size: 1.05rem;
+  color: #8a140c;
+  font-weight: 950;
+}
+.invoice-rule-box-v164 .coupon-red-warning { color: #b00000; font-weight: 950; }
+
+@media(max-width:760px){
+  .guest-invoice-v164::before{font-size:26px;width:180%;}
+  .invoice-logo-v164{width:66px!important;height:66px!important;}
+}
+@media print{
+  .guest-invoice-v164::before{color:rgba(20,61,152,.075)!important;}
+  .guest-invoice-v164::after{color:rgba(214,154,22,.16)!important;}
+  .invoice-logo-v164,.invoice-security-seal-v164{print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+}

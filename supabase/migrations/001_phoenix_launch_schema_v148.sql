@@ -348,7 +348,7 @@ insert into public.app_settings (key, value, public_read) values
   {"id":"shop-shirt","title":"Phoenix Hibachi Merch","price":25,"image":"assets/phoenix-logo-transparent.png","link":"#shop","status":"Coming soon","summary":"T-shirts, hats, aprons, and chef-themed merchandise.","published":true}
 ]'::jsonb, true),
 ('hero_media_v140', '{}'::jsonb, true),
-('contact_settings', '{"business_name":"Phoenix Hibachi","business_phone":"347-471-9190","text_phone":"347-471-9190","booking_email":"booking@phoenixhibachi.com","support_email":"support@phoenixhibachi.com","service_area_text":"NY, NJ, CT, Long Island","cancellation_policy_title":"48-Hour Policy","cancellation_policy_text":"Deposits are non-refundable inside 48 hours. Reschedule requests are subject to availability."}'::jsonb, true)
+('contact_settings', '{"business_name":"Phoenix Hibachi","business_phone":"(516) 518-3325","text_phone":"(516) 518-3325","booking_email":"booking@phoenix-hibachi.com","support_email":"support@phoenix-hibachi.com","service_area_text":"NY, NJ, CT, Long Island","cancellation_policy_title":"48-Hour Policy","cancellation_policy_text":"Deposits are applied toward your final balance. Cancellations within 72 hours of the event may be non-refundable. Rescheduling is subject to availability and must be confirmed by Phoenix Hibachi."}'::jsonb, true)
 on conflict (key) do nothing;
 
 -- -----------------------------------------------------------------------------
