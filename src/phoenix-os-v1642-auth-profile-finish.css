@@ -1,0 +1,136 @@
+/* Phoenix Hibachi V164.2 — Auth/Profile finish
+   - Center top-layer system notices
+   - Login/email confirmation helper
+   - Logout/session reset polish
+   - Persistent avatar status UI
+*/
+
+.phx-v1642-system-dialog {
+  border: 0;
+  padding: 0;
+  max-width: min(92vw, 460px);
+  background: transparent;
+  color: #fff;
+  z-index: 2147483647;
+}
+.phx-v1642-system-dialog::backdrop {
+  background: rgba(0,0,0,.66);
+  backdrop-filter: blur(10px);
+}
+.phx-v1642-system-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(244, 198, 93, .38);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(244,198,93,.24), transparent 34%),
+    linear-gradient(145deg, rgba(16,14,12,.98), rgba(36,22,13,.98));
+  box-shadow: 0 34px 90px rgba(0,0,0,.72), inset 0 1px 0 rgba(255,255,255,.08);
+  padding: 28px 26px 24px;
+  text-align: center;
+}
+.phx-v1642-system-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f6d47b, #d8962f, #fff2b2);
+}
+.phx-v1642-eyebrow {
+  margin: 0 0 8px;
+  color: #f8cf74;
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-size: 11px;
+  font-weight: 800;
+}
+.phx-v1642-system-card h3 {
+  margin: 0 0 10px;
+  color: #fff7df;
+  font-size: clamp(21px, 4.5vw, 28px);
+  line-height: 1.12;
+}
+.phx-v1642-system-card p {
+  margin: 0;
+  color: rgba(255,255,255,.84);
+  line-height: 1.55;
+  white-space: pre-line;
+}
+.phx-v1642-system-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+.phx-v1642-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 850;
+  cursor: pointer;
+  color: #211407;
+  background: linear-gradient(135deg, #ffe7a3, #d99a32);
+  box-shadow: 0 12px 30px rgba(218,151,45,.24);
+}
+.phx-v1642-btn.secondary {
+  color: #fff7dd;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: none;
+}
+.phx-v1642-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.16);
+  color: #fff7dd;
+  background: rgba(255,255,255,.08);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.phx-v1642-close:focus { outline: none; }
+.phx-v1642-close:focus-visible { outline: 2px solid rgba(244,198,93,.85); outline-offset: 3px; }
+
+.phx-v1642-login-helper {
+  margin-top: 12px;
+  border: 1px solid rgba(244,198,93,.26);
+  border-radius: 16px;
+  background: rgba(244,198,93,.08);
+  padding: 12px;
+  color: rgba(255,255,255,.82);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.phx-v1642-login-helper button {
+  margin-top: 8px;
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #2a1808;
+  background: linear-gradient(135deg, #ffe7a3, #d99a32);
+}
+
+.phx-v1642-avatar-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,.72);
+}
+.phx-v1642-avatar-status.ok { color: #c9f7d2; }
+.phx-v1642-avatar-status.warn { color: #ffe0a3; }
+.phx-v1642-avatar-status.error { color: #ffb7b7; }
+
+body.phx-v1642-logging-out .portal-account,
+body.phx-v1642-logging-out #portalAccount,
+body.phx-v1642-logging-out #mobilePortalEntry {
+  display: none !important;
+}
+body.phx-v1642-logging-out .login-entry,
+body.phx-v1642-logging-out .mobile-login-entry {
+  display: inline-flex !important;
+}
