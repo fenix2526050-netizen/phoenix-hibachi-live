@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="src/phoenix-v224-stripe.css" />
   <link rel="stylesheet" href="src/phoenix-v225-cash-benefits.css" />
   <link rel="stylesheet" href="src/phoenix-v226-video-media.css" />
-  <meta name="phx-build" content="V226_COMPLETE_OPTIMIZED" />
+  <meta name="phx-build" content="V227_UX_POLISH" />
   <script src="https://js.stripe.com/v3/"></script>
   <script src="src/phoenix-payment-config.js"></script>
 </head>
@@ -105,7 +105,8 @@
           </div>
         </div>
         <div class="hero-card reveal delay-1 hero-photo-card" aria-label="Private hibachi chef live fire show video">
-          <video class="hero-live-video" autoplay muted loop playsinline webkit-playsinline preload="metadata" poster="assets/hero-live-show-poster.webp" aria-label="Hibachi live show video" data-video-source="cloudflare-r2">
+          <video class="hero-live-video" autoplay muted loop playsinline webkit-playsinline preload="auto" poster="assets/hero-live-show-poster.webp" aria-label="Hibachi live show video" data-video-source="cloudflare-r2-with-local-fallback">
+            <source src="assets/hero-live-show-video.mp4" type="video/mp4">
             Your browser does not support the video tag.
           </video>
           <div class="card-note"><strong>Hibachi Live Show</strong><span>Fire · Food · Performance</span></div>
@@ -571,28 +572,43 @@
           <input id="selectedDateInput" name="eventDate" type="hidden" value="">
         </section>
 
-        <section class="booking-step">
-          <h3>7. Preferred serving window</h3>
-          <p class="helper-line top-helper">Choose your preferred serving time. The chef may arrive earlier to unload and set up, but the party is based on the confirmed service time. Start-time changes are requests and must be confirmed by Phoenix Hibachi or discussed with the assigned chef.</p>
-          <div class="time-chip-grid time-window-grid" id="modalTimeChips">
-            <button type="button" data-time-chip="11:00 AM - 1:00 PM">11:00 AM - 1:00 PM</button>
-            <button type="button" data-time-chip="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</button>
-            <button type="button" data-time-chip="4:00 PM - 6:00 PM" class="selected">4:00 PM - 6:00 PM</button>
-            <button type="button" data-time-chip="7:00 PM - 9:00 PM">7:00 PM - 9:00 PM</button>
+        <section class="booking-step phx-v227-time-step">
+          <h3>7. Preferred serving time</h3>
+          <p class="helper-line top-helper">Choose one preferred start time. Phoenix Hibachi will confirm the exact time after checking chef availability and route timing.</p>
+          <label class="phx-v227-time-picker">Preferred start time
+            <select id="preferredStartTimeSelect" name="preferredStartTime" aria-label="Preferred start time">
+              <option value="11:00 AM">11:00 AM</option>
+              <option value="11:30 AM">11:30 AM</option>
+              <option value="12:00 PM">12:00 PM</option>
+              <option value="12:30 PM">12:30 PM</option>
+              <option value="1:00 PM">1:00 PM</option>
+              <option value="1:30 PM">1:30 PM</option>
+              <option value="2:00 PM">2:00 PM</option>
+              <option value="2:30 PM">2:30 PM</option>
+              <option value="3:00 PM">3:00 PM</option>
+              <option value="3:30 PM">3:30 PM</option>
+              <option value="4:00 PM" selected>4:00 PM</option>
+              <option value="4:30 PM">4:30 PM</option>
+              <option value="5:00 PM">5:00 PM</option>
+              <option value="5:30 PM">5:30 PM</option>
+              <option value="6:00 PM">6:00 PM</option>
+              <option value="6:30 PM">6:30 PM</option>
+              <option value="7:00 PM">7:00 PM</option>
+              <option value="7:30 PM">7:30 PM</option>
+              <option value="8:00 PM">8:00 PM</option>
+              <option value="8:30 PM">8:30 PM</option>
+              <option value="9:00 PM">9:00 PM</option>
+            </select>
+          </label>
+          <p class="helper-line phx-v227-time-note">The chef may arrive earlier to unload and set up. For a time not shown, add it in Special Notes and management will review it.</p>
+          <div class="phx-v227-legacy-time-controls" hidden aria-hidden="true">
+            <div id="modalTimeChips"></div>
+            <input id="customTimeRequest" name="customTimeRequest" type="hidden" value="">
+            <select id="hourSelect" name="eventHour"></select>
+            <select id="minuteSelect" name="eventMinute"></select>
+            <select id="ampmSelect" name="eventAmPm"><option>AM</option><option selected>PM</option></select>
           </div>
-          <div class="custom-time-box">
-            <label>Request another time
-              <input id="customTimeRequest" name="customTimeRequest" type="text" placeholder="Example: 5:30 PM, after 6 PM, or before noon">
-            </label>
-            <p class="helper-line">Custom requests are not guaranteed until Phoenix Hibachi confirms chef availability.</p>
-          </div>
-          <div class="time-select-row" aria-label="Exact time selectors">
-            <label>Hour<select id="hourSelect" name="eventHour"></select></label>
-            <label>Minute<select id="minuteSelect" name="eventMinute"></select></label>
-            <label>AM / PM<select id="ampmSelect" name="eventAmPm"><option>AM</option><option selected>PM</option></select></label>
-          </div>
-          <p class="helper-line">Use the exact-time selector only if you strongly prefer a specific time. It will be saved as a request and confirmed by Phoenix Hibachi before the event.</p>
-          <input id="selectedTimeInput" name="eventTime" type="hidden" value="4:00 PM - 6:00 PM">
+          <input id="selectedTimeInput" name="eventTime" type="hidden" value="4:00 PM">
         </section>
 
         <section class="booking-step">
@@ -632,15 +648,15 @@
               </select>
             </label>
           </div>
-          <div class="terms-checks single-terms terms-compact-card">
+          <div class="terms-checks single-terms terms-compact-card phx-v227-terms-card">
             <div>
-              <strong>Terms, waiver & cancellation policy</strong>
-              <small>Click the checkbox to review the full terms. You must review the full panel before the agreement can be checked.</small>
+              <strong>Terms, waiver, media & cancellation policy</strong>
+              <small>Review everything once in one panel. The required agreement and optional public-media choice are handled together.</small>
             </div>
-            <button type="button" class="outline-btn mini-policy-btn" data-open-booking-terms>Review full terms</button>
-            <label class="terms-agree-line"><input id="bookingPolicyAgree" type="checkbox" required> I have reviewed and agree to the Phoenix Hibachi terms, waiver, setup rules, final guest-count policy, cancellation/reschedule policy, travel-fee review, and $200 deposit policy.</label>
-            <label class="terms-agree-line"><input id="bookingMediaAcknowledge" name="mediaAcknowledge" type="checkbox" value="Yes" required> I understand Phoenix Hibachi may photograph or record the chef, food, grill, and event setup for service records and portfolio content. Identifiable guest faces will not be publicly posted without separate permission.</label>
-            <label class="terms-agree-line optional-media-line"><input id="bookingMarketingConsent" name="marketingConsent" type="checkbox" value="Yes"> Optional: I allow Phoenix Hibachi to publicly use event photos/videos that may include identifiable adult guests for its website, social media, and advertising. I am authorized to give this permission for the adults involved.</label>
+            <button type="button" class="outline-btn mini-policy-btn" data-open-booking-terms>Review & agree</button>
+            <label class="terms-agree-line"><input id="bookingPolicyAgree" type="checkbox" required> I reviewed the complete Phoenix Hibachi booking terms and agree to the required policies.</label>
+            <input id="bookingMediaAcknowledge" name="mediaAcknowledge" type="checkbox" value="Yes" hidden>
+            <input id="bookingMarketingConsent" name="marketingConsent" type="checkbox" value="Yes" hidden>
           </div>
           <textarea name="specialNotes" placeholder="Birthday name, surprise show, stairs, gate code, pets, parking instructions, rain concerns, timing concerns, pool party / extra entertainment requests..."></textarea>
         </section>
@@ -648,7 +664,7 @@
 
       <div class="booking-summary">
         <div class="booking-summary-copy">
-          <span id="bookingSummaryText">Date not selected · 10 guests · $550 minimum food order · 4:00 PM - 6:00 PM · Est. total $550</span>
+          <span id="bookingSummaryText">Date not selected · 10 guests · $550 minimum food order · 4:00 PM · Est. total $550</span>
           <small id="bookingReadyHelp">Complete date, guest count, protein portions, and agreement to send.</small>
         </div>
         <button class="gold-btn" id="sendBookingRequestBtn" value="submit" disabled>Send Booking Request</button>
@@ -678,6 +694,7 @@
         <section><h3>12. Event photos and videos</h3><p>The host must acknowledge before submitting that Phoenix Hibachi may photograph or record the chef, food, grill, and event setup for service records, training, and portfolio content. Identifiable guest faces will not be publicly posted without separate permission. Public marketing use involving identifiable adults requires the optional marketing-consent checkbox or later written permission. Phoenix Hibachi will not intentionally use identifiable images of minors for public advertising without specific permission from a parent or legal guardian.</p></section>
         <section><h3>13. Liability waiver</h3><p>By booking, the customer understands that live hibachi service involves heat, open flame, oil, smoke, sharp tools, hot surfaces, food allergens, outdoor conditions, guest behavior, and any customer-requested entertainment activity. To the fullest extent permitted by law, the customer agrees to hold Phoenix Hibachi, its owners, contractors, chefs, and staff harmless from claims arising from unsafe setup, inaccurate information, guest behavior, pets, children, property conditions, weather, parking/access issues, undisclosed allergies, or extra activities requested by the host or guests.</p></section>
         <section><h3>14. Final agreement</h3><p>By checking the agreement box and submitting the request, the customer confirms that the information provided is accurate, the host accepts these rules, and Phoenix Hibachi may contact the customer by phone, text, or email to confirm details, collect deposit, and finalize the event.</p></section>
+        <label class="terms-marketing-choice"><input id="bookingTermsMarketingConsent" type="checkbox"> Optional: I allow Phoenix Hibachi to publicly use event photos/videos that may include identifiable adult guests for its website, social media, and advertising. This optional choice is not required to book.</label>
       </div>
       <div class="terms-modal-actions">
         <span id="termsScrollHelp">Scroll to the bottom to unlock agreement.</span>
@@ -872,25 +889,27 @@
           <span>You can review or request changes after submission. Final guest count and food selections lock 42 hours before the event. The system will issue a 72-hour cancellation/reschedule reminder and a 42-hour final-count reminder.</span>
         </div>
 
-        <div class="phx-v224-payment-tabs phx-v225-payment-tabs" role="radiogroup" aria-label="Choose intended payment method">
-          <label class="phx-v224-pay-tab phx-v224-pay-tab-primary phx-v225-cash-tab">
+        <div class="phx-v224-payment-tabs phx-v225-payment-tabs phx-v227-payment-tabs" role="radiogroup" aria-label="Choose intended payment method">
+          <label class="phx-v224-pay-tab phx-v224-pay-tab-primary phx-v225-cash-tab phx-v227-preferred-pay">
             <input type="radio" name="paymentPreference" value="cash" checked>
             <span class="phx-v224-pay-icon">$</span>
-            <span><strong>Cash — preferred</strong><small>No online payment now. Cash payment can be recorded by staff later.</small></span>
+            <span><strong>Cash — best price</strong><small>No online fee. Pay after the booking is confirmed.</small></span>
             <span class="phx-v224-recommended">Preferred</span>
           </label>
-          <label class="phx-v224-pay-tab">
+          <label class="phx-v224-pay-tab phx-v227-zelle-tab phx-v227-preferred-pay">
+            <input type="radio" name="paymentPreference" value="zelle">
+            <span class="phx-v224-pay-icon">Z</span>
+            <span><strong>Zelle — recommended</strong><small>No card processing fee. Staff verification required.</small></span>
+            <span class="phx-v224-recommended">Recommended</span>
+          </label>
+          <label class="phx-v224-pay-tab phx-v227-card-tab">
             <input type="radio" name="paymentPreference" value="stripe">
             <span class="phx-v224-pay-icon">▣</span>
-            <span><strong>Secure online payment</strong><small>Card · Apple Pay · Google Pay · Link · Cash App Pay</small></span>
-          </label>
-          <label class="phx-v224-pay-tab">
-            <input type="radio" name="paymentPreference" value="zelle">
-            <span class="phx-v224-pay-icon">Z</span><span><strong>Zelle</strong><small>Manual verification</small></span>
+            <span><strong>Card / digital wallet</strong><small>Eligible credit-card payments may include a disclosed processing fee.</small></span>
           </label>
           <label class="phx-v224-pay-tab">
             <input type="radio" name="paymentPreference" value="venmo">
-            <span class="phx-v224-pay-icon">V</span><span><strong>Venmo</strong><small>Manual verification</small></span>
+            <span class="phx-v224-pay-icon">V</span><span><strong>Venmo</strong><small>Transfer payment · staff verification</small></span>
           </label>
         </div>
 
@@ -898,7 +917,7 @@
           <div class="phx-v225-cash-copy">
             <h3>Cash payment selected</h3>
             <p><b>No payment is required to submit the request.</b> The order stays <b>Pending Review</b>. A manager may request the $200 deposit later to hold the date, or may approve a written exception.</p>
-            <p>Cash is preferred for the remaining balance. Any cash discount or card price difference must be disclosed before payment and will follow the event-state rules shown in the final invoice.</p>
+            <p><b>Cash or Zelle is preferred.</b> Eligible credit-card payments may include a clearly disclosed processing fee where permitted. The exact amount must be shown before the customer pays.</p>
           </div>
         </section>
 
@@ -913,7 +932,7 @@
         </section>
 
         <section class="phx-v224-manual-panel" data-payment-panel="zelle" hidden>
-          <div class="phx-v224-manual-card"><span class="phx-preconfirm-qr"><img src="assets/payment-zelle-qr.png" alt="Zelle QR code for FENY MOTION LLC"></span><div><h3>Zelle</h3><p>Recipient may display as <b>FENY MOTION LLC</b>.</p><a href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer">Open full Zelle card</a></div></div>
+          <div class="phx-v224-manual-card"><span class="phx-preconfirm-qr"><img src="assets/payment-zelle-qr.png" alt="Zelle QR code for FENY MOTION LLC"></span><div><h3>Zelle</h3><p>Pay <b>Phoenix Hibachi</b> by Zelle. The bank recipient may display as <b>FENY MOTION LLC</b>.</p><a href="zelle-payment.html" target="_blank" rel="noopener noreferrer">View Phoenix Hibachi Zelle</a></div></div>
           <label class="phx-preconfirm-ack"><input type="checkbox" id="zelleVerificationAcknowledge"> I already sent the $200 deposit. Staff verification is still required.</label>
         </section>
 
@@ -1173,14 +1192,13 @@
     <div class="modal-card phx-payment-card" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
       <button class="modal-close" type="button" data-close-payment aria-label="Close payment options">×</button>
       <p class="eyebrow">Confirmed booking payment</p>
-      <h2 id="paymentModalTitle">Payment Options</h2>
-      <p class="modal-help"><strong>Cash is preferred.</strong> Zelle and Venmo are available for confirmed deposits or balances. Never send payment until Phoenix Hibachi confirms your booking and amount.</p>
-      <div class="policy-alert compact"><strong>Order reference</strong><span id="paymentOrderReference">Select a confirmed order from your dashboard.</span></div>
-      <div class="phx-payment-grid">
-        <article class="phx-payment-option phx-zelle-option"><h3>Zelle</h3><a class="phx-payment-image-link" href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer" aria-label="Open the full Zelle payment card"><img src="assets/payment-zelle-qr.png" alt="Scannable Zelle QR code for Feny Motion LLC"></a><p>The recipient may display as <b>FENY MOTION LLC</b>, the legal entity operating Phoenix Hibachi.</p><a class="phx-payment-full-link" href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer">View full Zelle card</a></article>
-        <article class="phx-payment-option phx-venmo-option"><h3>Venmo</h3><a class="phx-payment-image-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer" aria-label="Open the full Venmo payment card"><img src="assets/payment-venmo-qr.png" alt="Scannable Venmo QR code for Phoenix Hibachi"></a><p>Venmo account: <b>@Phoenix-Hibachi</b></p><a class="phx-payment-full-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer">View full Venmo card</a></article>
+      <h2 id="paymentModalTitle">Pay Your Confirmed Booking</h2>
+      <div class="policy-alert compact"><strong>Booking reference</strong><span id="paymentOrderReference">Select a confirmed order from your dashboard.</span></div>
+      <div class="phx-payment-grid phx-v227-payment-grid">
+        <article class="phx-payment-option phx-zelle-option"><h3>Phoenix Hibachi · Zelle</h3><a class="phx-payment-image-link" href="zelle-payment.html" target="_blank" rel="noopener noreferrer" aria-label="Open Phoenix Hibachi Zelle payment card"><img src="assets/payment-zelle-qr.png" alt="Phoenix Hibachi Zelle QR code"></a><strong class="phx-v227-payment-account">Recipient may display: FENY MOTION LLC</strong><a class="phx-payment-full-link" href="zelle-payment.html" target="_blank" rel="noopener noreferrer">Open Phoenix Hibachi Zelle</a></article>
+        <article class="phx-payment-option phx-venmo-option"><h3>Phoenix Hibachi · Venmo</h3><a class="phx-payment-image-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer" aria-label="Open Phoenix Hibachi Venmo card"><img src="assets/payment-venmo-qr.png" alt="Phoenix Hibachi Venmo QR code"></a><strong class="phx-v227-payment-account">@Phoenix-Hibachi</strong><a class="phx-payment-full-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer">Open Phoenix Hibachi Venmo</a></article>
       </div>
-      <div class="policy-alert compact"><strong>Payment note required</strong><span>Enter the booking reference number or event name. Sending money does not automatically mark an order paid; staff must verify it.</span></div>
+      <div class="policy-alert compact"><strong>Important</strong><span>Include the booking reference or event name. Staff must verify every transfer before the order is marked paid.</span></div>
       <button class="gold-btn full" type="button" data-close-payment>Done</button>
     </div>
   </div>

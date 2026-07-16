@@ -1043,7 +1043,7 @@ let mainMonth = new Date(2026, 6, 1); // July 2026
 let miniMonth = new Date(2026, 6, 1);
 let selectedDateState = new Date(2026, 6, 11);
 let selectedStatusState = 'limited';
-let selectedTimeState = '4:00 PM - 6:00 PM';
+let selectedTimeState = '4:00 PM';
 
 const daysGrid = document.getElementById('daysGrid');
 const currentMonthLabel = document.getElementById('currentMonthLabel');
@@ -1409,6 +1409,7 @@ const hourSelect = document.getElementById('hourSelect');
 const minuteSelect = document.getElementById('minuteSelect');
 const ampmSelect = document.getElementById('ampmSelect');
 const modalTimeChips = document.getElementById('modalTimeChips');
+const preferredStartTimeSelect = document.getElementById('preferredStartTimeSelect');
 
 function initTimeSelects() {
   if (hourSelect && !hourSelect.options.length) {
@@ -1421,6 +1422,7 @@ function initTimeSelects() {
     }).join('');
   }
   [hourSelect, minuteSelect, ampmSelect].forEach(select => select?.addEventListener('change', updateTimeFromSelects));
+  preferredStartTimeSelect?.addEventListener('change', () => syncTimeControlsFromString(preferredStartTimeSelect.value));
   syncTimeControlsFromString(selectedTimeState);
 }
 
@@ -1709,15 +1711,24 @@ function updateTimeFromSelects() {
 }
 
 function syncTimeControlsFromString(timeString) {
-  const clean = String(timeString || '').trim();
+  const clean = String(timeString || '').trim().replace(/^Requested:\s*/i, '');
   const match = clean.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+  let normalized = '4:00 PM';
   if (match) {
-    if (hourSelect) hourSelect.value = String(Number(match[1]));
-    if (minuteSelect) minuteSelect.value = match[2] || '00';
-    if (ampmSelect) ampmSelect.value = match[3].toUpperCase();
+    const hour = String(Number(match[1]));
+    const minute = match[2] || '00';
+    const ampm = match[3].toUpperCase();
+    normalized = `${hour}:${minute} ${ampm}`;
+    if (hourSelect) hourSelect.value = hour;
+    if (minuteSelect) minuteSelect.value = minute;
+    if (ampmSelect) ampmSelect.value = ampm;
   }
-  selectedTimeState = clean || '4:00 PM - 6:00 PM';
-  if (customTimeRequest && !selectedTimeState.startsWith('Requested:')) customTimeRequest.value = '';
+  selectedTimeState = normalized;
+  if (preferredStartTimeSelect) {
+    const exists = [...preferredStartTimeSelect.options].some(option => option.value === normalized);
+    if (exists) preferredStartTimeSelect.value = normalized;
+  }
+  if (customTimeRequest) customTimeRequest.value = '';
   if (selectedTimeInput) selectedTimeInput.value = selectedTimeState;
   if (selectedTime) selectedTime.textContent = selectedTimeState;
   markSelectedTimeChip(selectedTimeState);
@@ -3016,8 +3027,9 @@ function printSafe(value) { return escapeHtml(value ?? ''); }
 function guestInvoiceHtml(order) {
   const m = calculateOrderMoney(order);
   const ref = printSafe(order.id || generateOrderId('PHX'));
-  const addonsRows = m.addons.length ? m.addons.map(item => `<div class="invoice-row"><span>${printSafe(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><span>Total: ${money(item.price)}</span></div>`).join('') : `<div class="invoice-row"><span>Add-ons</span><span>Total: $0</span></div>`;
+  const addonsRows = m.addons.length ? m.addons.map(item => `<div class="invoice-row invoice-addon-row"><span>${printSafe(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><span>Total: ${money(item.price)}</span></div>`).join('') : `<div class="invoice-row"><span>Add-ons</span><span>Total: $0</span></div>`;
   const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row invoice-food-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${money(m.proteinUpcharge)}</b></div>` : '';
+  const addonAlert = m.addons.length ? `<div class="invoice-addon-alert"><b>ADD-ONS TO BRING</b><span>${m.addons.map(item => `${printSafe(item.name)}${item.qty > 1 ? ` × ${item.qty}` : ''}`).join(' · ')}</span></div>` : '';
   const proteinLine = `${m.proteinSelectedTotal || 0}/${m.proteinRequiredTotal || 0} portions ${proteinSummary(m.proteinSelections)}`;
   const allergies = (order.allergies || []).join(', ') || order.allergyNotes || 'None listed';
   const tipTotal20 = m.guestTotalAfterDeposit + m.tip20;
@@ -3064,6 +3076,7 @@ function guestInvoiceHtml(order) {
     <div class="invoice-cash-note"><b>Guaranteed count:</b><span>The final guest count locks 42 hours before the event. Fewer attendees do not reduce the balance. Extra meals require chef/manager approval and food availability.</span></div>
     <div class="invoice-notes invoice-food-alert"><b>FOOD ALLERGIES</b><span>${printSafe(allergies)}</span></div>
     <div class="invoice-protein-detail invoice-food-alert"><b>PROTEIN SELECTIONS</b><span>${printSafe(proteinLine)}</span></div>
+    ${addonAlert}
     <div class="invoice-rule-box">
       <b>Member / Coupon Rules</b>
       <span>Member credit special: add $1,000 Phoenix Party Credit and receive $100 bonus credit after staff activation.</span>
@@ -13159,6 +13172,9 @@ setTimeout(() => {
   const termsAgreeBtn = document.getElementById('bookingTermsAgreeBtn');
   const termsCloseBtn = document.getElementById('bookingTermsCloseBtn');
   const policyCheckbox = document.getElementById('bookingPolicyAgree');
+  const mediaCheckbox = document.getElementById('bookingMediaAcknowledge');
+  const marketingCheckbox = document.getElementById('bookingMarketingConsent');
+  const modalMarketingCheckbox = document.getElementById('bookingTermsMarketingConsent');
   const help = document.getElementById('termsScrollHelp');
   const extraChefInput = document.getElementById('additionalChefRequested');
 
@@ -13246,6 +13262,7 @@ setTimeout(() => {
     if (termsScroll) termsScroll.scrollTop = 0;
     if (termsAgreeBtn) termsAgreeBtn.disabled = true;
     if (help) help.textContent = 'Scroll to the bottom to unlock agreement.';
+    if (modalMarketingCheckbox && marketingCheckbox) modalMarketingCheckbox.checked = Boolean(marketingCheckbox.checked);
     try { termsModal.showModal(); } catch { termsModal.setAttribute('open',''); }
     setTimeout(() => termsScroll?.focus?.(), 60);
   }
@@ -13276,6 +13293,14 @@ setTimeout(() => {
     if (policyCheckbox) {
       policyCheckbox.checked = true;
       policyCheckbox.dispatchEvent(new Event('change', {bubbles:true}));
+    }
+    if (mediaCheckbox) {
+      mediaCheckbox.checked = true;
+      mediaCheckbox.dispatchEvent(new Event('change', {bubbles:true}));
+    }
+    if (marketingCheckbox) {
+      marketingCheckbox.checked = Boolean(modalMarketingCheckbox?.checked);
+      marketingCheckbox.dispatchEvent(new Event('change', {bubbles:true}));
     }
     try { termsModal?.close(); } catch { termsModal?.removeAttribute('open'); }
     try { if (typeof updateBookingReadyState === 'function') updateBookingReadyState(); } catch {}
@@ -13515,9 +13540,10 @@ setTimeout(() => {
       const m = calculateOrderMoney(order);
       const ref = escV162(order.id || (typeof generateOrderId === 'function' ? generateOrderId('PHX') : 'PHX'));
       const addonsRows = (m.addons || []).length
-        ? m.addons.map(item => `<div class="invoice-row"><span>${escV162(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><em></em><b>Total: ${moneyV162(item.price)}</b></div>`).join('')
+        ? m.addons.map(item => `<div class="invoice-row invoice-addon-row"><span>${escV162(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><em></em><b>Total: ${moneyV162(item.price)}</b></div>`).join('')
         : `<div class="invoice-row"><span>Add-ons</span><em></em><b>Total: $0</b></div>`;
       const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${moneyV162(m.proteinUpcharge)}</b></div>` : '';
+      const addonAlert = (m.addons || []).length ? `<div class="invoice-addon-alert"><b>ADD-ONS TO BRING</b><span>${m.addons.map(item => `${escV162(item.name)}${item.qty > 1 ? ` × ${item.qty}` : ''}`).join(' · ')}</span></div>` : '';
       const proteinLine = `${m.proteinSelectedTotal || 0}/${m.proteinRequiredTotal || 0} portions ${typeof proteinSummary === 'function' ? proteinSummary(m.proteinSelections) : ''}`;
       const allergies = (order.allergies || []).join(', ') || order.allergyNotes || 'None listed';
       const tipTotal20 = m.guestTotalAfterDeposit + m.tip20;
@@ -13558,6 +13584,7 @@ setTimeout(() => {
         </div>
         <div class="invoice-notes invoice-food-alert"><b>FOOD ALLERGIES</b><span>${escV162(allergies)}</span></div>
         <div class="invoice-protein-detail invoice-food-alert"><b>PROTEIN SELECTIONS</b><span>${escV162(proteinLine)}</span></div>
+        ${addonAlert}
         <div class="invoice-rule-box invoice-rule-box-v162">
           <b>Member / Coupon Rules</b>
           <span>Member credit special: add $1,000 Phoenix Party Credit and receive $100 bonus credit after staff activation.</span>

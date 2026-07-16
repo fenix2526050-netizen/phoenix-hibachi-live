@@ -70,15 +70,21 @@
       video.src = asset.source_url;
     }
     if (asset.poster_url) video.poster = asset.poster_url;
-    video.dataset.provider = 'cloudflare-r2';
+    video.dataset.provider = asset.provider || (String(asset.source_url).startsWith('http') ? 'cloudflare-r2' : 'local-fallback');
     video.muted = true;
     video.loop = true;
     video.autoplay = true;
     video.playsInline = true;
     video.preload = 'metadata';
     video.load();
-    const playPromise = video.play();
-    if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+    const tryPlay = () => {
+      video.muted = true;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+    };
+    tryPlay();
+    video.addEventListener('canplay', tryPlay, { once: true });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
     return true;
   }
 

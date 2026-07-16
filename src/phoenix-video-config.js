@@ -7,6 +7,6 @@ window.PhoenixMediaConfig = Object.assign({
   maxGalleryItems: 8,
   keepExistingOnEmpty: true,
   debug: false,
-  heroFallback: { sourceUrl: '', posterUrl: '' },
+  heroFallback: { sourceUrl: 'assets/hero-live-show-video.mp4', posterUrl: 'assets/hero-live-show-poster.webp' },
   galleryFallback: []
 }, window.PhoenixMediaConfig || {});

@@ -4674,3 +4674,51 @@ body{overflow-y:scroll;}
 .guest-invoice-v162 .tip-suggestions-v162 th,.guest-invoice-v162 .tip-suggestions-v162 td{border-bottom:1px dotted #999!important;text-align:right!important;padding:2px 4px!important;color:#111!important;}
 .guest-invoice-v162 .tip-suggestions-v162 th:first-child,.guest-invoice-v162 .tip-suggestions-v162 td:first-child{text-align:left!important;}
 .guest-invoice-v162 .tip-suggestions-v162 em{grid-column:2!important;color:#b00000!important;font-style:normal!important;font-weight:800!important;font-size:10px!important;}
+
+
+/* Phoenix Hibachi V2.2.7 — focused UX cleanup without another CSS/JS layer. */
+.phx-v227-payment-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+.phx-v227-payment-tabs .phx-v224-pay-tab{min-height:108px;padding:15px!important;grid-template-columns:42px minmax(0,1fr) auto!important;align-content:center}
+.phx-v227-payment-tabs .phx-v224-pay-tab:not(.phx-v227-preferred-pay){grid-template-columns:42px minmax(0,1fr)!important}
+.phx-v227-payment-tabs .phx-v224-pay-tab strong{font-size:.96rem;line-height:1.25}
+.phx-v227-payment-tabs .phx-v224-pay-tab small{font-size:.72rem;line-height:1.38}
+.phx-v227-preferred-pay{background:linear-gradient(145deg,rgba(246,189,70,.15),rgba(0,0,0,.24))!important;border-color:rgba(246,189,70,.48)!important}
+.phx-v227-zelle-tab .phx-v224-pay-icon{background:#fff;color:#111}
+.phx-v227-card-tab{border-color:rgba(255,255,255,.16)!important}
+@media(max-width:620px){.phx-v227-payment-tabs{grid-template-columns:1fr!important}.phx-v227-payment-tabs .phx-v224-pay-tab{min-height:94px}.phx-v224-recommended{display:inline-flex!important}}
+
+.phx-v227-time-picker{display:grid!important;gap:8px!important;padding:16px;border:1px solid rgba(246,189,70,.28);border-radius:16px;background:rgba(246,189,70,.055);color:var(--gold2)!important;font-size:.82rem!important;text-transform:uppercase;letter-spacing:.06em}
+.phx-v227-time-picker select{font-size:1.05rem!important;font-weight:900;color:var(--text)!important;text-transform:none;letter-spacing:0}
+.phx-v227-time-note{margin-top:10px!important}
+
+.phx-v227-terms-card{grid-template-columns:minmax(0,1fr) auto!important}
+.phx-v227-terms-card .terms-agree-line{grid-column:1/-1!important}
+.terms-marketing-choice{display:flex!important;gap:10px;align-items:flex-start;margin-top:14px;padding:13px;border:1px solid rgba(246,189,70,.25);border-radius:14px;background:rgba(246,189,70,.07);color:var(--text)!important;font-size:.82rem!important;line-height:1.45}
+.terms-marketing-choice input{width:auto!important;margin-top:3px!important;accent-color:var(--gold)}
+@media(max-width:760px){.phx-v227-terms-card{grid-template-columns:1fr!important}}
+
+/* Keep social QR codes on the same visual baseline. */
+.phx-social-links .phx-social-action-card{display:grid!important;grid-template-rows:52px 28px 38px 58px 158px 42px;align-items:center!important;justify-items:center!important;gap:7px!important;min-height:420px!important}
+.phx-social-links .phx-social-action-card>strong,.phx-social-links .phx-social-action-card>span,.phx-social-links .phx-social-action-card>small{align-self:center;text-align:center}
+.phx-social-links .phx-social-action-card>small{min-height:0!important;display:block!important;overflow:hidden}
+.phx-card-qr{width:150px!important;height:150px!important;aspect-ratio:auto!important;margin:0 auto!important;padding:7px!important;align-self:center}
+.phx-card-qr img{width:100%!important;height:100%!important;object-fit:contain!important}
+.phx-social-action-card em{margin:0!important;align-self:end}
+@media(max-width:600px){.phx-social-links .phx-social-action-card{grid-template-rows:46px 26px 34px 0 126px 42px;min-height:310px!important}.phx-social-action-card small{display:none!important}.phx-card-qr{width:126px!important;height:126px!important}}
+
+/* Proper centered overlay for the non-dialog confirmed-payment view. */
+.phx-payment-modal{position:fixed;inset:0;z-index:10020;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);overflow:auto}
+.phx-payment-modal.open{display:flex}
+.phx-payment-modal .phx-payment-card{width:min(780px,calc(100vw - 28px));max-height:calc(100vh - 36px);margin:auto;overflow:auto}
+.phx-v227-payment-grid{align-items:stretch}
+.phx-v227-payment-grid .phx-payment-option{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;align-items:center;gap:10px}
+.phx-v227-payment-grid .phx-payment-option h3{margin:0}
+.phx-v227-payment-grid .phx-payment-option img{width:min(100%,280px)!important;aspect-ratio:1;object-fit:contain}
+.phx-v227-payment-account{font-size:.82rem;line-height:1.4;color:#f8e7bf}
+
+/* Chef-facing invoice: selected add-ons must be impossible to miss. */
+.invoice-addon-row span,.invoice-addon-row em,.invoice-addon-row b{color:#c90000!important;font-weight:800!important}
+.invoice-addon-alert{display:grid;grid-template-columns:160px minmax(0,1fr);gap:10px;margin:10px 0;padding:8px 10px;border:2px solid #d00000;background:#fff3f3;color:#b40000;font-weight:800}
+.invoice-addon-alert b,.invoice-addon-alert span{color:#b40000!important}
+@media(max-width:760px){.invoice-addon-alert{grid-template-columns:1fr}}
+@media print{.invoice-addon-row span,.invoice-addon-row em,.invoice-addon-row b,.invoice-addon-alert b,.invoice-addon-alert span{color:#b40000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.invoice-addon-alert{border-color:#b40000!important;background:#fff!important}}
