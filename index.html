@@ -4,24 +4,32 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Phoenix Hibachi | Private Backyard Hibachi Catering</title>
-  <meta name="description" content="Phoenix Hibachi private backyard hibachi catering for NY, NJ, CT and Long Island. Live chef show, packages, add-ons, and booking flow." />
+  
+  <meta name="description" content="Phoenix Hibachi private backyard hibachi catering across NY, NJ, CT and PA. Live chef show, packages, add-ons, and booking flow." />
   <meta property="og:title" content="Phoenix Hibachi" />
   <meta property="og:description" content="Private backyard hibachi catering with fire, food, and showmanship." />
   <meta property="og:type" content="website" />
   <link rel="icon" href="assets/phoenix-logo-transparent-64.png" type="image/png">
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="src/phoenix-os-master-v164.css" />
-  <link rel="stylesheet" href="src/phoenix-os-v1641-ui-finish.css" />
-  <link rel="stylesheet" href="src/phoenix-os-v1642-auth-profile-finish.css" />
-  <link rel="stylesheet" href="src/phoenix-os-v1643-order-print-polish.css" />
-  <link rel="stylesheet" href="src/phoenix-os-v1644-mobile-auth-confirm-fix.css" />
-  <link rel="stylesheet" href="src/phoenix-os-v1645-print-contact-confirm-polish.css" />
-  <link rel="stylesheet" href="src/phoenix-os-v1646-login-assistant-finalize.css">
+  <link rel="stylesheet" href="src/phoenix-clean-v1652.css" />
+  
+  <link rel="stylesheet" href="src/phoenix-v166-targeted-fixes.css" />
+  <link rel="stylesheet" href="src/phoenix-v167-commercial-details.css" />
+  <link rel="stylesheet" href="src/phoenix-v168-quote-navigation-polish.css" />
+  <link rel="stylesheet" href="src/phoenix-v22-launch.css" />
+  <link rel="stylesheet" href="src/phoenix-v222-social-payment.css" />
+  <link rel="stylesheet" href="src/phoenix-v223-preconfirm-payment.css" />
+  <link rel="stylesheet" href="src/phoenix-v224-stripe.css" />
+  <link rel="stylesheet" href="src/phoenix-v225-cash-benefits.css" />
+  <link rel="stylesheet" href="src/phoenix-v226-video-media.css" />
+  <meta name="phx-build" content="V226_COMPLETE_OPTIMIZED" />
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="src/phoenix-payment-config.js"></script>
 </head>
 <body>
   <div class="top-strip service-strip compact-service-strip">
-    <span><b>Phoenix Hibachi</b> · Private backyard hibachi chefs · Serving NY · NJ · CT · Long Island</span>
-    <span class="strip-service-note">Travel fee confirmed after exact address review</span>
+    <span><b>Phoenix Hibachi</b> · Private backyard hibachi chefs · Serving NY · NJ · CT · PA</span>
+    <span class="strip-service-note">Travel fee shown after an exact address is selected</span>
   </div>
 
   <header class="site-header" id="header">
@@ -33,12 +41,13 @@
       <a href="#calendar">Calendar</a>
       <a href="#reviews">Reviews</a>
       <a href="#performance">Show</a>
-      <a href="#packages">Packages</a>
-      <a href="#addons">Add-ons</a>
-      <a href="#recipes">Recipes</a>
-      <a href="#stories">Stories</a>
-      <a href="#shop">Shop</a>
-      <a href="#platform">Hiring</a>
+      <div class="nav-dropdown" data-nav-dropdown>
+        <a href="#packages" class="nav-dropdown-toggle" aria-haspopup="true">Packages <span aria-hidden="true">▾</span></a>
+        <div class="nav-dropdown-menu" aria-label="Packages submenu">
+          <a href="#packages">Packages & Pricing</a>
+          <a href="#addons">Side Orders</a>
+        </div>
+      </div>
       <a href="#faq">FAQ</a>
     </nav>
     <div class="header-actions">
@@ -56,7 +65,6 @@
           <button type="button" data-account-action="logout">Logout</button>
         </div>
       </div>
-      <button class="ghost-btn" data-open-quote>Text / Quote</button>
       <button class="gold-btn small" data-open-booking>Book Now</button>
       <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">☰</button>
     </div>
@@ -66,17 +74,15 @@
     <a href="#calendar">Calendar</a>
     <a href="#reviews">Reviews</a>
     <a href="#performance">Show</a>
-    <a href="#packages">Packages</a>
-    <a href="#addons">Add-ons</a>
-    <a href="#recipes">Recipes</a>
-    <a href="#stories">Stories</a>
-    <a href="#shop">Shop</a>
-    <a href="#platform">Hiring</a>
+    <details class="mobile-nav-group">
+      <summary>Packages <span aria-hidden="true">▾</span></summary>
+      <a href="#packages">Packages & Pricing</a>
+      <a href="#addons">Side Orders</a>
+    </details>
     <a href="#faq">FAQ</a>
     <button type="button" data-open-order-lookup>Search Order</button>
     <button class="mobile-login-entry" data-open-login>Login</button>
     <button class="mobile-account-entry" id="mobilePortalEntry" hidden type="button">Account / Portal</button>
-    <button data-open-quote>Text / Quote</button>
     <button data-open-booking>Book Now</button>
   </nav>
 
@@ -85,22 +91,21 @@
       <div class="hero-bg"><span class="ember e1"></span><span class="ember e2"></span><span class="ember e3"></span></div>
       <div class="container hero-grid">
         <div class="hero-copy reveal">
-          <p class="eyebrow"><span>◆</span> Private Hibachi Chefs · NY · NJ · CT · Long Island</p>
-          <h1>Bring Restaurant<br><span>Quality Hibachi</span><br>To Your Backyard.</h1>
-          <p class="hero-lead">An unforgettable dinner and live show — your private chef arrives with the grill, the flames, the knife tricks, and the full hibachi experience. You bring the guests.</p>
+          <p class="eyebrow"><span>◆</span> Private Hibachi Chefs · NY · NJ · CT · PA</p>
+          <h1>We Bring the Fire.<br><span>You Make the Memories.</span></h1>
+          <p class="hero-lead">Luxury backyard hibachi catering with fresh food, live fire, and an unforgettable private-chef experience at your home or event venue.</p>
           <div class="hero-actions">
             <button class="gold-btn" data-open-booking>Book Your Event</button>
             <a href="#packages" class="outline-btn">View Packages</a>
           </div>
           <div class="hero-stats">
-            <div><strong>5.0 ★</strong><span>Average Rating</span></div>
-            <div><strong>400+</strong><span>Events Served</span></div>
-            <div><strong>4 States</strong><span>NY · NJ · CT · LI</span></div>
+            <div><strong>Live Fire</strong><span>Interactive chef show</span></div>
+            <div><strong>Private Events</strong><span>Birthdays · Weddings · Corporate</span></div>
+            <div><strong>4 States</strong><span>NY · NJ · CT · PA</span></div>
           </div>
         </div>
         <div class="hero-card reveal delay-1 hero-photo-card" aria-label="Private hibachi chef live fire show video">
-          <video class="hero-live-video" autoplay muted loop playsinline webkit-playsinline preload="auto" poster="assets/hero-live-show-poster.webp" aria-label="Hibachi live show video">
-            <source src="assets/hero-live-show-video.mp4" type="video/mp4">
+          <video class="hero-live-video" autoplay muted loop playsinline webkit-playsinline preload="metadata" poster="assets/hero-live-show-poster.webp" aria-label="Hibachi live show video" data-video-source="cloudflare-r2">
             Your browser does not support the video tag.
           </video>
           <div class="card-note"><strong>Hibachi Live Show</strong><span>Fire · Food · Performance</span></div>
@@ -163,17 +168,24 @@
           <article class="review-card reveal"><b>Live Show</b><p>Fire show, chef performance, fried rice tricks, shrimp toss, and a fun backyard dinner experience.</p><div><strong>Entertainment first</strong><span>Designed for birthdays, families and private parties</span></div></article>
           <article class="review-card reveal"><b>Setup Ready</b><p>Booking collects address, parking, unload access, rain backup, allergies and guest count before confirmation.</p><div><strong>Less chaos on event day</strong><span>Better prep for chef, customer and manager</span></div></article>
           <article class="review-card reveal"><b>Clear Policy</b><p>72-hour cancellation rules, reschedule policy, rain plan, parking, and timing expectations are shown before checkout.</p><div><strong>Cleaner expectations</strong><span>Fewer misunderstandings and refund disputes</span></div></article>
-          <article class="review-card reveal"><b>Dispatch Ready</b><p>The system is prepared for chef assignment, route planning, travel fee display and manager review.</p><div><strong>Built to scale</strong><span>Ready for Supabase backend connection</span></div></article>
+          <article class="review-card reveal"><b>Dispatch Ready</b><p>The system is prepared for chef assignment, route planning, travel fee display and manager review.</p><div><strong>Built to scale</strong><span>Manager-reviewed booking and dispatch workflow</span></div></article>
         </div>
-        <div class="social-links-panel reveal" id="socialLinksPanel">
-          <div class="social-links-copy">
-            <p class="eyebrow">Social Links</p>
-            <h3>Follow, review, tag, and share Phoenix Hibachi.</h3>
-            <p>Use these official links to leave a review, follow our latest party videos, tag us after your event, or contact Phoenix Hibachi on your favorite platform.</p>
+        <div class="social-links-panel reveal phx-social-hub" id="socialLinksPanel">
+          <div class="phx-social-top">
+            <div class="social-links-copy phx-social-intro">
+              <p class="eyebrow">Stay Connected</p>
+              <h3>Follow, review, tag, and share <span>Phoenix Hibachi.</span></h3>
+              <p>Tap a platform on your phone or scan a verified QR code from another device. Every card below opens the official Phoenix Hibachi destination.</p>
+              <div class="phx-social-promise"><b>Fresh Food</b><i>•</i><b>Live Fire</b><i>•</i><b>Unforgettable Memories</b></div>
+            </div>
+            <div class="social-links-grid phx-social-links" id="socialLinksGrid" aria-live="polite">
+              <a class="social-link-card phx-social-action-card phx-google" id="googleReviewLink" href="https://g.page/r/CfGCBLKWHZ4WEBM/review?utm_source=gbp&utm_medium=reviews&utm_campaign=qr" target="_blank" rel="noopener noreferrer"><b class="phx-platform-mark">G</b><strong>Google</strong><span>Leave a Google Review</span><small>Your review helps more families discover Phoenix Hibachi.</small><span class="phx-card-qr"><img src="assets/qr-google-review.png" alt="Official Google review QR code for Phoenix Hibachi"></span><em>Open Google Review</em></a>
+              <a class="social-link-card phx-social-action-card phx-instagram" href="https://www.instagram.com/phoenixhibachi/" target="_blank" rel="noopener noreferrer"><b class="phx-platform-mark">◎</b><strong>Instagram</strong><span>Follow on Instagram</span><small>Party videos, chef performances, and customer memories.</small><span class="phx-card-qr"><img src="assets/qr-instagram.png" alt="Official Phoenix Hibachi Instagram QR code"></span><em>Follow @phoenixhibachi</em></a>
+              <a class="social-link-card phx-social-action-card phx-tiktok" href="https://www.tiktok.com/@fenix6050" target="_blank" rel="noopener noreferrer"><b class="phx-platform-mark">♪</b><strong>TikTok</strong><span>Watch us on TikTok</span><small>Live hibachi shows, onion volcanoes, and chef tricks.</small><span class="phx-card-qr"><img src="assets/qr-tiktok.png" alt="Official Phoenix Hibachi TikTok QR code"></span><em>Watch @fenix6050</em></a>
+              <a class="social-link-card phx-social-action-card phx-facebook" href="https://www.facebook.com/profile.php?id=61591914391136" target="_blank" rel="noopener noreferrer"><b class="phx-platform-mark">f</b><strong>Facebook</strong><span>Follow on Facebook</span><small>Promotions, photos, updates, and upcoming events.</small><span class="phx-card-qr"><img src="assets/qr-facebook.png" alt="Official Phoenix Hibachi Facebook QR code"></span><em>Visit Facebook Page</em></a>
+            </div>
           </div>
-          <div class="social-links-grid" id="socialLinksGrid" aria-live="polite">
-            <a class="social-link-card" href="#reviews"><span>Google</span><small>Review link coming soon</small></a>
-          </div>
+          <div class="phx-social-footer"><b>We Bring the Fire.</b><span>You Make the Memories.</span><small>Tag us after your event: <strong>#PhoenixHibachi</strong></small></div>
         </div>
         <div class="review-highlights" id="reviewHighlights" aria-live="polite"></div>
       </div>
@@ -200,20 +212,20 @@
         <div class="section-head reveal">
           <p class="eyebrow">Packages & Pricing</p>
           <h2>Three packages. <span>Live pricing.</span></h2>
-          <p>All prices are per person. Kids under 12 are half price. Minimum charge for 10 guests regardless of headcount.</p>
+          <p>Package prices shown are adult rates. Classic children under 12 are $28; Premium and Signature child pricing is shown during booking. The base minimum food order starts at $550.</p>
         </div>
         <div class="package-grid">
-          <article class="package-card reveal package-classic"><div class="package-visual"><img src="assets/package-classic.webp" alt="Classic hibachi package with chicken, steak, shrimp and vegetables"></div><small>The essentials, perfected</small><h3>Classic</h3><div class="price">$55 <span>/ person</span></div><ul><li>Choose 2 proteins</li><li>10 guest minimum</li><li>Kids half price</li><li>Full hibachi performance</li><li>Fried rice & vegetables</li></ul><button data-package="Classic" data-open-booking class="outline-btn block">Book Classic</button></article>
-          <article class="package-card featured reveal package-premium"><div class="ribbon">✦ Most Popular</div><div class="package-visual"><img src="assets/package-premium.webp" alt="Premium hibachi package with steak, shrimp and fried rice"></div><small>Most booked · Best value</small><h3>Premium</h3><div class="price">$65 <span>/ person</span></div><ul><li>Choose 3 proteins</li><li>Gyoza or edamame starter</li><li>10 guest minimum</li><li>Kids half price</li><li>Full performance show</li></ul><button data-package="Premium" data-open-booking class="gold-btn block">Book Premium</button></article>
-          <article class="package-card reveal package-signature"><div class="package-visual"><img src="assets/package-signature.webp" alt="Signature hibachi package with lobster, steak and seafood"></div><small>The ultimate private experience</small><h3>Signature</h3><div class="price">$110 <span>/ person</span></div><ul><li>Choose 4 proteins</li><li>Gyoza + edamame included</li><li>10 guest minimum</li><li>Kids half price</li><li>Premium performance show</li></ul><button data-package="Signature" data-open-booking class="outline-btn block">Book Signature</button></article>
+          <article class="package-card reveal package-classic"><div class="package-visual"><img src="assets/package-classic.webp" alt="Classic hibachi package with chicken, steak, shrimp and vegetables"></div><small>The essentials, perfected</small><h3>Classic</h3><div class="price">$55 <span>/ adult</span></div><ul><li>Choose 2 proteins</li><li>Base minimum order $550</li><li>Classic kids under 12: $28</li><li>Full hibachi performance</li><li>Fried rice & vegetables</li></ul><button data-package="Classic" data-open-booking class="outline-btn block">Book Classic</button></article>
+          <article class="package-card featured reveal package-premium"><div class="ribbon">✦ Most Popular</div><div class="package-visual"><img src="assets/package-premium.webp" alt="Premium hibachi package with steak, shrimp and fried rice"></div><small>Most booked · Best value</small><h3>Premium</h3><div class="price">$65 <span>/ adult</span></div><ul><li>Choose 3 proteins</li><li>Gyoza or edamame starter</li><li>$550 minimum food order</li><li>Kids under 12 priced at checkout</li><li>Full performance show</li></ul><button data-package="Premium" data-open-booking class="gold-btn block">Book Premium</button></article>
+          <article class="package-card reveal package-signature"><div class="package-visual"><img src="assets/package-signature.webp" alt="Signature hibachi package with lobster, steak and seafood"></div><small>The ultimate private experience</small><h3>Signature</h3><div class="price">$110 <span>/ adult</span></div><ul><li>Choose 4 proteins</li><li>Gyoza + edamame included</li><li>$550 minimum food order</li><li>Kids under 12 priced at checkout</li><li>Premium performance show</li></ul><button data-package="Signature" data-open-booking class="outline-btn block">Book Signature</button></article>
         </div>
-        <p class="fine-print">Prices exclude travel fees, premium protein upgrades and coupon discounts — all calculated during booking.</p>
+        <p class="fine-print">Prices exclude manager-confirmed travel fees, premium protein upgrades, staffing requests, applicable local tax, and approved discounts.</p>
       </div>
     </section>
 
     <section class="section addons" id="addons">
       <div class="container">
-        <div class="split-head reveal"><div><p class="eyebrow">Add-on Trays</p><h2>Elevate every table.</h2></div><p>Sushi, gyoza, edamame, and noodle trays served alongside the hibachi show. All selectable inside the booking flow.</p></div>
+        <div class="split-head reveal"><div><p class="eyebrow">Side Orders & Add-ons</p><h2>Build the right food order.</h2></div><p>Sushi, gyoza, edamame, and noodle trays served alongside the hibachi show. All selectable inside the booking flow.</p></div>
         <div class="addon-grid">
           <article><b>Popular</b><img class="addon-photo" src="assets/addon-sushi.webp" alt="Sushi Roll Tray"><h3>Sushi Roll Tray</h3><p>California roll, spicy tuna, shrimp tempura, vegetable roll. Approx. 6–8 rolls / 48 pcs.</p></article>
           <article><b>Premium</b><img class="addon-photo" src="assets/addon-premium-sushi.webp" alt="Premium Sushi Tray"><h3>Premium Sushi Tray</h3><p>Assorted hand-pressed sushi only: tuna, salmon, yellowtail, shrimp, eel, and chef-selected nigiri. No rolls, no sashimi. Approx. 32–40 pcs.</p></article>
@@ -252,7 +264,7 @@
           <div>
             <p class="eyebrow">Chef Hiring</p>
             <h2>Join the Phoenix Hibachi chef team.</h2>
-            <p>Phoenix Hibachi is building a reliable route-based chef network for backyard parties, birthdays, corporate events, and weekend bookings across NY, NJ, CT and Long Island.</p>
+            <p>Phoenix Hibachi is building a reliable route-based chef network for backyard parties, birthdays, corporate events, and weekend bookings across NY, NJ, CT and PA.</p>
             <div class="hiring-actions">
               <button class="gold-btn" id="openChefApplyBtn" type="button" data-open-chef-apply>Submit Chef Resume</button>
               <button class="outline-btn" data-open-login data-login-role="Chef">Chef Login</button>
@@ -295,12 +307,12 @@
         <div class="section-head reveal"><p class="eyebrow">Booking Rules & FAQ</p><h2>Before guests arrive.</h2></div>
         <div class="faq-list">
           <details open><summary>What do customers need to provide?</summary><p>A clean outdoor cooking area, enough seating, access to water/trash, parking or unloading access, and enough space for the chef and grill setup.</p></details>
-          <details><summary>Do you serve NY, NJ, CT, and Long Island?</summary><p>Yes. Travel fees may apply depending on route, parking, tolls, and chef availability.</p></details>
-          <details><summary>Are kids half price?</summary><p>Yes, kids under 12 are half price. The event still has a 10-person minimum charge.</p></details>
+          <details><summary>Do you serve NY, NJ, CT, and PA?</summary><p>Yes. Travel fees may apply depending on route, parking, tolls, and chef availability.</p></details>
+          <details><summary>What is the child price and minimum?</summary><p>Classic service is $55 per adult and $28 per child under 12. The minimum food order is $550. Smaller parties may use add-ons and side orders toward the minimum instead of paying only for unused food value.</p></details>
           <details><summary>Can we add sushi or noodles?</summary><p>Yes. Sushi trays, sashimi combo, gyoza, edamame, and noodle trays can be added to the hibachi package.</p></details>
           <details><summary>Can you handle allergies?</summary><p>Allergies must be disclosed before booking. High-risk allergies need manager confirmation before the order is accepted.</p></details>
           <details><summary>What happens if it rains or timing changes?</summary><p>The booking popup asks for a rain backup, parking/unloading details, and notes. Outdoor cooking requires a safe covered area when needed. Chef may arrive early for setup, but the event is based on the confirmed service time. If guests are late, timing should be discussed directly with the chef; the chef may still begin prep or service on schedule when another booking follows.</p></details>
-          <details><summary>What is the 72-hour cancellation policy?</summary><p>Customers may cancel more than 72 hours before the event for manager review. Within 72 hours of the scheduled event, the deposit is non-refundable and the booking can only be rescheduled, subject to chef availability and route confirmation.</p></details>
+          <details><summary>What is the 72-hour cancellation policy?</summary><p>Customers may cancel more than 72 hours before the event for manager review. Within 72 hours, the $200 deposit is non-refundable and may be applied once to an approved rescheduled event held within 30 days, subject to chef and route availability.</p></details>
         </div>
       </div>
     </section>
@@ -308,12 +320,12 @@
 
   <footer class="footer">
     <div class="container footer-grid">
-      <div><a class="brand footer-brand" href="#home"><span class="logo-badge"><img src="assets/phoenix-logo-transparent.png" alt="Phoenix Hibachi 3D phoenix logo"></span><span class="brand-text"><strong>Phoenix Hibachi</strong><small>Private Backyard Catering</small></span></a><p>Private hibachi catering in NY, NJ, CT & Long Island. Fire, food, and showmanship — right in your backyard.</p><p class="muted">📍 Brooklyn, Queens, Long Island, NJ, CT<br>✉ booking@phoenix-hibachi.com</p></div>
-      <div><h4>Service Areas</h4><p>Brooklyn & Queens<br>Long Island East & West<br>New Jersey<br>Connecticut</p></div>
+      <div><a class="brand footer-brand" href="#home"><span class="logo-badge"><img src="assets/phoenix-logo-transparent.png" alt="Phoenix Hibachi 3D phoenix logo"></span><span class="brand-text"><strong>Phoenix Hibachi</strong><small>Private Backyard Catering</small></span></a><p>Private hibachi catering across NY, NJ, CT & PA. Fire, food, and showmanship — right in your backyard.</p><p class="muted">📍 NY · NJ · CT · PA<br>🕘 Daily 9:00 AM–9:00 PM<br>✉ phoenixhibachi.team@gmail.com</p></div>
+      <div><h4>Service Areas</h4><p>New York, including Long Island<br>New Jersey<br>Connecticut<br>Pennsylvania</p><p class="muted">Hours: daily 9:00 AM–9:00 PM</p></div>
       <div><h4>Packages</h4><p>Classic — $55 / person<br>Premium — $65 / person<br>Signature — $110 / person</p></div>
-      <div><h4>Add-ons</h4><p>Sushi Roll Tray<br>Premium Sushi Tray<br>Gyoza & Edamame<br>Noodle / Yakisoba Tray</p></div>
+      <div><h4>Side Orders</h4><p>Sushi Roll Tray<br>Premium Sushi Tray<br>Gyoza & Edamame<br>Noodle / Yakisoba Tray</p></div>
     </div>
-    <div class="container footer-bottom">© 2026 Phoenix Hibachi · Prototype rebuild · Replace placeholders before going live.</div>
+    <div class="container footer-bottom">© 2026 Phoenix Hibachi · Phoenix Hibachi booking and event management.</div>
   </footer>
 
   <button class="floating-book" data-open-contact>Contact</button>
@@ -326,11 +338,11 @@
       <p class="eyebrow">Contact Us</p>
       <h2>How can we help?</h2>
       <p class="modal-help">For new events, booking questions, chef timing, rain plan, complaints, cancellation/reschedule requests, or allergy concerns, send us a message and a manager can review it.</p>
-      <div class="policy-alert compact"><strong>72-hour policy</strong><span>Over 72 hours: cancellation can be reviewed. Inside 72 hours: deposit is non-refundable; reschedule only.</span></div>
+      <div class="policy-alert compact"><strong>72-hour policy</strong><span>Over 72 hours: cancellation/reschedule can be reviewed. Inside 72 hours: the $200 deposit is non-refundable and may be applied once to an approved date within 30 days.</span></div>
       <div class="contact-options">
         <a href="tel:+15165183325" id="contactCallCard"><strong>Call Phoenix Hibachi</strong><span id="contactPhoneText">(516) 518-3325</span></a>
         <a href="sms:+15165183325" id="contactTextCard"><strong>Text Us</strong><span id="contactTextPhoneText">(516) 518-3325 · Fastest for same-week party questions</span></a>
-        <a href="mailto:booking@phoenix-hibachi.com" id="contactEmailCard"><strong>Email Us</strong><span id="contactEmailText">booking@phoenix-hibachi.com</span></a>
+        <a href="mailto:phoenixhibachi.team@gmail.com" id="contactEmailCard"><strong>Email Us</strong><span id="contactEmailText">phoenixhibachi.team@gmail.com</span></a>
         <button type="button" data-contact-feedback><strong>Guest Feedback</strong><span>Suggestions, compliments or complaints</span></button>
       </div>
       <div class="contact-actions">
@@ -387,11 +399,11 @@
         <label>Package<select name="quotePackage" id="quotePackageSelect"><option>Classic</option><option>Premium</option><option>Signature</option></select></label>
         <label>Adults<input name="quoteAdults" type="number" min="0" value="10" inputmode="numeric"></label>
         <label>Kids<input name="quoteKids" type="number" min="0" value="0" inputmode="numeric"></label>
-        <label>Estimated travel fee<input name="quoteTravel" type="number" min="0" value="50" inputmode="decimal"></label>
+        <input name="quoteTravel" type="hidden" value="0"><div class="quote-travel-review"><b>Travel fee</b><span>Confirmed by a Phoenix Hibachi manager after the exact address and route are reviewed.</span></div>
         <label>Preferred time<input name="quoteTime" placeholder="6:00 PM, flexible, weekend..."></label>
       </div>
       <div class="quick-addon-box">
-        <strong>Add-ons for estimate</strong>
+        <strong>Add-ons / side orders for estimate</strong>
         <div class="quick-addon-list" id="quoteAddonList"></div>
       </div>
       <label>Notes / question<textarea name="quoteNotes" placeholder="Birthday party, sushi tray, kids soda, allergy, parking, rain plan, exact address later..."></textarea></label>
@@ -421,7 +433,7 @@
           <li>The host provides guest tables/chairs, plates, utensils, napkins, trash bags, and a safe outdoor or covered cooking area.</li>
           <li>Please use a real cell phone number. We may text for address, weather, timing, deposit, or last-minute route updates.</li>
           <li>Food is served in standard restaurant-style portions per guest. Dinner includes fried rice and hibachi vegetables.</li>
-          <li>Menu or headcount changes requested within 7 days of the event are subject to availability, price adjustment, and manager approval.</li>
+          <li>The final guaranteed guest count locks 42 hours before the event. After that deadline, a lower attendance does not reduce the balance; increases require chef/manager approval and food availability.</li>
         </ul>
       </div>
 
@@ -441,16 +453,17 @@
                 <option>Other private event</option>
               </select>
             </label>
-            <label class="wide address-field">Address
+            <div class="wide address-field">
+              <label for="eventAddressInput" class="address-input-label">Address</label>
               <input id="eventAddressInput" name="address" placeholder="Start typing street address, for example 585 6th Street" autocomplete="street-address" required>
               <input id="eventAddressLat" name="addressLat" type="hidden">
               <input id="eventAddressLon" name="addressLon" type="hidden">
               <input id="eventAddressPlaceId" name="addressPlaceId" type="hidden">
               <div class="address-suggest-box" id="addressSuggestBox" role="listbox" aria-label="Map address suggestions"></div>
-              <small class="field-help">Start typing only the street address. Choose the standard address from the dropdown; City, State, and ZIP will fill automatically.</small>
+              <small class="field-help" data-address-display-only>Start typing only the street address. Choose a standard address from the dropdown; City, State, and ZIP will fill automatically.</small>
               <input id="travelFeeInput" name="travelFee" type="hidden" value="0">
-              <div class="travel-estimate" id="travelEstimate">Travel fee estimate appears after choosing a standard map address.</div>
-            </label>
+              <div class="travel-estimate" id="travelEstimate" data-address-display-only>Select a standard map address to calculate the travel fee.</div>
+            </div>
             <label>City<input id="eventCityInput" name="city" placeholder="Brooklyn" autocomplete="address-level2"></label>
             <label>State<input id="eventStateInput" name="state" placeholder="NY" autocomplete="address-level1"></label>
             <label>ZIP code<input id="eventZipInput" name="zip" placeholder="11220" inputmode="numeric" autocomplete="postal-code"></label>
@@ -462,12 +475,18 @@
           <div class="counter-grid" aria-label="Guest count selectors">
             <div class="counter-card" data-counter="adults"><span>Adults</span><div class="counter-controls"><button type="button" data-count-action="minus">−</button><input id="adultsValue" name="adults" type="number" min="0" max="60" value="10"><button type="button" data-count-action="plus">+</button></div></div>
             <div class="counter-card" data-counter="kids"><span>Kids under 12</span><div class="counter-controls"><button type="button" data-count-action="minus">−</button><input id="kidsValue" name="kids" type="number" min="0" max="40" value="0"><button type="button" data-count-action="plus">+</button></div></div>
-            <div class="counter-card locked" id="billableGuestCard"><span>Billable guests</span><strong id="totalValue">10</strong><small id="guestMinimumHelp">10 adult minimum · kids count as 0.5</small><input id="totalGuestsInput" name="totalGuests" type="hidden" value="10"><input id="billableGuestsInput" name="billableGuests" type="hidden" value="10"></div>
+            <div class="counter-card locked" id="billableGuestCard"><span>Total guests</span><strong id="totalValue">10</strong><small id="guestMinimumHelp">$550 minimum food order</small><input id="totalGuestsInput" name="totalGuests" type="hidden" value="10"><input id="billableGuestsInput" name="billableGuests" type="hidden" value="10"></div>
           </div>
-          <p class="helper-line">Kids under 12 count as half a guest. Minimum charge equals 10 adults, or 20 kids, or any adult/kid mix that reaches 10 billable guests.</p>
-          <div class="extra-chef-box">
-            <label><input id="additionalChefRequested" name="additionalChefRequested" type="checkbox" value="Yes"> Need an additional chef?</label>
-            <small>Optional request. Recommended for parties over 30 adults, tight timing, or large route setups. If approved, the event may require a second chef and an additional travel fee. Final staffing and travel fee are confirmed by Phoenix Hibachi.</small>
+          <p class="helper-line">Classic pricing is $55 per adult and $28 per child under 12. The minimum food order is $550. Smaller parties can add side orders so the food value reaches the minimum.</p>
+          <div class="extra-chef-box staffing-request-box">
+            <label><input id="additionalChefRequested" name="additionalChefRequested" type="checkbox" value="Yes"> Request an additional hibachi chef</label>
+            <small>For parties of 30 guests or fewer, a customer-requested additional chef is $150 if approved. For parties over 30 guests, manager-assigned additional chef staffing is included at no extra chef fee. Staffing remains subject to availability and manager confirmation.</small>
+            <div class="waitstaff-request-row">
+              <label><input id="waitstaffRequested" name="waitstaffRequested" type="checkbox" value="Yes"> Request event waitstaff · $100 per person</label>
+              <label class="waitstaff-count-label" for="waitstaffCount">Quantity
+                <input id="waitstaffCount" name="waitstaffCount" type="number" min="1" max="10" value="1" inputmode="numeric" disabled>
+              </label>
+            </div>
           </div>
         </section>
 
@@ -478,19 +497,19 @@
             <label class="choice-card package-choice selected" data-package-card="Classic">
               <input type="radio" name="package" value="Classic" checked>
               <small>Classic</small>
-              <strong>$55 <span>/ person</span></strong>
+              <strong>$55 <span>/ adult</span></strong>
               <em>2 proteins · fried rice · vegetables · full show</em>
             </label>
             <label class="choice-card package-choice" data-package-card="Premium">
               <input type="radio" name="package" value="Premium">
               <small>Premium</small>
-              <strong>$65 <span>/ person</span></strong>
+              <strong>$65 <span>/ adult</span></strong>
               <em>3 proteins · gyoza or edamame starter</em>
             </label>
             <label class="choice-card package-choice" data-package-card="Signature">
               <input type="radio" name="package" value="Signature">
               <small>Signature</small>
-              <strong>$110 <span>/ person</span></strong>
+              <strong>$110 <span>/ adult</span></strong>
               <em>4 proteins · gyoza + edamame included</em>
             </label>
           </div>
@@ -516,12 +535,18 @@
           <input id="proteinSelectionsInput" name="proteinSelections" type="hidden" value="{}">
           <input id="proteinSummaryInput" name="proteinSummary" type="hidden" value="">
           <input id="proteinUpchargeInput" name="proteinUpcharge" type="hidden" value="0">
-          <p class="helper-line" id="proteinHelpText">Classic for 10 billable guests includes 20 protein portions. Premium proteins add $5 per selected portion.</p>
+          <p class="helper-line" id="proteinHelpText">Classic for 10 adult-equivalent meal portions includes 20 protein portions. Premium proteins add $5 per selected portion.</p>
         </section>
 
         <section class="booking-step addon-quantity-step">
-          <h3>5. Choose add-ons</h3>
-          <p class="helper-line top-helper">Use + / − to choose quantities. Add-ons are optional; leave every add-on at 0 if you only want the hibachi package.</p>
+          <h3>5. Add-ons & side orders</h3>
+          <p class="helper-line top-helper">Use + / − to choose quantities. Food add-ons and side orders count toward the $550 minimum food order. If the selected food is still below $550, the remaining minimum-order adjustment will appear in the estimate.</p>
+          <div class="minimum-order-tracker" id="minimumOrderTracker" aria-live="polite">
+            <div><span>Guest meals & upgrades</span><b id="minimumOrderBase">$550</b></div>
+            <div><span>Selected side orders</span><b id="minimumOrderSides">$0</b></div>
+            <div><span>Still needed to reach $550</span><b id="minimumOrderRemaining">$0</b></div>
+            <p id="minimumOrderStatus">The $550 minimum food order is met.</p>
+          </div>
           <div class="addon-choice-grid addon-qty-grid" id="addonChoiceGrid">
             <div class="choice-card addon-choice addon-qty-card" data-addon-card="Sushi Roll Tray"><input type="checkbox" name="addons" value="Sushi Roll Tray" data-price="85" data-unit-price="85"><img class="addon-photo" src="assets/addon-sushi.webp" alt="Sushi Roll Tray"><div class="addon-copy"><strong>Sushi Roll Tray</strong><em>California, spicy tuna, shrimp tempura, vegetable roll. Approx. 6–8 rolls.</em></div><b class="addon-price">+$85 each</b><div class="addon-qty-controls" aria-label="Sushi Roll Tray quantity"><button type="button" data-addon-action="minus">−</button><input class="addon-qty-input" type="number" min="0" max="20" value="0" inputmode="numeric" aria-label="Sushi Roll Tray quantity"><button type="button" data-addon-action="plus">+</button></div></div>
             <div class="choice-card addon-choice addon-qty-card" data-addon-card="Premium Sushi Tray"><input type="checkbox" name="addons" value="Premium Sushi Tray" data-price="130" data-unit-price="130"><img class="addon-photo" src="assets/addon-premium-sushi.webp" alt="Premium Sushi Tray"><div class="addon-copy"><strong>Premium Sushi Tray</strong><em>Assorted hand-pressed sushi only: tuna, salmon, yellowtail, shrimp, eel, and chef-selected nigiri. No rolls, no sashimi. Approx. 32–40 pieces / 4–6 people.</em></div><b class="addon-price">+$130 each</b><div class="addon-qty-controls" aria-label="Premium Sushi Tray quantity"><button type="button" data-addon-action="minus">−</button><input class="addon-qty-input" type="number" min="0" max="20" value="0" inputmode="numeric" aria-label="Premium Sushi Tray quantity"><button type="button" data-addon-action="plus">+</button></div></div>
@@ -613,7 +638,9 @@
               <small>Click the checkbox to review the full terms. You must review the full panel before the agreement can be checked.</small>
             </div>
             <button type="button" class="outline-btn mini-policy-btn" data-open-booking-terms>Review full terms</button>
-            <label class="terms-agree-line"><input id="bookingPolicyAgree" type="checkbox" required> I have reviewed and agree to the Phoenix Hibachi terms, waiver, setup rules, travel-fee policy, allergy notice, cancellation policy, and deposit policy.</label>
+            <label class="terms-agree-line"><input id="bookingPolicyAgree" type="checkbox" required> I have reviewed and agree to the Phoenix Hibachi terms, waiver, setup rules, final guest-count policy, cancellation/reschedule policy, travel-fee review, and $200 deposit policy.</label>
+            <label class="terms-agree-line"><input id="bookingMediaAcknowledge" name="mediaAcknowledge" type="checkbox" value="Yes" required> I understand Phoenix Hibachi may photograph or record the chef, food, grill, and event setup for service records and portfolio content. Identifiable guest faces will not be publicly posted without separate permission.</label>
+            <label class="terms-agree-line optional-media-line"><input id="bookingMarketingConsent" name="marketingConsent" type="checkbox" value="Yes"> Optional: I allow Phoenix Hibachi to publicly use event photos/videos that may include identifiable adult guests for its website, social media, and advertising. I am authorized to give this permission for the adults involved.</label>
           </div>
           <textarea name="specialNotes" placeholder="Birthday name, surprise show, stairs, gate code, pets, parking instructions, rain concerns, timing concerns, pool party / extra entertainment requests..."></textarea>
         </section>
@@ -621,7 +648,7 @@
 
       <div class="booking-summary">
         <div class="booking-summary-copy">
-          <span id="bookingSummaryText">Date not selected · 10 billable guests · 4:00 PM - 6:00 PM · Est. total $550</span>
+          <span id="bookingSummaryText">Date not selected · 10 guests · $550 minimum food order · 4:00 PM - 6:00 PM · Est. total $550</span>
           <small id="bookingReadyHelp">Complete date, guest count, protein portions, and agreement to send.</small>
         </div>
         <button class="gold-btn" id="sendBookingRequestBtn" value="submit" disabled>Send Booking Request</button>
@@ -642,13 +669,13 @@
         <section><h3>4. Setup, safety and weather</h3><p>The cooking area must be safe, level, ventilated, and protected from unsafe weather. Phoenix Hibachi may refuse, pause, move, or reschedule service if wind, rain, snow, lightning, poor ventilation, unsafe flooring, blocked access, or crowd behavior creates risk for guests, staff, or property.</p></section>
         <section><h3>5. Event time, chef setup and guest delays</h3><p>The event is scheduled around the confirmed service time. A chef may arrive earlier to unload, set up, and prepare the cooking station, but early arrival does not automatically move the party start time earlier. If the host wants to start earlier or later, the host may discuss it with the chef. If the host or guests are not ready by the scheduled time, Phoenix Hibachi and the assigned chef may begin setup, prep, or service according to the confirmed schedule because the chef may have other appointments, route commitments, or staffing obligations the same day.</p></section>
         <section><h3>6. Special party requests</h3><p>Phoenix Hibachi provides hibachi cooking, food service, and family-friendly entertainment. Any special request outside normal service — such as asking the chef to wear a costume, join a themed party moment, or be pushed/tossed into a pool — must be discussed before the event and approved by Phoenix Hibachi and the assigned chef.</p><p>This allows the chef to prepare properly, including bringing a change of clothes if needed, and to confirm the request is safe for cooking and service.</p><p>All special requests must be safe, respectful, voluntary, and appropriate. Phoenix Hibachi and the assigned chef may refuse or stop any activity that may cause injury, clothing damage, equipment damage, disrespect, or schedule delays. The host and guests accept responsibility for any risks, injuries, damages, or losses resulting from these special activities.</p></section>
-        <section><h3>7. Travel fee and minimum guests</h3><p>A default travel fee may apply. Longer routes, tolls, paid parking, difficult access, far-distance events, or additional chef requests may increase the final travel fee. Phoenix Hibachi may require a higher minimum guest count for distant locations, peak dates, or events requiring additional staffing.</p></section>
-        <section><h3>8. Add-ons and menu changes</h3><p>Add-ons such as sushi trays, appetizers, noodles, drinks, or special items are subject to availability. Quantity changes, menu changes, and headcount changes requested within 7 days of the event may require price adjustment and manager approval.</p></section>
+        <section><h3>7. Minimum order, travel review and staffing</h3><p>The minimum food order is $550. Smaller parties may use food add-ons and side orders toward that minimum. If selected food remains below $550, the remaining difference is charged as a minimum-order adjustment. The travel fee is calculated after the customer selects a standard map address. The displayed amount uses one-way driving distance and applicable route charges; the internal formula is not shown publicly. Paid parking, difficult access, or unusual route conditions may still require manager review. Optional waitstaff is $100 per person. A customer-requested extra hibachi chef is $150 for parties of 30 guests or fewer if approved. For parties over 30 guests, manager-assigned additional chef staffing is included at no extra chef fee.</p></section>
+        <section><h3>8. Final guaranteed guest count, add-ons and increases</h3><p>The final guaranteed guest count must be confirmed no later than 42 hours before the event. Once the 42-hour deadline passes, that confirmed count becomes the minimum billable guest count. Fewer guests attending, arriving late, or not attending will not reduce the balance because food, staffing, supplies, and schedule time have already been prepared. Additional guests or meals are not guaranteed and require chef or manager approval based on food availability. Approved extra meals are charged separately. Food add-ons and side orders count toward the $550 minimum food order. Add-ons and menu changes remain subject to availability and price adjustment.</p></section>
         <section><h3>9. Allergies and dietary restrictions</h3><p>Customers must disclose allergies and dietary restrictions before the event. Because hibachi service uses shared equipment, sauces, cooking surfaces, and transport containers, Phoenix Hibachi cannot guarantee an allergen-free environment. Guests with severe allergies should contact management before booking and may need to avoid consuming certain items.</p></section>
         <section><h3>10. Food handling and leftovers</h3><p>Food is prepared for the confirmed event time and standard restaurant-style portions. Once food is served, the host is responsible for safe storage and handling of leftovers. Phoenix Hibachi is not responsible for food left out too long, improperly stored, reheated, or consumed after the event.</p></section>
-        <section><h3>11. Cancellation, reschedule and deposit</h3><p>Deposits are used to reserve chef time, prep work, route planning, and ingredients. Cancellations made more than 72 hours before the event may be reviewed by management. Within 72 hours of the event, deposits are non-refundable and the available remedy is manager-approved rescheduling, subject to availability.</p></section>
+        <section><h3>11. $200 deposit, balance, cancellation and reschedule</h3><p>A $200 deposit may be submitted with the booking request. The deposit remains pending staff verification, and the event date is not final until Phoenix Hibachi accepts the order. If the requested date cannot be accepted, management will contact the customer regarding the deposit and available alternatives. Cash is preferred for the remaining balance, which is due when the chef arrives, before unloading, setup, or cooking begins, unless management confirms another arrangement. Cancellation or reschedule requests should be made more than 72 hours before the event for manager review. Within 72 hours, the deposit is non-refundable; it may be applied one time to a manager-approved rescheduled event held within 30 days of the original event date, subject to chef and route availability. Dangerous weather, major traffic emergencies, or other exceptional circumstances may receive individual manager review.</p></section>
 
-        <section><h3>12. Promotional photos and videos</h3><p>Phoenix Hibachi may occasionally take photos or short videos during events for business promotion, training, website content, social media, and portfolio use. By submitting a booking request, the host confirms that Phoenix Hibachi may capture and use event photos or videos unless the host tells Phoenix Hibachi in writing before the event that photos or videos are not allowed. The host is responsible for informing guests of any photo or video preference. If there are privacy concerns, minors, private guests, or any no-filming request, please notify Phoenix Hibachi before the event so the team can respect it.</p></section>
+        <section><h3>12. Event photos and videos</h3><p>The host must acknowledge before submitting that Phoenix Hibachi may photograph or record the chef, food, grill, and event setup for service records, training, and portfolio content. Identifiable guest faces will not be publicly posted without separate permission. Public marketing use involving identifiable adults requires the optional marketing-consent checkbox or later written permission. Phoenix Hibachi will not intentionally use identifiable images of minors for public advertising without specific permission from a parent or legal guardian.</p></section>
         <section><h3>13. Liability waiver</h3><p>By booking, the customer understands that live hibachi service involves heat, open flame, oil, smoke, sharp tools, hot surfaces, food allergens, outdoor conditions, guest behavior, and any customer-requested entertainment activity. To the fullest extent permitted by law, the customer agrees to hold Phoenix Hibachi, its owners, contractors, chefs, and staff harmless from claims arising from unsafe setup, inaccurate information, guest behavior, pets, children, property conditions, weather, parking/access issues, undisclosed allergies, or extra activities requested by the host or guests.</p></section>
         <section><h3>14. Final agreement</h3><p>By checking the agreement box and submitting the request, the customer confirms that the information provided is accurate, the host accepts these rules, and Phoenix Hibachi may contact the customer by phone, text, or email to confirm details, collect deposit, and finalize the event.</p></section>
       </div>
@@ -761,9 +788,12 @@
       <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
       <p class="eyebrow">Order Status</p>
       <h2>Check your Phoenix Hibachi order</h2>
-      <p class="modal-help">Enter your order number to check whether the request was received, accepted, prep started, completed, and which chef is assigned. No automatic text message is sent from this screen.</p>
+      <p class="modal-help">Enter the order number and the same email used for booking. Only limited status details are shown here; payment and benefit changes require the secure confirmation token or account login.</p>
       <label>Order number
         <input id="orderLookupInput" name="orderNumber" placeholder="PHX-123456" autocomplete="off" required>
+      </label>
+      <label>Booking email
+        <input id="orderLookupEmail" name="bookingEmail" type="email" placeholder="Email used on the booking" autocomplete="email" required>
       </label>
       <div class="modal-actions">
         <button class="gold-btn" type="submit">Search order</button>
@@ -820,29 +850,111 @@
   <dialog class="success-modal" id="successModal">
     <form method="dialog" class="modal-card success-card">
       <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
-      <p class="eyebrow">Request Received</p>
-      <h2>Thanks — your hibachi request is in.</h2>
+      <p class="eyebrow">Request Saved</p>
+      <h2>Thanks — your hibachi request has been saved.</h2>
       <p class="modal-help">Your request is saved to the Phoenix Hibachi booking system. A manager still needs to review route timing, rain plan, allergies, travel fee, and payment before final confirmation.</p>
       <div class="success-receipt" id="successReceipt"></div>
       <div class="booking-offer-box" id="bookingOfferBox">
         <strong>First-party reward reminder</strong>
         <p>First booking with food/package subtotal before tax over $700 may receive a $50 next-party coupon after staff review. Coupons cannot be combined and cannot be used for travel fee, tax, or tips.</p>
       </div>
-      <div class="payment-choice-box payment-cash-only-note" id="paymentChoiceBox">
-        <strong>Payment note</strong>
-        <p class="small-muted"><b>Cash only at the event.</b> No payment is collected on this screen. Phoenix Hibachi will review your request and contact you before final confirmation.</p>
-        <input type="hidden" name="paymentPreference" value="Cash only at event">
+      <div class="payment-choice-box phx-preconfirm-deposit phx-v225-payment" id="paymentChoiceBox">
+        <div class="phx-preconfirm-deposit-head">
+          <div>
+            <strong>Choose how you plan to pay</strong>
+            <p class="small-muted"><b>Cash is preferred for the remaining balance.</b> You may submit this booking request now without paying the $200 deposit. The request will remain pending until a manager reviews availability, travel, and payment status.</p>
+          </div>
+          <b class="phx-preconfirm-deposit-amount">$200 deposit</b>
+        </div>
+
+        <div class="phx-v225-request-state">
+          <b>Submitting this page does not mean the date is confirmed.</b>
+          <span>You can review or request changes after submission. Final guest count and food selections lock 42 hours before the event. The system will issue a 72-hour cancellation/reschedule reminder and a 42-hour final-count reminder.</span>
+        </div>
+
+        <div class="phx-v224-payment-tabs phx-v225-payment-tabs" role="radiogroup" aria-label="Choose intended payment method">
+          <label class="phx-v224-pay-tab phx-v224-pay-tab-primary phx-v225-cash-tab">
+            <input type="radio" name="paymentPreference" value="cash" checked>
+            <span class="phx-v224-pay-icon">$</span>
+            <span><strong>Cash — preferred</strong><small>No online payment now. Cash payment can be recorded by staff later.</small></span>
+            <span class="phx-v224-recommended">Preferred</span>
+          </label>
+          <label class="phx-v224-pay-tab">
+            <input type="radio" name="paymentPreference" value="stripe">
+            <span class="phx-v224-pay-icon">▣</span>
+            <span><strong>Secure online payment</strong><small>Card · Apple Pay · Google Pay · Link · Cash App Pay</small></span>
+          </label>
+          <label class="phx-v224-pay-tab">
+            <input type="radio" name="paymentPreference" value="zelle">
+            <span class="phx-v224-pay-icon">Z</span><span><strong>Zelle</strong><small>Manual verification</small></span>
+          </label>
+          <label class="phx-v224-pay-tab">
+            <input type="radio" name="paymentPreference" value="venmo">
+            <span class="phx-v224-pay-icon">V</span><span><strong>Venmo</strong><small>Manual verification</small></span>
+          </label>
+        </div>
+
+        <section class="phx-v224-manual-panel phx-v225-cash-panel" data-payment-panel="cash">
+          <div class="phx-v225-cash-copy">
+            <h3>Cash payment selected</h3>
+            <p><b>No payment is required to submit the request.</b> The order stays <b>Pending Review</b>. A manager may request the $200 deposit later to hold the date, or may approve a written exception.</p>
+            <p>Cash is preferred for the remaining balance. Any cash discount or card price difference must be disclosed before payment and will follow the event-state rules shown in the final invoice.</p>
+          </div>
+        </section>
+
+        <section class="phx-v224-stripe-panel" data-payment-panel="stripe" hidden>
+          <div class="phx-v224-secure-head"><div><b>Stripe secure checkout</b><small>Card details are entered directly into Stripe's protected payment component. Phoenix Hibachi never stores your card number.</small></div><span>🔒 Secure</span></div>
+          <div class="phx-v224-wallet-row" aria-label="Supported express payment options"><span>Apple Pay</span><span>Google Pay</span><span>Link</span><span>Cash App Pay</span></div>
+          <div class="phx-v225-fee-disclosure"><b>Cash is preferred.</b><span>Eligible credit-card payments may include a clearly disclosed card-price adjustment where permitted. Debit cards and Connecticut events will not receive a card surcharge. The exact total must appear before payment. This adjustment remains disabled until the advertised-price basis and state rules are approved.</span></div>
+          <div id="stripeExpressCheckoutMount" class="phx-v224-stripe-mount"></div>
+          <div id="stripePaymentMount" class="phx-v224-stripe-mount phx-v224-card-mount"><div class="phx-v224-loading">Stripe payment form will appear here after the secure server connection is configured.</div></div>
+          <button type="button" class="gold-btn full phx-v224-pay-button" id="payStripeDepositBtn">Pay the $200 deposit securely</button>
+          <div class="phx-v224-payment-message" id="stripeDepositMessage" role="status">Payment is optional at this stage. You can submit the request without paying.</div>
+        </section>
+
+        <section class="phx-v224-manual-panel" data-payment-panel="zelle" hidden>
+          <div class="phx-v224-manual-card"><span class="phx-preconfirm-qr"><img src="assets/payment-zelle-qr.png" alt="Zelle QR code for FENY MOTION LLC"></span><div><h3>Zelle</h3><p>Recipient may display as <b>FENY MOTION LLC</b>.</p><a href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer">Open full Zelle card</a></div></div>
+          <label class="phx-preconfirm-ack"><input type="checkbox" id="zelleVerificationAcknowledge"> I already sent the $200 deposit. Staff verification is still required.</label>
+        </section>
+
+        <section class="phx-v224-manual-panel" data-payment-panel="venmo" hidden>
+          <div class="phx-v224-manual-card"><span class="phx-preconfirm-qr"><img src="assets/payment-venmo-qr.png" alt="Venmo QR code for Phoenix Hibachi"></span><div><h3>Venmo</h3><p>Send to <b>@Phoenix-Hibachi</b>.</p><a href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer">Open full Venmo card</a></div></div>
+          <label class="phx-preconfirm-ack"><input type="checkbox" id="venmoVerificationAcknowledge"> I already sent the $200 deposit. Staff verification is still required.</label>
+        </section>
+
+        <section class="phx-v225-benefits" aria-labelledby="benefitPaymentHeading">
+          <div class="phx-v225-benefit-head">
+            <div><strong id="benefitPaymentHeading">Coupons, gift cards, Phoenix Credit & points</strong><p>Discounts and stored value are calculated on the server before Stripe is asked to charge the remaining amount.</p></div>
+            <span>Secure balance lookup</span>
+          </div>
+          <div class="phx-v225-benefit-grid">
+            <label><span>Coupon / promotion code</span><div><input id="phoenixCouponCode" autocomplete="off" placeholder="Enter approved code"><button type="button" class="outline-btn" data-v225-apply="coupon">Apply</button></div><small>One coupon or promotion per party. Coupon has no cash value and does not reduce travel fee, tax, or tip.</small></label>
+            <label><span>Gift card code</span><div><input id="phoenixGiftCardCode" autocomplete="off" placeholder="Enter gift card code"><button type="button" class="outline-btn" data-v225-apply="gift_card">Apply</button></div><small>Gift cards are a payment method, not a coupon. The balance is checked only when you apply the code.</small></label>
+            <div class="phx-v225-member-benefit"><span>Phoenix Credit</span><b id="phoenixCreditBalance">Login to view</b><div class="phx-v225-member-actions"><button type="button" class="outline-btn" data-open-login>Login / use credit</button><button type="button" class="outline-btn" data-v225-topup>Recharge credit</button></div><small>Stored value remains in Supabase and is changed only by verified Stripe webhook or staff ledger entries.</small></div>
+            <div class="phx-v225-member-benefit"><span>Reward points</span><b id="phoenixPointsBalance">Login to view</b><button type="button" class="outline-btn" data-v225-apply="points">Apply points</button><small>Points are separate from cash value and are earned only after eligible completed payments.</small></div>
+          </div>
+          <div class="phx-v225-benefit-status" id="phoenixBenefitStatus" role="status">No coupon, gift card, credit, or points applied.</div>
+          <div class="phx-v225-payment-summary">
+            <span><small>Discounts</small><b id="v225DiscountTotal">$0.00</b></span>
+            <span><small>Gift card / credit</small><b id="v225StoredValueTotal">$0.00</b></span>
+            <span><small>Estimated order balance</small><b id="v225OrderBalance">Calculated securely</b></span>
+            <span><small>Deposit due now</small><b id="v225DepositDue">$200.00</b></span>
+            <span><small>Payment status</small><b id="v225DepositState">Optional now</b></span>
+          </div>
+        </section>
+
+        <div class="phx-preconfirm-status" id="depositChoiceStatus" role="status">Cash selected. You can submit the request without paying now.</div>
       </div>
-      <div class="post-confirm-box">
-        <strong>Confirm your booking request</strong>
-        <p>Membership is optional. Your booking request can still be submitted and reviewed even if you do not register for a member account.</p>
+      <div class="post-confirm-box phx-v225-confirm-box">
+        <strong>Finish your booking request</strong>
+        <p>Your request is already saved. Choose the payment method you plan to use, then finish. This still does <b>not</b> mean Phoenix Hibachi accepted the date. Payment can be added later, and staff must confirm every requested change.</p>
         <div class="inline-actions">
-          <button type="button" class="gold-btn" id="confirmBookingRequestBtn">Confirm booking request</button>
+          <button type="button" class="gold-btn" id="confirmBookingRequestBtn">Save payment choice & finish</button>
           <button type="button" class="outline-btn" data-open-share-reward>View social coupon options</button>
           <button type="button" class="outline-btn" data-open-login>Login</button>
           <button type="button" class="outline-btn" data-open-member>Register / Apply for Membership</button>
         </div>
-        <small class="small-muted">After staff accepts or completes the event, you can submit a TikTok, Facebook, Xiaohongshu, Instagram, or X/Twitter post link for a $50 next-party coupon after review. Show the approved coupon to the chef for confirmation.</small>
+        <small class="small-muted">After staff accepts or completes the event, you can submit a qualifying public social post for the existing next-party coupon policy. Coupons, gift cards, Phoenix Credit, and points remain separate benefit types and are recorded independently.</small>
       </div>
       <div class="contact-actions">
         <button type="button" class="outline-btn" data-close-modal>Close</button>
@@ -873,7 +985,7 @@
 
   <dialog class="dashboard-modal" id="dashboardModal">
     <div class="modal-card dashboard-card">
-      <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
+      <button type="button" class="modal-close" data-close-modal aria-label="Close" hidden>×</button>
       <div class="dashboard-head">
         <div>
           <p class="eyebrow">Phoenix Portal</p>
@@ -882,7 +994,7 @@
         </div>
         <div class="dashboard-actions">
           <button type="button" class="outline-btn dashboard-theme-btn" id="dashThemeToggleBtn">Light / Dark</button>
-          <button type="button" class="outline-btn dashboard-assistant-btn" id="dashAssistantBtn">Assistant</button>
+          <button type="button" class="outline-btn dashboard-assistant-btn" id="dashAssistantBtn" data-phx-profile-button="1">Profile</button>
           <button type="button" class="outline-btn" data-portal-logout>Logout</button>
         </div>
       </div>
@@ -1016,6 +1128,25 @@
 
 
 
+  <dialog class="member-modal" id="phoenixCreditTopupModal">
+    <div class="modal-card member-card phx-v225-topup-card">
+      <button type="button" class="modal-close" data-close-v225-topup aria-label="Close">×</button>
+      <p class="eyebrow">Phoenix Credit</p>
+      <h2>Recharge your Phoenix Party Credit</h2>
+      <p class="modal-help">Login is required. Money is credited only after Stripe sends a verified payment webhook. The browser cannot increase your balance.</p>
+      <div class="phx-v225-topup-options" role="radiogroup" aria-label="Choose credit amount">
+        <label><input type="radio" name="v225TopupAmount" value="10000">$100</label>
+        <label><input type="radio" name="v225TopupAmount" value="25000">$250</label>
+        <label><input type="radio" name="v225TopupAmount" value="50000">$500</label>
+        <label><input type="radio" name="v225TopupAmount" value="100000" checked>$1,000</label>
+      </div>
+      <div class="policy-alert compact"><strong>Existing member-credit promotion</strong><span>The current site policy mentions a possible $100 bonus on a $1,000 credit purchase after staff activation. The secure top-up rule remains disabled until that promotion is approved in Supabase.</span></div>
+      <div id="v225TopupStripeMount" class="phx-v224-stripe-mount phx-v224-card-mount"><div class="phx-v224-loading">Secure top-up checkout will appear here after test configuration.</div></div>
+      <div id="v225TopupStatus" class="phx-v225-benefit-status" role="status">No money is charged until secure Phoenix Credit checkout is activated.</div>
+      <div class="modal-actions"><button type="button" class="gold-btn" id="v225StartTopup">Start secure top-up</button><button type="button" class="outline-btn" data-close-v225-topup>Cancel</button></div>
+    </div>
+  </dialog>
+
   <dialog class="print-modal" id="printModal">
     <div class="modal-card print-card">
       <div class="print-modal-actions">
@@ -1029,16 +1160,35 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
   <script src="src/orders-dispatch-v120.js"></script>
-  <script src="src/phoenix-v140-admin-content.js"></script>
-  <script src="src/phoenix-os-master-v164.js"></script>
-  <script src="src/phoenix-os-v1641-ui-finish.js"></script>
-  <script src="src/phoenix-os-v1642-auth-profile-finish.js"></script>
-  <script src="src/phoenix-os-v1643-order-print-polish.js"></script>
-  <script src="src/phoenix-os-v1644-mobile-auth-confirm-fix.js"></script>
-  <script src="src/phoenix-os-v1645-print-contact-confirm-polish.js"></script>
-  <script src="src/phoenix-os-v1646-login-assistant-finalize.js"></script>
+  <script src="src/admin-content.js"></script>
+  <script src="src/phoenix-clean-v1652.js"></script>
   <script type="module" src="src/app/main.js"></script>
+  <script src="src/phoenix-v166-targeted-fixes.js"></script>
+  <script src="src/phoenix-v167-commercial-details.js"></script>
+  <script src="src/phoenix-v168-quote-navigation-polish.js"></script>
   <!-- v7 uses Geoapify Autocomplete directly in script.js.
-       Before launch, restrict the API key to your Replit preview domain and final website domain in Geoapify settings. -->
+       Restrict the API key to the final website domain in Geoapify settings. -->
+
+  <div class="modal phx-payment-modal" id="paymentModal" aria-hidden="true">
+    <div class="modal-card phx-payment-card" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+      <button class="modal-close" type="button" data-close-payment aria-label="Close payment options">×</button>
+      <p class="eyebrow">Confirmed booking payment</p>
+      <h2 id="paymentModalTitle">Payment Options</h2>
+      <p class="modal-help"><strong>Cash is preferred.</strong> Zelle and Venmo are available for confirmed deposits or balances. Never send payment until Phoenix Hibachi confirms your booking and amount.</p>
+      <div class="policy-alert compact"><strong>Order reference</strong><span id="paymentOrderReference">Select a confirmed order from your dashboard.</span></div>
+      <div class="phx-payment-grid">
+        <article class="phx-payment-option phx-zelle-option"><h3>Zelle</h3><a class="phx-payment-image-link" href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer" aria-label="Open the full Zelle payment card"><img src="assets/payment-zelle-qr.png" alt="Scannable Zelle QR code for Feny Motion LLC"></a><p>The recipient may display as <b>FENY MOTION LLC</b>, the legal entity operating Phoenix Hibachi.</p><a class="phx-payment-full-link" href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer">View full Zelle card</a></article>
+        <article class="phx-payment-option phx-venmo-option"><h3>Venmo</h3><a class="phx-payment-image-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer" aria-label="Open the full Venmo payment card"><img src="assets/payment-venmo-qr.png" alt="Scannable Venmo QR code for Phoenix Hibachi"></a><p>Venmo account: <b>@Phoenix-Hibachi</b></p><a class="phx-payment-full-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer">View full Venmo card</a></article>
+      </div>
+      <div class="policy-alert compact"><strong>Payment note required</strong><span>Enter the booking reference number or event name. Sending money does not automatically mark an order paid; staff must verify it.</span></div>
+      <button class="gold-btn full" type="button" data-close-payment>Done</button>
+    </div>
+  </div>
+
+  <script src="src/phoenix-v22-launch.js"></script>
+  <script src="src/phoenix-v224-stripe.js"></script>
+  <script src="src/phoenix-v225-cash-benefits.js"></script>
+  <script src="src/phoenix-video-config.js"></script>
+  <script src="src/phoenix-v226-video-media.js"></script>
 </body>
 </html>

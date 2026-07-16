@@ -1,0 +1,76 @@
+/* Phoenix Hibachi V2.2.3: integrate verified social QR codes into action cards and add pre-confirmation deposit choice. */
+
+/* Remove the old standalone QR strip; verified codes now live inside the matching platform cards. */
+.phx-scan-heading,.phx-qr-center{display:none!important}
+.phx-social-links .phx-social-action-card{
+  min-height:430px!important;
+  padding:18px 13px 14px!important;
+}
+.phx-social-action-card small{flex:0 0 auto!important;min-height:3.5em}
+.phx-card-qr{
+  display:grid;place-items:center;
+  width:min(100%,158px);aspect-ratio:1;
+  margin:2px auto 4px;padding:7px;
+  box-sizing:border-box;background:#fff;border-radius:13px;
+  box-shadow:0 11px 28px rgba(0,0,0,.34),0 0 0 1px rgba(255,255,255,.55);
+  overflow:hidden;
+}
+.phx-card-qr img{
+  display:block;width:100%;height:100%;object-fit:contain;background:#fff;
+  image-rendering:pixelated;border-radius:0!important;margin:0!important;padding:0!important;
+}
+.phx-social-action-card em{margin-top:auto!important}
+
+/* Deposit selection is shown before the customer confirms the saved booking request. */
+.phx-preconfirm-deposit{padding:17px!important;border-color:rgba(246,189,70,.42)!important;background:linear-gradient(145deg,rgba(245,185,63,.11),rgba(0,0,0,.28))!important}
+.phx-preconfirm-deposit-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start;padding-bottom:13px;border-bottom:1px solid rgba(246,189,70,.22)}
+.phx-preconfirm-deposit-head>div>strong{display:block;color:#f6bd46;font-size:1rem;margin-bottom:5px;text-transform:none}
+.phx-preconfirm-deposit-head p{margin:0!important;line-height:1.48}
+.phx-preconfirm-deposit-amount{display:grid;place-items:center;min-width:86px;min-height:56px;padding:8px 12px;border:1px solid rgba(246,189,70,.36);border-radius:14px;background:rgba(0,0,0,.28);color:#f6bd46;font-size:1.55rem}
+.phx-preconfirm-deposit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.phx-preconfirm-method{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;padding:12px;border:1px solid rgba(246,189,70,.28);border-radius:16px;background:rgba(0,0,0,.24);text-align:center;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.phx-preconfirm-method:hover{transform:translateY(-2px);border-color:rgba(246,189,70,.65)}
+.phx-preconfirm-method:has(input:checked){border-color:#f6bd46;box-shadow:0 0 0 2px rgba(246,189,70,.13),0 14px 28px rgba(0,0,0,.28)}
+.phx-preconfirm-method input{position:absolute;opacity:0;pointer-events:none}
+.phx-preconfirm-method-check{position:absolute;right:9px;top:9px;display:grid;place-items:center;width:22px;height:22px;border:1px solid rgba(246,189,70,.42);border-radius:50%;color:#1a1208;background:#fff;font-weight:1000;font-size:.72rem}
+.phx-preconfirm-method:has(input:checked) .phx-preconfirm-method-check::after{content:'✓';color:#211407}
+.phx-preconfirm-qr{display:grid;place-items:center;width:124px;height:124px;padding:7px;background:#fff;border-radius:12px;box-sizing:border-box;overflow:hidden}
+.phx-preconfirm-qr img{display:block;width:100%;height:100%;object-fit:contain;background:#fff;image-rendering:pixelated}
+.phx-preconfirm-method>strong{color:#fff8eb;font-size:1rem}
+.phx-preconfirm-method>small{color:#cfbfaa;line-height:1.38;min-height:2.7em}
+.phx-preconfirm-method>a{color:#f6bd46;font-size:.73rem;font-weight:850;text-decoration:underline;text-underline-offset:3px}
+.phx-card-deposit-disabled{cursor:not-allowed;opacity:.68}
+.phx-card-deposit-disabled:hover{transform:none;border-color:rgba(246,189,70,.28)}
+.phx-card-deposit-icon{display:grid;place-items:center;width:124px;height:124px;border-radius:12px;background:linear-gradient(145deg,#2e251c,#15100c);font-size:3rem;border:1px dashed rgba(246,189,70,.3)}
+.phx-card-deposit-status{color:#ffcb75;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.phx-preconfirm-ack{display:flex;gap:9px;align-items:flex-start;margin-top:13px;padding:11px 12px;border:1px dashed rgba(246,189,70,.32);border-radius:12px;color:#e2d6c5;font-size:.78rem;line-height:1.45;background:rgba(0,0,0,.16)}
+.phx-preconfirm-ack input{margin-top:2px;flex:0 0 auto}
+.phx-preconfirm-status{margin-top:9px;color:#d7c7b2;font-size:.76rem}
+.phx-preconfirm-status.ready{color:#8fe0a5;font-weight:800}
+#confirmBookingRequestBtn:disabled{opacity:.5;cursor:not-allowed;filter:saturate(.45)}
+
+body.light-theme .phx-card-qr,body.light-theme .phx-preconfirm-qr{box-shadow:0 8px 20px rgba(74,44,12,.15)}
+body.light-theme .phx-preconfirm-deposit{background:linear-gradient(145deg,#fff8e9,#f5ead7)!important;color:#2a160b}
+body.light-theme .phx-preconfirm-method{background:#fffdf8;color:#2a160b;border-color:#d4ad5b}
+body.light-theme .phx-preconfirm-method>strong{color:#2a160b}
+body.light-theme .phx-preconfirm-method>small,body.light-theme .phx-preconfirm-ack,body.light-theme .phx-preconfirm-status{color:#5d4938}
+
+@media(max-width:1180px){
+  .phx-social-links .phx-social-action-card{min-height:410px!important}
+  .phx-card-qr{width:145px}
+}
+@media(max-width:900px){
+  .phx-preconfirm-deposit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .phx-card-deposit-disabled{grid-column:1/-1}
+  .phx-card-deposit-icon{width:100%;height:78px}
+}
+@media(max-width:600px){
+  .phx-social-links .phx-social-action-card{min-height:330px!important;padding:13px 8px 11px!important}
+  .phx-card-qr{width:min(100%,126px);padding:5px;border-radius:10px}
+  .phx-social-action-card small{display:none!important;min-height:0}
+  .phx-preconfirm-deposit-head{grid-template-columns:1fr}
+  .phx-preconfirm-deposit-amount{justify-self:start;min-width:78px;min-height:48px}
+  .phx-preconfirm-deposit-grid{grid-template-columns:1fr}
+  .phx-card-deposit-disabled{grid-column:auto}
+  .phx-preconfirm-qr{width:148px;height:148px}
+}

@@ -1,0 +1,34 @@
+/* Phoenix Hibachi V168 — exact travel quote, simpler navigation, cash-preferred wording.
+   Minimal patch on approved V167. No dashboard, print, pricing, or database redesign. */
+:root{--phx-build-version:"V168_QUOTE_NAVIGATION_POLISH";}
+
+/* Desktop Packages submenu. Recipes, Stories, Shop, and Hiring are intentionally not in the primary menu. */
+.desktop-nav .nav-dropdown{position:relative;display:flex;align-items:center;align-self:stretch;}
+.desktop-nav .nav-dropdown-toggle{display:inline-flex;align-items:center;gap:5px;height:100%;}
+.desktop-nav .nav-dropdown-toggle span{font-size:.72em;transition:transform .18s ease;}
+.desktop-nav .nav-dropdown-menu{position:absolute;top:calc(100% - 4px);left:50%;z-index:70;display:grid;min-width:205px;padding:8px;opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,8px);border:1px solid var(--line);border-radius:15px;background:rgba(10,7,4,.98);box-shadow:0 18px 55px rgba(0,0,0,.45);transition:opacity .16s ease,transform .16s ease,visibility .16s ease;}
+.desktop-nav .nav-dropdown-menu a{display:block;padding:11px 12px;border-radius:10px;white-space:nowrap;text-transform:none;letter-spacing:.02em;font-size:.8rem;color:var(--text);}
+.desktop-nav .nav-dropdown-menu a:hover,.desktop-nav .nav-dropdown-menu a:focus-visible{background:rgba(227,167,45,.14);color:var(--gold2);outline:none;}
+.desktop-nav .nav-dropdown:hover .nav-dropdown-menu,.desktop-nav .nav-dropdown:focus-within .nav-dropdown-menu{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);}
+.desktop-nav .nav-dropdown:hover .nav-dropdown-toggle span,.desktop-nav .nav-dropdown:focus-within .nav-dropdown-toggle span{transform:rotate(180deg);}
+body.light-theme .desktop-nav .nav-dropdown-menu,body.light .desktop-nav .nav-dropdown-menu{background:rgba(255,252,247,.99);box-shadow:0 18px 48px rgba(71,40,10,.18);}
+
+/* Mobile Packages group. */
+.mobile-nav .mobile-nav-group{display:grid;border-radius:14px;background:rgba(255,255,255,.035);overflow:hidden;}
+.mobile-nav .mobile-nav-group summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;cursor:pointer;font-weight:900;list-style:none;}
+.mobile-nav .mobile-nav-group summary::-webkit-details-marker{display:none;}
+.mobile-nav .mobile-nav-group summary span{transition:transform .18s ease;}
+.mobile-nav .mobile-nav-group[open] summary span{transform:rotate(180deg);}
+.mobile-nav .mobile-nav-group a{margin:0 8px 8px;padding:11px 14px 11px 26px;background:rgba(227,167,45,.08);font-size:.92rem;}
+
+/* Travel fee state is informative but not a clickable address trigger. */
+.travel-estimate[data-travel-status]{display:grid;gap:4px;cursor:default;}
+.travel-estimate[data-travel-status] strong{color:#ffd779;}
+.travel-estimate[data-travel-status] span{font-size:.78rem;line-height:1.4;color:var(--muted);}
+.travel-estimate[data-travel-status="calculating"]{border-color:rgba(255,215,121,.36);}
+.travel-estimate[data-travel-status="ready"]{border-color:rgba(94,201,135,.5);background:rgba(54,159,102,.09);}
+.travel-estimate[data-travel-status="ready"] strong{color:#a9e6be;}
+.travel-estimate[data-travel-status="review"]{border-color:rgba(242,165,66,.45);background:rgba(183,101,30,.08);}
+body.light-theme .travel-estimate[data-travel-status="ready"],body.light .travel-estimate[data-travel-status="ready"]{background:#eef9f1;}
+
+@media(max-width:1050px){.desktop-nav .nav-dropdown{display:none;}}

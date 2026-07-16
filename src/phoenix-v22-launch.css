@@ -1,0 +1,28 @@
+/* Phoenix Hibachi V2.2.1 QR Integrity Fix — isolated launch integrations */
+.phx-brand-band{padding:22px 5vw;text-align:center;background:#0b0907;border-top:1px solid rgba(232,173,38,.35);border-bottom:1px solid rgba(232,173,38,.35);display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:#fff3d2}.phx-brand-band strong{color:#f6bd46}.phx-brand-band span{opacity:.82}
+
+/* Keep this launch hub independent of older social-card CSS. */
+.social-links-panel.phx-social-hub{display:block;margin-top:26px;padding:26px;border:1px solid rgba(255,215,121,.24);border-radius:26px;background:linear-gradient(145deg,rgba(227,167,45,.105),rgba(0,0,0,.20));overflow:hidden}
+.phx-social-intro{max-width:760px;margin:0 0 22px}.phx-social-intro h3{font-size:clamp(1.75rem,3vw,2.65rem);line-height:1.02}.phx-social-intro p{max-width:720px}
+.phx-social-links{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;align-items:stretch}
+.phx-social-links .phx-social-action-card{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:8px!important;min-width:0;min-height:230px;padding:18px!important;text-decoration:none;color:var(--text);border:1px solid rgba(255,215,121,.24);border-radius:20px;background:rgba(0,0,0,.24);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.phx-social-links .phx-social-action-card:hover,.phx-qr-card:hover{transform:translateY(-3px);border-color:rgba(246,189,70,.72);box-shadow:0 16px 34px rgba(0,0,0,.26)}
+.phx-social-action-card .phx-platform-mark{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#15110b;font:900 1.35rem/1 Arial,sans-serif;box-shadow:0 7px 18px rgba(0,0,0,.28)}
+.phx-social-action-card strong{font-family:Georgia,serif;font-size:1.35rem;color:var(--text)}
+.phx-social-action-card span{font-weight:900;color:var(--gold2);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+.phx-social-action-card small{color:var(--muted);line-height:1.5;font-size:.82rem;flex:1}
+.phx-social-action-card em{width:100%;margin-top:6px;padding:10px 9px;border:1px solid rgba(246,189,70,.35);border-radius:12px;color:#f6bd46;text-align:center;font-style:normal;font-weight:900;font-size:.78rem}
+.phx-social-links .social-qr-box{display:none!important}
+.phx-scan-heading{display:flex;align-items:baseline;justify-content:center;gap:12px;flex-wrap:wrap;margin:28px 0 14px;padding-top:22px;border-top:1px solid rgba(255,215,121,.18);text-align:center;text-transform:uppercase;letter-spacing:.12em;color:#f6bd46;font-weight:900}
+.phx-scan-heading small{font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)}
+.phx-qr-center{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:0;align-items:stretch}
+.phx-qr-card{min-width:0;min-height:310px;background:rgba(0,0,0,.22);border:1px solid rgba(229,170,40,.34);border-radius:18px;padding:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:var(--text);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.phx-qr-shell{display:grid;place-items:center;width:100%;max-width:210px;aspect-ratio:1;background:#fff;border-radius:12px;padding:10px;box-sizing:border-box;overflow:hidden;margin:0 auto 4px}
+.phx-qr-shell img{display:block!important;width:100%!important;height:100%!important;max-width:none!important;aspect-ratio:1!important;object-fit:contain!important;object-position:center!important;margin:0!important;padding:0!important;background:#fff!important;border-radius:0!important;image-rendering:auto}
+.phx-qr-card strong{font-family:Georgia,serif;font-size:1.14rem;color:var(--text)}.phx-qr-card small{font-size:.82rem;line-height:1.4;color:var(--muted)}
+
+.phx-payment-card{max-width:850px}.phx-payment-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0}.phx-payment-option{border:1px solid rgba(229,170,40,.3);border-radius:18px;padding:16px;text-align:center;background:rgba(255,255,255,.025)}.phx-payment-option h3{margin:0 0 12px;color:#f6bd46}.phx-payment-image-link{display:block;text-decoration:none}.phx-payment-option img{display:block;width:min(100%,430px);max-height:560px;object-fit:contain;margin:auto;background:#fff;border-radius:14px}.phx-payment-option p{font-size:.9rem;line-height:1.5}.gold-btn.full{width:100%}
+body.light-theme .phx-social-action-card,body.light-theme .phx-qr-card{background:#fffaf0;color:#2a160b;border-color:#e8c888}body.light-theme .phx-social-action-card strong,body.light-theme .phx-qr-card strong{color:#1f120b}
+@media(max-width:1100px){.phx-social-links,.phx-qr-center{grid-template-columns:repeat(2,minmax(0,1fr))!important}.phx-qr-card{min-height:300px}}
+@media(max-width:820px){.phx-payment-grid{grid-template-columns:1fr}.social-links-panel.phx-social-hub{padding:22px 18px}}
+@media(max-width:560px){.phx-social-links,.phx-qr-center{grid-template-columns:1fr!important}.phx-social-links .phx-social-action-card{min-height:0}.phx-qr-card{min-height:0}.phx-qr-shell{max-width:240px}.phx-payment-card{padding:22px 14px}.phx-payment-option img{max-height:480px}}

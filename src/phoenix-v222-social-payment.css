@@ -1,0 +1,68 @@
+/* Phoenix Hibachi V2.2.2 — social board polish + direct confirmed-order payment QR display */
+.social-links-panel.phx-social-hub{
+  position:relative;
+  margin-top:32px;
+  padding:clamp(22px,3vw,38px);
+  border:1px solid rgba(246,189,70,.34);
+  border-radius:30px;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 80% 0%,rgba(246,189,70,.12),transparent 34%),
+    linear-gradient(145deg,rgba(28,17,6,.98),rgba(6,5,4,.98));
+  box-shadow:0 28px 70px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.social-links-panel.phx-social-hub::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;
+  background-image:linear-gradient(rgba(246,189,70,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(246,189,70,.06) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:linear-gradient(to bottom,black,transparent 72%);
+}
+.phx-social-top{position:relative;z-index:1;display:grid;grid-template-columns:minmax(260px,.86fr) minmax(0,2.14fr);gap:28px;align-items:stretch}
+.phx-social-intro{display:flex;flex-direction:column;justify-content:center;max-width:none;margin:0;padding:8px 6px 8px 0}
+.phx-social-intro h3{margin:.3rem 0 .85rem;font-size:clamp(2rem,3.6vw,3.35rem);line-height:.98;letter-spacing:-.025em}
+.phx-social-intro h3 span{display:block;color:#efb944;text-shadow:0 0 24px rgba(239,185,68,.18)}
+.phx-social-intro>p:last-of-type{max-width:560px;line-height:1.7;color:#ddd1c2}
+.phx-social-promise{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(246,189,70,.24);font-size:.78rem;letter-spacing:.075em;text-transform:uppercase;color:#f0cf83}
+.phx-social-promise i{font-style:normal;color:#bd7f1c}
+.phx-social-links{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;align-items:stretch}
+.phx-social-links .phx-social-action-card{
+  position:relative;isolation:isolate;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
+  gap:7px!important;min-height:250px;padding:20px 14px 15px!important;text-align:center!important;text-decoration:none;color:var(--text);
+  border:1px solid rgba(246,189,70,.30);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.32));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.phx-social-links .phx-social-action-card::after{content:"";position:absolute;inset:auto 14px 0;height:2px;border-radius:999px;background:linear-gradient(90deg,transparent,var(--phx-accent,#f0b840),transparent);opacity:.6}
+.phx-social-links .phx-social-action-card:hover,.phx-qr-card:hover{transform:translateY(-4px);border-color:rgba(246,189,70,.75);box-shadow:0 18px 36px rgba(0,0,0,.30),0 0 0 1px rgba(246,189,70,.08)}
+.phx-social-action-card .phx-platform-mark{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:#fff;color:#15110b;font:900 1.45rem/1 Arial,sans-serif;box-shadow:0 9px 22px rgba(0,0,0,.32)}
+.phx-social-action-card strong{font-family:Georgia,serif;font-size:1.25rem;color:#fff8eb}.phx-social-action-card span{font-weight:900;color:#efb944;font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;line-height:1.35}.phx-social-action-card small{color:#d7cab8;line-height:1.48;font-size:.78rem;flex:1}.phx-social-action-card em{width:100%;margin-top:6px;padding:10px 8px;border:1px solid rgba(246,189,70,.40);border-radius:12px;color:#f6bd46;text-align:center;font-style:normal;font-weight:900;font-size:.73rem}
+.phx-google{--phx-accent:#4285f4}.phx-instagram{--phx-accent:#d62976}.phx-tiktok{--phx-accent:#25f4ee}.phx-facebook{--phx-accent:#1877f2}
+.phx-scan-heading{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:14px;margin:28px 0 15px;padding-top:22px;border-top:1px solid rgba(246,189,70,.22);text-align:center;text-transform:uppercase;letter-spacing:.12em;color:#efb944;font-weight:900}
+.phx-scan-heading::before,.phx-scan-heading::after{content:"";height:1px;flex:1;max-width:190px;background:linear-gradient(90deg,transparent,rgba(246,189,70,.55))}.phx-scan-heading::after{transform:scaleX(-1)}
+.phx-scan-heading small{color:#bfb09d;font-size:.63rem;letter-spacing:.06em;text-transform:none;font-weight:700}
+.phx-qr-center{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:0;align-items:stretch}
+.phx-qr-card{position:relative;min-width:0;min-height:0;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(0,0,0,.30));border:1px solid rgba(229,170,40,.38);border-radius:20px;padding:14px 14px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:var(--text);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;overflow:hidden}
+.phx-qr-card::before{content:"";position:absolute;left:18%;right:18%;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--phx-accent,#f0b840),transparent);filter:drop-shadow(0 0 8px var(--phx-accent,#f0b840))}
+.phx-qr-shell{display:grid;place-items:center;width:min(100%,205px);aspect-ratio:1;background:#fff;border:8px solid #fff;border-radius:14px;box-sizing:border-box;overflow:hidden;margin:0 auto 4px;box-shadow:0 12px 30px rgba(0,0,0,.30)}
+.phx-qr-shell img{display:block!important;width:100%!important;height:100%!important;max-width:none!important;aspect-ratio:1!important;object-fit:contain!important;object-position:center!important;margin:0!important;padding:0!important;background:#fff!important;border-radius:0!important;image-rendering:pixelated}
+.phx-qr-card strong{font-family:Georgia,serif;font-size:1.12rem;color:#fff8eb}.phx-qr-card small{font-size:.77rem;line-height:1.38;color:#cfc1ae;min-height:2.1em}
+.phx-social-footer{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:10px 18px;flex-wrap:wrap;margin-top:18px;padding:13px 18px;border:1px solid rgba(246,189,70,.24);border-radius:15px;background:rgba(0,0,0,.28);text-align:center}.phx-social-footer b{color:#efb944;letter-spacing:.08em;text-transform:uppercase}.phx-social-footer span{color:#fff}.phx-social-footer small{color:#cdbda8}.phx-social-footer small strong{color:#f3c76b}
+
+/* Direct payment QR panel shown inside confirmed customer order cards. */
+.phx-inline-payment-card{margin:16px 0 18px;padding:18px;border:1px solid rgba(246,189,70,.38);border-radius:20px;background:linear-gradient(145deg,rgba(245,185,63,.09),rgba(0,0,0,.27));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.phx-inline-payment-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start;padding-bottom:14px;border-bottom:1px solid rgba(246,189,70,.22)}
+.phx-inline-payment-kicker{display:block;color:#efb944;font-size:.7rem;font-weight:900;letter-spacing:.10em;text-transform:uppercase}.phx-inline-payment-heading h4{margin:5px 0 7px;font-size:1.22rem}.phx-inline-payment-heading p{margin:0!important;color:#d8cbb9;font-size:.86rem;line-height:1.55}
+.phx-inline-payment-amount{min-width:180px;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid rgba(246,189,70,.25);text-align:right}.phx-inline-payment-amount span,.phx-inline-payment-amount small{display:block;color:#c9baa5;font-size:.72rem}.phx-inline-payment-amount b{display:block;color:#f6bd46;font-size:1.65rem;line-height:1.1;margin:3px 0 5px}
+.phx-inline-payment-qrs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.phx-inline-pay-method{display:grid;grid-template-columns:116px minmax(0,1fr);grid-template-rows:auto auto;gap:2px 14px;align-items:center;padding:12px;border:1px solid rgba(246,189,70,.25);border-radius:16px;background:rgba(0,0,0,.24);text-decoration:none;color:inherit;transition:transform .18s ease,border-color .18s ease}.phx-inline-pay-method:hover{transform:translateY(-2px);border-color:rgba(246,189,70,.62)}
+.phx-inline-pay-qr{grid-row:1/3;width:116px;height:116px;padding:7px;background:#fff;border-radius:12px;box-sizing:border-box}.phx-inline-pay-qr img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated}.phx-inline-pay-method strong{align-self:end;color:#fff8eb;font-size:1.05rem}.phx-inline-pay-method small{align-self:start;color:#c9baa5;line-height:1.35}
+.phx-inline-payment-warning{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(170,43,43,.16);border:1px solid rgba(255,102,102,.24);color:#e8d9d2;font-size:.78rem}.phx-inline-payment-warning b{color:#ffb5a9}
+.phx-payment-pending-note{display:flex;gap:10px;align-items:flex-start;margin:14px 0;padding:12px 14px;border:1px dashed rgba(246,189,70,.32);border-radius:14px;background:rgba(0,0,0,.16)}.phx-payment-pending-note b{color:#efb944}.phx-payment-pending-note span{color:#cdbfae;font-size:.82rem;line-height:1.45}
+.phx-payment-availability-note{display:block;margin-top:8px;color:#d9c9b4;line-height:1.45}
+
+/* Full payment modal: clean QR-first presentation, full source cards remain available. */
+.phx-payment-card{max-width:780px}.phx-payment-grid{gap:16px}.phx-payment-option{padding:18px}.phx-payment-option img{width:min(100%,300px);max-height:none;aspect-ratio:1;object-fit:contain;border-radius:14px;image-rendering:pixelated}.phx-payment-full-link{display:inline-flex;margin-top:4px;color:#f6bd46;font-size:.78rem;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+
+body.light-theme .social-links-panel.phx-social-hub{background:linear-gradient(145deg,#fff8e9,#f4ead8)}body.light-theme .phx-social-intro>p:last-of-type,body.light-theme .phx-social-action-card small,body.light-theme .phx-qr-card small{color:#5b4634}body.light-theme .phx-social-links .phx-social-action-card,body.light-theme .phx-qr-card,body.light-theme .phx-inline-payment-card,body.light-theme .phx-inline-pay-method{background:#fffdf8;color:#2a160b;border-color:#ddb967}body.light-theme .phx-social-action-card strong,body.light-theme .phx-qr-card strong,body.light-theme .phx-inline-pay-method strong{color:#23140b}body.light-theme .phx-inline-payment-heading p,body.light-theme .phx-inline-pay-method small{color:#5d4938}
+
+@media(max-width:1180px){.phx-social-top{grid-template-columns:1fr}.phx-social-intro{padding-right:0}.phx-social-intro h3 span{display:inline}.phx-social-links{grid-template-columns:repeat(4,minmax(170px,1fr))!important;overflow-x:auto;padding-bottom:5px}.phx-social-links .phx-social-action-card{min-width:170px}}
+@media(max-width:900px){.phx-qr-center{grid-template-columns:repeat(2,minmax(0,1fr))}.phx-inline-payment-heading{grid-template-columns:1fr}.phx-inline-payment-amount{text-align:left;min-width:0}.phx-inline-payment-qrs{grid-template-columns:1fr}}
+@media(max-width:600px){.social-links-panel.phx-social-hub{padding:20px 14px;border-radius:22px}.phx-social-links{grid-template-columns:repeat(2,minmax(0,1fr))!important;overflow:visible}.phx-social-links .phx-social-action-card{min-width:0;min-height:220px;padding:15px 10px!important}.phx-social-action-card small{display:none}.phx-social-action-card .phx-platform-mark{width:44px;height:44px;border-radius:14px}.phx-qr-center{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.phx-qr-card{padding:10px 8px 12px}.phx-qr-shell{width:100%;border-width:5px;border-radius:10px}.phx-qr-card strong{font-size:.95rem}.phx-qr-card small{font-size:.68rem;min-height:0}.phx-scan-heading{gap:8px}.phx-scan-heading small{display:none}.phx-inline-pay-method{grid-template-columns:94px minmax(0,1fr)}.phx-inline-pay-qr{width:94px;height:94px}.phx-social-footer{font-size:.8rem}}

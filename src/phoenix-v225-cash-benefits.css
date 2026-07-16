@@ -1,0 +1,24 @@
+/* Phoenix Hibachi V2.2.5 — cash-first, optional-deposit, benefits-ready interface. */
+.phx-v225-payment .phx-v225-request-state{display:grid;gap:5px;margin:12px 0;padding:12px 14px;border-left:4px solid #f6bd46;border-radius:10px;background:rgba(246,189,70,.08)}
+.phx-v225-request-state span{font-size:.76rem;line-height:1.48;color:#d6c6b1}
+.phx-v225-payment-tabs{grid-template-columns:1.35fr 1.35fr 1fr 1fr}
+.phx-v225-cash-tab .phx-v224-pay-icon{background:#f6bd46;color:#171008}
+.phx-v225-cash-panel{border-color:rgba(246,189,70,.4);background:linear-gradient(135deg,rgba(246,189,70,.1),rgba(0,0,0,.2))}
+.phx-v225-cash-copy h3{margin:0 0 8px}.phx-v225-cash-copy p{margin:7px 0;line-height:1.5}
+.phx-v225-fee-disclosure{display:grid;gap:3px;margin:10px 0;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.06);font-size:.73rem;line-height:1.45}
+.phx-v225-fee-disclosure span{color:#d5c6b5}
+.phx-v225-benefits{margin-top:15px;padding:14px;border:1px solid rgba(246,189,70,.31);border-radius:16px;background:rgba(0,0,0,.19)}
+.phx-v225-benefit-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px}
+.phx-v225-benefit-head strong,.phx-v225-benefit-head p{display:block;margin:0}.phx-v225-benefit-head p{font-size:.73rem;color:#cdbda8;margin-top:4px;line-height:1.4}.phx-v225-benefit-head>span{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:#8fe0a5;font-weight:850;white-space:nowrap}
+.phx-v225-benefit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.phx-v225-benefit-grid>label,.phx-v225-member-benefit{display:grid;gap:7px;padding:11px;border:1px solid rgba(246,189,70,.18);border-radius:12px;background:rgba(255,255,255,.025)}
+.phx-v225-benefit-grid label>span,.phx-v225-member-benefit>span{font-size:.74rem;font-weight:850;color:#f6bd46}.phx-v225-benefit-grid label>div{display:grid;grid-template-columns:1fr auto;gap:7px}.phx-v225-benefit-grid input{min-width:0}.phx-v225-benefit-grid small,.phx-v225-member-benefit small{font-size:.67rem;color:#bfae9a;line-height:1.38}.phx-v225-member-benefit b{font-size:1rem}.phx-v225-member-benefit button{justify-self:start}
+.phx-v225-benefit-status{margin:10px 0;padding:9px 10px;border-radius:9px;background:rgba(255,255,255,.045);font-size:.72rem;color:#cdbda8}.phx-v225-benefit-status.error{color:#ff9b9b}.phx-v225-benefit-status.success{color:#8fe0a5}
+.phx-v225-payment-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.phx-v225-payment-summary span{display:grid;gap:3px;padding:9px;border-radius:10px;background:#0d0906;border:1px solid rgba(246,189,70,.15)}.phx-v225-payment-summary small{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:#a89783}.phx-v225-payment-summary b{font-size:.84rem}
+.phx-v225-confirm-box{border-color:rgba(246,189,70,.38)}
+body.light-theme .phx-v225-request-state,body.light-theme .phx-v225-benefits,body.light-theme .phx-v225-cash-panel{background:#fff8e8;color:#26170c}.light-theme .phx-v225-request-state span,.light-theme .phx-v225-benefit-head p,.light-theme .phx-v225-benefit-grid small,.light-theme .phx-v225-member-benefit small{color:#685545}
+@media(max-width:920px){.phx-v225-payment-tabs{grid-template-columns:1fr 1fr}.phx-v225-payment-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.phx-v225-benefit-grid,.phx-v225-payment-summary{grid-template-columns:1fr}.phx-v225-benefit-head{display:block}.phx-v225-benefit-head>span{display:inline-block;margin-top:7px}}
+@media(max-width:480px){.phx-v225-payment-tabs{grid-template-columns:1fr}}
+.phx-v225-member-actions{display:flex;gap:7px;flex-wrap:wrap}
+.phx-v225-topup-options{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}.phx-v225-topup-options label{display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;border:1px solid rgba(246,189,70,.25);border-radius:10px;cursor:pointer}.phx-v225-topup-options label:has(input:checked){border-color:#f6bd46;background:rgba(246,189,70,.1)}
+@media(max-width:600px){.phx-v225-topup-options{grid-template-columns:1fr 1fr}}

@@ -1,4 +1,4 @@
-window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
+window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 
 /* ======================================================================
    V78 TOP-LAYER DIALOG DELETE FIX + NO LOGIN SUCCESS POPUP
@@ -283,11 +283,13 @@ window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
   function attachInline(){
     document.querySelectorAll('[data-delete-order]').forEach(btn => {
       btn.classList.add('phx-v78-delete-ready');
-      btn.setAttribute('onclick', 'return window.PHX_DELETE_ORDER_V78(event,this)');
+      const handler = 'return window.PHX_DELETE_ORDER_V78(event,this)';
+      if (btn.getAttribute('onclick') !== handler) btn.setAttribute('onclick', handler);
     });
     document.querySelectorAll('[data-person-delete]').forEach(btn => {
       btn.classList.add('phx-v78-delete-ready');
-      btn.setAttribute('onclick', 'return window.PHX_DELETE_PERSON_V78(event,this)');
+      const handler = 'return window.PHX_DELETE_PERSON_V78(event,this)';
+      if (btn.getAttribute('onclick') !== handler) btn.setAttribute('onclick', handler);
     });
   }
 
@@ -331,8 +333,7 @@ window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
       const prevRender = renderDashboard;
       renderDashboard = function(role = currentDashboardRole || 'Admin'){
         const out = prevRender(role);
-        setTimeout(attachInline, 0);
-        setTimeout(attachInline, 250);
+        attachInline();
         return out;
       };
     }
@@ -342,13 +343,14 @@ window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
     installFilters();
     attachInline();
   });
-  setTimeout(() => { installFilters(); attachInline(); }, 0);
-  setTimeout(() => { installFilters(); attachInline(); }, 500);
-  setInterval(attachInline, 1200);
+  if (document.readyState !== 'loading') {
+    installFilters();
+    attachInline();
+  }
 })();
 
 
-window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
+window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 
 
 
@@ -367,6 +369,9 @@ const modalPackage = document.getElementById('modalPackage');
 // Public/publishable key is safe in browser only when RLS policies are enabled.
 const SUPABASE_URL = 'https://kyjiwwsqeyhllmzhncap.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZ6aXqUJXfFVavnAKshSOQ_HZLTfDTi';
+// Public project settings only. Secret/service-role keys must never be placed here.
+window.PHX_SUPABASE_URL = SUPABASE_URL;
+window.PHX_SUPABASE_ANON_KEY = SUPABASE_PUBLISHABLE_KEY;
 let supabaseClient = null;
 let supabaseSession = null;
 let supabaseProfile = null;
@@ -380,14 +385,19 @@ function initSupabaseClient() {
   try {
     if (window.supabase && !supabaseClient) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+    }
+    if (supabaseClient) {
+      window.PhoenixSupabaseClient = supabaseClient;
+      window.phoenixSupabaseClient = supabaseClient;
     }
   } catch (error) {
     console.warn('Supabase client init failed:', error);
   }
   return supabaseClient;
 }
+window.getPhoenixSupabaseClient = initSupabaseClient;
 initSupabaseClient();
 
 
@@ -793,13 +803,18 @@ async function saveBookingToSupabase(order) {
   if (client) {
     try {
       let result = await client.from('bookings').insert(payload);
-      if (result.error) {
+      const removedColumns = [];
+      for (let schemaAttempt = 0; result.error && schemaAttempt < 40; schemaAttempt += 1) {
         const retryPayload = removeMissingColumnFromPayload(payload, result.error.message);
-        if (retryPayload) {
-          console.warn('Retrying booking insert without missing Supabase column:', result.error.message);
-          payload = retryPayload;
-          result = await client.from('bookings').insert(payload);
-        }
+        if (!retryPayload) break;
+        const missing = Object.keys(payload).find((key) => !(key in retryPayload));
+        if (missing) removedColumns.push(missing);
+        console.warn('Booking schema compatibility retry; removed unavailable column:', missing || result.error.message);
+        payload = retryPayload;
+        result = await client.from('bookings').insert(payload);
+      }
+      if (!result.error && removedColumns.length) {
+        console.warn('Booking saved in compatibility mode. Run the V226 Supabase schema fix. Removed:', removedColumns);
       }
       if (!result.error) {
         try {
@@ -822,19 +837,27 @@ async function saveBookingToSupabase(order) {
 
   // V154 fallback: direct REST insert. This often works when the JS client/session path fails.
   try {
-    await supabaseDirectInsert('bookings', payload);
-    return {ok:true, data:payload, method:'direct-rest'};
-  } catch (directError) {
-    const retryPayload = removeMissingColumnFromPayload(payload, directError.message);
-    if (retryPayload) {
+    const removedColumns = [];
+    let lastDirectError = null;
+    for (let schemaAttempt = 0; schemaAttempt < 40; schemaAttempt += 1) {
       try {
-        payload = retryPayload;
         await supabaseDirectInsert('bookings', payload);
-        return {ok:true, data:payload, method:'direct-rest-retry'};
-      } catch (retryError) {
-        directError = retryError;
+        if (removedColumns.length) {
+          console.warn('Booking saved through REST compatibility mode. Run the V226 Supabase schema fix. Removed:', removedColumns);
+        }
+        return {ok:true, data:payload, method:removedColumns.length ? 'direct-rest-compatibility' : 'direct-rest'};
+      } catch (error) {
+        lastDirectError = error;
+        const retryPayload = removeMissingColumnFromPayload(payload, error.message);
+        if (!retryPayload) break;
+        const missing = Object.keys(payload).find((key) => !(key in retryPayload));
+        if (missing) removedColumns.push(missing);
+        console.warn('REST booking schema compatibility retry; removed unavailable column:', missing || error.message);
+        payload = retryPayload;
       }
     }
+    throw lastDirectError || new Error('Booking insert failed after schema compatibility retries.');
+  } catch (directError) {
     console.error('Supabase REST booking insert failed:', directError);
     const firstMessage = firstError?.message || String(firstError || 'Unknown first error');
     const directMessage = directError?.message || String(directError || 'Unknown direct REST error');
@@ -1307,9 +1330,10 @@ const PHX_DEFAULT_PRICING_V140 = {
     chefAdultRate: 15,
     chefKidRate: 7.5,
     chefMinimumPayout: 150,
-    minimumBillableGuests: 10,
+    minimumBillableGuests: 0,
+    minimumFoodOrder: 550,
     estimatedFoodCostRate: 35,
-    defaultTravelFee: 50,
+    defaultTravelFee: 0,
     salesTaxRate: 8.875
   }
 };
@@ -1362,10 +1386,17 @@ const totalGuestsInput = document.getElementById('totalGuestsInput');
 const billableGuestsInput = document.getElementById('billableGuestsInput');
 const billableGuestCard = document.getElementById('billableGuestCard');
 const guestMinimumHelp = document.getElementById('guestMinimumHelp');
+const minimumOrderTracker = document.getElementById('minimumOrderTracker');
+const minimumOrderBase = document.getElementById('minimumOrderBase');
+const minimumOrderSides = document.getElementById('minimumOrderSides');
+const minimumOrderRemaining = document.getElementById('minimumOrderRemaining');
+const minimumOrderStatus = document.getElementById('minimumOrderStatus');
 const sendBookingRequestBtn = document.getElementById('sendBookingRequestBtn');
 const bookingReadyHelp = document.getElementById('bookingReadyHelp');
 const noAddonChoice = document.getElementById('noAddonChoice');
 const bookingPolicyAgree = document.getElementById('bookingPolicyAgree');
+const bookingMediaAcknowledge = document.getElementById('bookingMediaAcknowledge');
+const bookingMarketingConsent = document.getElementById('bookingMarketingConsent');
 const proteinChoiceGrid = document.getElementById('proteinChoiceGrid');
 const proteinUsedCount = document.getElementById('proteinUsedCount');
 const proteinRequiredCount = document.getElementById('proteinRequiredCount');
@@ -1413,7 +1444,12 @@ function billableGuestCount(orderLike = bookingState) {
   const stored = Number(orderLike.billableGuests || orderLike.billable_guests || 0);
   const totalFallback = Number(orderLike.totalGuests || orderLike.total || 0);
   const calculated = adults + kids * 0.5;
-  return Math.max(MONEY_RULES.minimumBillableGuests, stored || calculated || totalFallback || 0);
+  // V167: actual confirmed portions are used. The $550 minimum is enforced as
+  // a food-value adjustment after side orders, not by inventing extra guests.
+  return Math.max(0, stored || calculated || totalFallback || 0);
+}
+function minimumFoodOrderValue() {
+  return Math.max(0, Number(MONEY_RULES.minimumFoodOrder || 550));
 }
 function formatGuestNumber(value) {
   const n = Number(value || 0);
@@ -1496,7 +1532,7 @@ function updateProteinState() {
   if (proteinUpchargeInput) proteinUpchargeInput.value = String(bookingState.proteinUpcharge);
   const packageName = bookingState.package || 'Classic';
   if (proteinHelpText) {
-    proteinHelpText.textContent = `${packageName} for ${formatGuestNumber(billableGuestCount())} billable guests includes ${required} protein portions. Kids count as half a guest. Filet mignon, lobster and scallop add $5 per selected portion.`;
+    proteinHelpText.textContent = `${packageName} for ${formatGuestNumber(billableGuestCount())} adult-equivalent meal portions includes ${required} protein portions. Kids count as half a portion. Filet mignon, lobster and scallop add $5 per selected portion.`;
     proteinHelpText.classList.toggle('protein-warning', used !== required);
   }
   proteinChoiceGrid?.querySelectorAll('.protein-row').forEach(row => {
@@ -1524,14 +1560,17 @@ function bookingReadinessIssues() {
   const issues = [];
   if (isPastDate(selectedDateState)) issues.push('Choose today or a future event date');
   if (!isAcceptingOrders()) issues.push('Selected date is full / not accepting new booking requests');
-  // Guests are allowed to choose any actual headcount. The price still uses the
-  // 10-adult minimum through billableGuestCount(), so under-minimum parties can submit.
+  if (physicalGuestCount(bookingState) < 1) issues.push('Add at least one guest');
+  // Guests may choose the real headcount. The $550 minimum is applied to total
+  // food value after approved side orders, without creating fake guests.
   const requiredProteins = requiredProteinPortions();
   const selectedProteins = proteinTotal(bookingState.proteins);
   if (selectedProteins !== requiredProteins) issues.push(`Choose ${requiredProteins} protein portions`);
   updateAddonsState();
   // Add-ons are optional. Leaving all quantities at 0 is a valid choice.
-  if (bookingPolicyAgree && !bookingPolicyAgree.checked) issues.push('Check agreement box');
+  if (bookingPolicyAgree && !bookingPolicyAgree.checked) issues.push('Check terms agreement');
+  if (bookingMediaAcknowledge && !bookingMediaAcknowledge.checked) issues.push('Acknowledge event photo/video policy');
+  if (travelEstimate?.dataset?.travelStatus === 'calculating') issues.push('Wait for travel fee calculation');
   return issues;
 }
 function updateBookingReadyState() {
@@ -1625,25 +1664,19 @@ function updateGuestCount() {
   bookingState.physicalGuests = physicalGuestCount(bookingState);
   bookingState.actualBillableGuests = actualBillableGuestCount(bookingState);
   bookingState.chargedBillableGuests = billableGuestCount(bookingState);
-  bookingState.total = bookingState.chargedBillableGuests;
+  bookingState.total = bookingState.physicalGuests;
   if (adultsInput) adultsInput.value = bookingState.adults;
   if (kidsInput) kidsInput.value = bookingState.kids;
-  if (totalValue) totalValue.textContent = formatGuestNumber(bookingState.chargedBillableGuests);
+  if (totalValue) totalValue.textContent = String(bookingState.physicalGuests);
   if (totalGuestsInput) totalGuestsInput.value = String(bookingState.physicalGuests);
   if (billableGuestsInput) billableGuestsInput.value = formatGuestNumber(bookingState.chargedBillableGuests);
-  const actual = bookingState.actualBillableGuests;
-  const charged = bookingState.chargedBillableGuests;
-  if (guestMinimumHelp) {
-    guestMinimumHelp.textContent = actual < MONEY_RULES.minimumBillableGuests
-      ? `Actual adult-equivalent guests: ${formatGuestNumber(actual)} · minimum charge applies: ${formatGuestNumber(charged)} billable guests`
-      : `Minimum met · charged as ${formatGuestNumber(charged)} billable guests`;
-  }
+  if (guestMinimumHelp) guestMinimumHelp.textContent = `${bookingState.physicalGuests} guests · ${money(minimumFoodOrderValue())} minimum food order`;
   billableGuestCard?.classList.remove('below-minimum');
   updateProteinState();
 }
 function validateGuestMinimum() {
-  // Under-minimum guest counts are allowed. The order is simply charged at the
-  // 10-adult minimum through billableGuestCount().
+  // Under-minimum guest counts are allowed. Side orders count toward the $550
+  // minimum, and any remaining difference is shown as a minimum-order adjustment.
   updateGuestCount();
   return true;
 }
@@ -1662,6 +1695,8 @@ document.querySelectorAll('.counter-card[data-counter]').forEach(card => {
   input?.addEventListener('blur', updateGuestCount);
 });
 bookingPolicyAgree?.addEventListener('change', updateBookingReadyState);
+bookingMediaAcknowledge?.addEventListener('change', updateBookingReadyState);
+bookingMarketingConsent?.addEventListener('change', updateBookingReadyState);
 
 function updateTimeFromSelects() {
   if (!hourSelect || !minuteSelect || !ampmSelect) return;
@@ -1710,14 +1745,28 @@ customTimeRequest?.addEventListener('input', () => {
   }
 });
 
+function updateMinimumOrderTracker(estimate) {
+  if (!estimate) return;
+  const guestAndUpgrade = Number(estimate.packageSubtotal || 0) + Number(estimate.proteinUpcharge || 0);
+  const sideOrders = Number(estimate.addonsTotal || 0);
+  const remaining = Number(estimate.minimumOrderAdjustment || 0);
+  if (minimumOrderBase) minimumOrderBase.textContent = money(guestAndUpgrade);
+  if (minimumOrderSides) minimumOrderSides.textContent = money(sideOrders);
+  if (minimumOrderRemaining) minimumOrderRemaining.textContent = money(remaining);
+  if (minimumOrderStatus) minimumOrderStatus.textContent = remaining > 0
+    ? `Add ${money(remaining)} more in side orders, or the ${money(estimate.minimumFoodTotal || minimumFoodOrderValue())} minimum will apply.`
+    : `Minimum food order met. Selected food value is ${money(estimate.qualifyingFoodTotal || estimate.foodSubtotal)}.`;
+  minimumOrderTracker?.classList.toggle('met', remaining <= 0);
+}
+
 function updateSummary() {
   if (selectedDateInput) selectedDateInput.value = formatShortDate(selectedDateState);
   if (selectedTimeInput) selectedTimeInput.value = selectedTimeState;
   updateAddonsState();
   const dateText = selectedDateInput?.value || 'Date not selected';
   const addonTotal = bookingState.addons.reduce((sum, item) => sum + item.price, 0);
-  const addonText = bookingState.addons.length ? `${bookingState.addons.length} add-ons +$${addonTotal}` : 'no add-ons';
-  const packageText = `${bookingState.package} $${packagePrices[bookingState.package] || 0}/person`;
+  const addonText = bookingState.addons.length ? `${bookingState.addons.length} side-order item(s) +$${addonTotal}` : 'no side orders';
+  const packageText = `${bookingState.package} $${packagePrices[bookingState.package] || 0}/adult`;
   const proteinText = `Proteins ${proteinTotal(bookingState.proteins)}/${requiredProteinPortions()} · premium +${money(bookingState.proteinUpcharge || 0)}`;
   const estimate = calculateOrderMoney({
     package: bookingState.package,
@@ -1733,13 +1782,18 @@ function updateSummary() {
     zip: eventZipInput?.value || '',
     address: addressInput?.value || '',
     travelFee: Number(travelFeeInput?.value || 0),
+    additionalChefRequested: Boolean(document.getElementById('additionalChefRequested')?.checked),
+    waitstaffCount: document.getElementById('waitstaffRequested')?.checked ? Math.max(1, Number(document.getElementById('waitstaffCount')?.value || 1)) : 0,
     depositPaid: 0
   });
-  const guestText = `${physicalGuestCount(bookingState)} actual guests / charged as ${formatGuestNumber(billableGuestCount(bookingState))} billable`;
+  updateMinimumOrderTracker(estimate);
+  const guestText = `${physicalGuestCount(bookingState)} guests · food ${money(estimate.foodSubtotal)}`;
   const totalText = `Est. total ${money(estimate.guestTotalBeforeDeposit)}`;
-  const extraChefText = document.getElementById('additionalChefRequested')?.checked ? ' · Additional chef requested' : '';
-  if (modalPackage) modalPackage.value = `${packageText} · ${dateText} · ${guestText} · ${selectedTimeState} · ${proteinText} · ${addonText} · ${totalText}${extraChefText}`;
-  if (summaryText) summaryText.textContent = `${packageText} · ${dateText} · ${guestText} · ${selectedTimeState} · ${proteinText} · ${addonText} · ${totalText}${extraChefText}`;
+  const extraChefText = document.getElementById('additionalChefRequested')?.checked ? ` · Additional chef ${physicalGuestCount(bookingState) > 30 ? 'included' : '+$150 if approved'}` : '';
+  const waitstaffQty = document.getElementById('waitstaffRequested')?.checked ? Math.max(1, Number(document.getElementById('waitstaffCount')?.value || 1)) : 0;
+  const waitstaffText = waitstaffQty ? ` · Waitstaff ${waitstaffQty} +$${waitstaffQty * 100}` : '';
+  if (modalPackage) modalPackage.value = `${packageText} · ${dateText} · ${guestText} · ${selectedTimeState} · ${proteinText} · ${addonText} · ${totalText}${extraChefText}${waitstaffText}`;
+  if (summaryText) summaryText.textContent = `${packageText} · ${dateText} · ${guestText} · ${selectedTimeState} · ${proteinText} · ${addonText} · ${totalText}${extraChefText}${waitstaffText}`;
   updateBookingReadyState();
 }
 
@@ -2044,11 +2098,16 @@ async function getSmartAddressSuggestions(query, signal) {
 }
 
 function clearAddressGeoFields() {
+  travelRouteRequestId += 1;
+  travelRouteAbortController?.abort();
   if (addressLatInput) addressLatInput.value = '';
   if (addressLonInput) addressLonInput.value = '';
   if (addressPlaceIdInput) addressPlaceIdInput.value = '';
   if (travelFeeInput) travelFeeInput.value = '0';
-  if (travelEstimate) travelEstimate.textContent = 'Travel fee estimate appears after choosing a standard map address.';
+  if (travelEstimate) {
+    delete travelEstimate.dataset.travelStatus;
+    travelEstimate.textContent = 'Select a standard map address to calculate the travel fee.';
+  }
 }
 
 function normalizeGeoapifyItems(data) {
@@ -2287,7 +2346,7 @@ function assistantReply(question) {
     return;
   }
   if (q.includes('package') || q.includes('price') || q.includes('cost') || q.includes('套餐') || q.includes('价格')) {
-    addAiMessage('Packages start at Classic $55/person, Premium $65/person, and Signature $110/person. Minimum charge is based on 10 guests. Add-ons like sushi tray, gyoza, edamame, and noodles can be added during booking.', 'bot', [
+    addAiMessage('Packages start at Classic $55/adult, Premium $65/adult, and Signature $110/adult. The minimum food order is $550. Smaller parties can use side orders such as sushi trays, gyoza, edamame, or noodles toward the minimum.', 'bot', [
       {label:'See packages', onClick: () => document.getElementById('packages')?.scrollIntoView({behavior:'smooth', block:'start'})},
       {label:'Start booking', onClick: () => openBookingModal({package:'Premium'})}
     ]);
@@ -2308,7 +2367,7 @@ function assistantReply(question) {
     return;
   }
   if (q.includes('cancel') || q.includes('reschedule') || q.includes('取消') || q.includes('改期')) {
-    addAiMessage('Phoenix Hibachi uses a 72-hour cancellation policy. Cancellations made more than 72 hours before the event may be reviewed by management. Inside 72 hours, deposits are non-refundable and the available option is manager-approved rescheduling, subject to availability.', 'bot');
+    addAiMessage('Phoenix Hibachi uses a 72-hour cancellation policy. A $200 deposit holds an approved date. Inside 72 hours, the deposit is non-refundable and may be applied once to a manager-approved event held within 30 days, subject to availability. The final guaranteed guest count locks 42 hours before the event; fewer attendees do not reduce the balance.', 'bot');
     return;
   }
   if (q.includes('complaint') || q.includes('refund') || q.includes('feedback') || q.includes('投诉') || q.includes('退钱')) {
@@ -2383,12 +2442,20 @@ let currentDashboardRole = 'Admin';
 let currentDashboardTab = 'orders';
 
 const DISPATCH_CONFIG = {
-  shop: { name:'Phoenix Hibachi base', lat:40.6306, lon:-74.0093, address:'Brooklyn, NY' },
+  shop: { name:'Phoenix Hibachi base · ZIP 11228', lat:40.6169, lon:-74.0132, address:'11228, Brooklyn, NY' },
   averageMph: 28,
   setupBufferMin: 20,
   packBufferMin: 15,
-  baseTravelFee: 35,
-  feePerMile: 2.25,
+  travelFeeTiers: [
+    { max:20, fee:0 },
+    { max:40, fee:50 },
+    { max:60, fee:100 },
+    { max:80, fee:150 },
+    { max:100, fee:200 }
+  ],
+  customQuoteAboveMiles: 100,
+  baseTravelFee: 0,
+  feePerMile: 2,
   minimumTravelFee: 0
 };
 const CHEFS = [
@@ -2570,18 +2637,76 @@ function estimateTravelMinutes(miles) {
   if (miles == null) return 45;
   return Math.max(12, Math.round((miles / DISPATCH_CONFIG.averageMph) * 60 + 10));
 }
-function estimateTravelFeeByMiles(miles) {
-  if (miles == null) return 50;
-  if (miles < 8) return 0;
-  return Math.ceil((DISPATCH_CONFIG.baseTravelFee + miles * DISPATCH_CONFIG.feePerMile) / 5) * 5;
+function estimateTravelFeeByMiles(miles, state = '') {
+  // V2.2: fixed one-way driving-distance tiers. Actual chef driving time or route changes
+  // never change the customer price. Tolls/parking remain manager-reviewed because the
+  // current Geoapify route response does not provide a reliable dollar toll amount.
+  const distance = Number(miles);
+  if (!Number.isFinite(distance) || distance < 0) return null;
+  if (distance > Number(DISPATCH_CONFIG.customQuoteAboveMiles || 100)) return null;
+  const tier = (DISPATCH_CONFIG.travelFeeTiers || []).find(row => distance <= Number(row.max));
+  return tier ? Number(tier.fee || 0) : null;
 }
-function updateTravelEstimateFromCoords(lat, lon, formatted = '') {
-  const miles = milesBetween(DISPATCH_CONFIG.shop, {lat, lon});
-  const fee = estimateTravelFeeByMiles(miles);
-  if (travelFeeInput) travelFeeInput.value = String(fee);
-  if (travelEstimate) travelEstimate.innerHTML = miles == null
-    ? 'Travel fee will be confirmed by manager after address review.'
-    : `Estimated travel from base: <strong>${miles.toFixed(1)} mi</strong> · estimated travel fee: <strong>$${fee}</strong>. Final fee depends on tolls, parking and chef route.`;
+let travelRouteAbortController = null;
+let travelRouteRequestId = 0;
+function validCoordinate(value) {
+  return value !== '' && value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+async function resolveTravelCoordinates(lat, lon, formatted, signal) {
+  if (validCoordinate(lat) && validCoordinate(lon)) return { lat:Number(lat), lon:Number(lon) };
+  const query = String(formatted || '').trim();
+  if (!query) return null;
+  const matches = await getGeoapifyItemsForQuery(query, signal);
+  const exact = matches.find(item => validCoordinate(item.lat) && validCoordinate(item.lon));
+  if (!exact) return null;
+  applySelectedAddressToFields(exact, { address:addressInput, lat:addressLatInput, lon:addressLonInput, placeId:addressPlaceIdInput, city:eventCityInput, state:eventStateInput, zip:eventZipInput });
+  return { lat:Number(exact.lat), lon:Number(exact.lon) };
+}
+async function fetchOneWayDrivingMiles(destination, signal) {
+  const url = new URL('https://api.geoapify.com/v1/routing');
+  url.searchParams.set('waypoints', `${DISPATCH_CONFIG.shop.lat},${DISPATCH_CONFIG.shop.lon}|${destination.lat},${destination.lon}`);
+  url.searchParams.set('mode', 'drive');
+  url.searchParams.set('format', 'geojson');
+  url.searchParams.set('apiKey', GEOAPIFY_API_KEY);
+  const data = await fetchJsonWithTimeout(url, signal, 9000);
+  const meters = Number(data?.features?.[0]?.properties?.distance ?? data?.results?.[0]?.distance ?? data?.distance);
+  if (!Number.isFinite(meters) || meters <= 0) throw new Error('Driving distance was not returned.');
+  return meters / 1609.344;
+}
+async function updateTravelEstimateFromCoords(lat, lon, formatted = '') {
+  const requestId = ++travelRouteRequestId;
+  travelRouteAbortController?.abort();
+  travelRouteAbortController = new AbortController();
+  const signal = travelRouteAbortController.signal;
+  if (travelFeeInput) travelFeeInput.value = '0';
+  if (travelEstimate) {
+    travelEstimate.dataset.travelStatus = 'calculating';
+    travelEstimate.innerHTML = '<strong>Calculating travel fee…</strong> Please keep the selected address unchanged.';
+  }
+  updateSummary();
+  try {
+    const destination = await resolveTravelCoordinates(lat, lon, formatted, signal);
+    if (!destination) throw new Error('Please choose a standard map address so the route can be calculated.');
+    const miles = await fetchOneWayDrivingMiles(destination, signal);
+    if (requestId !== travelRouteRequestId) return;
+    const state = eventStateInput?.value || '';
+    const fee = estimateTravelFeeByMiles(miles, state);
+    if (fee === null) throw new Error('This address is over 100 one-way driving miles and needs a custom travel quote.');
+    if (travelFeeInput) travelFeeInput.value = fee.toFixed(2);
+    if (travelEstimate) {
+      travelEstimate.dataset.travelStatus = 'ready';
+      travelEstimate.innerHTML = `<strong>Estimated travel fee for this address: ${money(fee)}</strong><span>Based on the standard one-way driving-distance tier. Final confirmation may include tolls, paid parking, or unusual access charges.</span>`;
+    }
+    updateSummary();
+  } catch (error) {
+    if (error?.name === 'AbortError' || requestId !== travelRouteRequestId) return;
+    if (travelFeeInput) travelFeeInput.value = '0';
+    if (travelEstimate) {
+      travelEstimate.dataset.travelStatus = 'review';
+      travelEstimate.innerHTML = `<strong>Travel fee needs manager review.</strong><span>${escapeHtml(error?.message || 'Choose a standard map address or contact Phoenix Hibachi.')}</span>`;
+    }
+    updateSummary();
+  }
 }
 function parseOrderDateTime(order) {
   const time = firstReadableTime(order.eventTime || '4:00 PM');
@@ -2604,7 +2729,7 @@ function canCancelOrder(order) {
 function cancellationMessage(order) {
   return canCancelOrder(order)
     ? 'Eligible: more than 72 hours before event. Customer can request cancellation for manager review.'
-    : 'Inside 72 hours: deposit is non-refundable. Reschedule only, subject to chef availability.';
+    : 'Inside 72 hours: the $200 deposit is non-refundable and may be applied once to a manager-approved event held within 30 days, subject to availability.';
 }
 function orderPoint(order) {
   return { lat:Number(order.addressLat || 0), lon:Number(order.addressLon || 0) };
@@ -2711,6 +2836,18 @@ function fullAddressFromParts(street = '', city = '', state = '', zip = '') {
   return parts.join(', ');
 }
 
+async function prepareBookingPaymentAccessToken(order) {
+  if (!order?.id || !globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle) return order;
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  const raw = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  order.paymentAccessTokenHash = hash;
+  try { sessionStorage.setItem(`phoenix_payment_access_${order.id}`, raw); } catch {}
+  return order;
+}
+
 function buildOrderFromForm(form) {
   const fd = new FormData(form);
   const data = Object.fromEntries(fd.entries());
@@ -2723,11 +2860,29 @@ function buildOrderFromForm(form) {
     addressLat: data.addressLat || '', addressLon: data.addressLon || '', addressPlaceId: data.addressPlaceId || '', city: data.city || '', state: data.state || '', zip: data.zip || '',
     package: data.package || bookingState.package, adults: data.adults || bookingState.adults, kids: data.kids || bookingState.kids,
     totalGuests: data.totalGuests || physicalGuestCount(bookingState), billableGuests: data.billableGuests || actualBillableGuestCount(bookingState), eventDate: data.eventDate || selectedDateInput?.value || '', eventTime: (data.customTimeRequest ? `Requested: ${data.customTimeRequest}` : (data.eventTime || selectedTimeInput?.value || '')),
-    customTimeRequest: data.customTimeRequest || '', addons, additionalChefRequested: data.additionalChefRequested === 'Yes', allergies, allergyNotes: data.allergyNotes || '', rainPlan: data.rainPlan || '', arrivalFlex: data.arrivalFlex || 'Event time follows the confirmed schedule. Chef may arrive early for setup; changes to start time must be discussed directly with the chef.', guestDelay: data.guestDelay || 'If the host or guests are delayed, the host may discuss timing with the chef; the chef may begin setup, prep, or service according to the confirmed schedule because another event may follow.', parking: data.parking || '', specialNotes: [data.specialNotes || '', data.additionalChefRequested === 'Yes' ? 'Additional chef requested: Yes. Customer understands this may require a second travel fee and manager approval.' : ''].filter(Boolean).join('\n'),
+    customTimeRequest: data.customTimeRequest || '', addons,
+    additionalChefRequested: data.additionalChefRequested === 'Yes',
+    waitstaffRequested: data.waitstaffRequested === 'Yes',
+    waitstaffCount: data.waitstaffRequested === 'Yes' ? Math.max(1, Number(data.waitstaffCount || 1)) : 0,
+    finalGuestCountDeadlineHours: 42,
+    cancellationDeadlineHours: 72,
+    depositRequired: MONEY_RULES.depositRequired,
+    balanceDueTiming: 'Chef arrival before unloading/setup/cooking',
+    mediaAcknowledge: data.mediaAcknowledge === 'Yes',
+    marketingConsent: data.marketingConsent === 'Yes',
+    allergies, allergyNotes: data.allergyNotes || '', rainPlan: data.rainPlan || '', arrivalFlex: data.arrivalFlex || 'Event time follows the confirmed schedule. Chef may arrive early for setup; changes to start time must be discussed directly with the chef.', guestDelay: data.guestDelay || 'If the host or guests are delayed, the host may discuss timing with the chef; the chef may begin setup, prep, or service according to the confirmed schedule because another event may follow.', parking: data.parking || '', specialNotes: [
+      data.specialNotes || '',
+      data.additionalChefRequested === 'Yes' ? 'Additional chef requested: Yes. Fee is $150 for parties of 30 guests or fewer if approved; manager-assigned additional chef staffing is included for parties over 30.' : '',
+      data.waitstaffRequested === 'Yes' ? `Waitstaff requested: ${Math.max(1, Number(data.waitstaffCount || 1))} × $100.` : '',
+      'Final guaranteed guest count locks 42 hours before the event. Fewer attendees do not reduce the balance.',
+      'Deposit required: $200. Balance due when the chef arrives, before setup or cooking.',
+      data.mediaAcknowledge === 'Yes' ? 'Event media acknowledgement: Yes.' : '',
+      data.marketingConsent === 'Yes' ? 'Public marketing media consent: Yes.' : 'Public marketing media consent: No.'
+    ].filter(Boolean).join('\n'),
     proteinSelections: (() => { try { return JSON.parse(data.proteinSelections || '{}'); } catch { return bookingState.proteins || {}; } })(),
     proteinSummary: data.proteinSummary || proteinSummary(bookingState.proteins || {}),
     proteinUpcharge: Number(data.proteinUpcharge || bookingState.proteinUpcharge || 0),
-    travelFee: Number(data.travelFee || 0), depositRequired: MONEY_RULES.depositRequired, depositPaid: Number(data.depositPaid || 0), couponDiscount: Number(data.couponDiscount || 0), memberCreditUsed: Number(data.memberCreditUsed || 0), cancellationPolicy: cancellationMessage({eventDate:data.eventDate, eventTime:data.eventTime})
+    travelFee: Number(data.travelFee || 0), depositPaid: Number(data.depositPaid || 0), couponDiscount: Number(data.couponDiscount || 0), memberCreditUsed: Number(data.memberCreditUsed || 0), cancellationPolicy: cancellationMessage({eventDate:data.eventDate, eventTime:data.eventTime})
   };
   return autoAssignOrder(baseOrder, getStoredOrders());
 }
@@ -2767,11 +2922,13 @@ function inferOrderState(order = {}) {
   const address = String(order.address || '').toUpperCase();
   if (/\bNJ\b|NEW JERSEY/.test(address)) return 'NJ';
   if (/\bCT\b|CONNECTICUT/.test(address)) return 'CT';
+  if (/\bPA\b|PENNSYLVANIA/.test(address)) return 'PA';
   if (/\bNY\b|NEW YORK|BROOKLYN|QUEENS|STATEN ISLAND|BRONX|MANHATTAN|LONG ISLAND|NASSAU|SUFFOLK/.test(address)) return 'NY';
   const zip = String(order.zip || '').trim();
-  if (/^0[67]/.test(zip)) return 'NJ';
+  if (/^0[78]/.test(zip)) return 'NJ';
   if (/^06/.test(zip)) return 'CT';
-  if (/^1/.test(zip)) return 'NY';
+  if (/^(15|16|17|18|19)/.test(zip)) return 'PA';
+  if (/^(10|11|12|13|14)/.test(zip)) return 'NY';
   return 'NY';
 }
 function salesTaxRateForOrder(order = {}) {
@@ -2780,6 +2937,7 @@ function salesTaxRateForOrder(order = {}) {
   const zip = String(order.zip || '').trim();
   if (state === 'NJ') return 0.06625;
   if (state === 'CT') return 0.0635;
+  if (state === 'PA') return 0;
   if (state === 'NY') {
     if (/^11[5789]/.test(zip) || /LONG ISLAND|NASSAU|SUFFOLK/.test(address)) return 0.08625;
     return 0.08875;
@@ -2789,6 +2947,7 @@ function salesTaxRateForOrder(order = {}) {
 function salesTaxLabelForOrder(order = {}) {
   const state = inferOrderState(order);
   const rate = salesTaxRateForOrder(order);
+  if (state === 'PA') return 'PA local sales tax pending manager confirmation';
   if (state === 'NY') {
     const address = String(order.address || '').toUpperCase();
     const zip = String(order.zip || '').trim();
@@ -2805,11 +2964,12 @@ function calculateOrderMoney(order = {}) {
   const packageName = order.package || 'Classic';
   const packagePrice = packagePrices[packageName] || packagePrices.Classic;
   const adultFoodTotal = adults * packagePrice;
-  // Guest-facing kids price is set at half package price in this invoice template. Change here if you want kids charged differently.
-  const kidFoodPrice = packagePrice / 2;
+  // V167: Classic children under 12 are exactly $28. Higher packages retain rounded half-package child pricing.
+  const kidFoodPrice = packageName === 'Classic' ? 28 : Math.ceil(packagePrice / 2);
   const kidFoodTotal = kids * kidFoodPrice;
-  const minimumFoodTotal = MONEY_RULES.minimumBillableGuests * packagePrice;
-  const packageSubtotal = billableGuests * packagePrice;
+  const minimumFoodTotal = minimumFoodOrderValue();
+  const rawGuestFoodTotal = adultFoodTotal + kidFoodTotal;
+  const packageSubtotal = rawGuestFoodTotal;
   const addons = normalizeAddonsForMoney(order.addons);
   const addonsTotal = addons.reduce((sum, item) => sum + Number(item.price || 0), 0);
   const proteinSelections = order.proteinSelections && Object.keys(order.proteinSelections).length ? order.proteinSelections : proteinSelectionsFromText(order.specialNotes || '');
@@ -2817,7 +2977,16 @@ function calculateOrderMoney(order = {}) {
   const proteinRequiredTotal = requiredProteinPortions({package: packageName, adults, kids, totalGuests, billableGuests});
   const proteinPremiumCount = premiumProteinCount(proteinSelections);
   const proteinUpcharge = Math.max(0, numberValue(order.proteinUpcharge, proteinUpgradeAmount(proteinSelections)));
-  const foodSubtotal = packageSubtotal + proteinUpcharge + addonsTotal;
+  const noteText = String(order.specialNotes || order.admin_notes || '');
+  const parsedWaitstaff = Number(noteText.match(/Waitstaff requested:\s*(\d+)/i)?.[1] || 0);
+  const waitstaffCount = Math.max(0, Math.floor(numberValue(order.waitstaffCount, parsedWaitstaff)));
+  const waitstaffFee = waitstaffCount * 100;
+  const additionalChefRequested = Boolean(order.additionalChefRequested || /Additional chef requested:\s*Yes/i.test(noteText));
+  const additionalChefFee = additionalChefRequested && totalGuests <= 30 ? 150 : 0;
+  const staffingFee = waitstaffFee + additionalChefFee;
+  const qualifyingFoodTotal = packageSubtotal + proteinUpcharge + addonsTotal;
+  const minimumOrderAdjustment = Math.max(0, minimumFoodTotal - qualifyingFoodTotal);
+  const foodSubtotal = qualifyingFoodTotal + minimumOrderAdjustment;
   const discount = Math.max(0, numberValue(order.couponDiscount, 0) + numberValue(order.memberCreditUsed, 0));
   const depositRequired = numberValue(order.depositRequired, MONEY_RULES.depositRequired);
   const depositPaid = Math.max(0, numberValue(order.depositPaid ?? order.deposit_amount, 0));
@@ -2825,10 +2994,10 @@ function calculateOrderMoney(order = {}) {
   const companyFoodTotalAfterDiscount = Math.max(0, foodSubtotal - discount);
   const taxRate = salesTaxRateForOrder(order);
   const taxLabel = salesTaxLabelForOrder(order);
-  const taxableSubtotal = Math.max(0, companyFoodTotalAfterDiscount + travelFee);
+  const taxableSubtotal = Math.max(0, companyFoodTotalAfterDiscount + travelFee + staffingFee);
   const salesTax = Math.round(taxableSubtotal * taxRate * 100) / 100;
-  const companyBalanceDue = Math.max(0, companyFoodTotalAfterDiscount + salesTax - depositPaid);
-  const guestTotalBeforeDeposit = companyFoodTotalAfterDiscount + travelFee + salesTax;
+  const companyBalanceDue = Math.max(0, companyFoodTotalAfterDiscount + staffingFee + salesTax - depositPaid);
+  const guestTotalBeforeDeposit = companyFoodTotalAfterDiscount + travelFee + staffingFee + salesTax;
   const guestTotalAfterDeposit = Math.max(0, guestTotalBeforeDeposit - depositPaid);
   const chefGuestRaw = adults * MONEY_RULES.chefAdultRate + kids * MONEY_RULES.chefKidRate;
   const chefGuestPayout = Math.max(MONEY_RULES.chefMinimumPayout, chefGuestRaw);
@@ -2838,7 +3007,7 @@ function calculateOrderMoney(order = {}) {
   const tip20 = Math.round(guestTotalBeforeDeposit * 0.20);
   const tip25 = Math.round(guestTotalBeforeDeposit * 0.25);
   const tip30 = Math.round(guestTotalBeforeDeposit * 0.30);
-  return { adults, kids, totalGuests, billableGuests, packageName, packagePrice, adultFoodTotal, kidFoodPrice, kidFoodTotal, minimumFoodTotal, packageSubtotal, proteinSelections, proteinSelectedTotal, proteinRequiredTotal, proteinPremiumCount, proteinUpcharge, addons, addonsTotal, foodSubtotal, discount, depositRequired, depositPaid, travelFee, taxRate, taxLabel, taxableSubtotal, salesTax, companyFoodTotalAfterDiscount, companyBalanceDue, guestTotalBeforeDeposit, guestTotalAfterDeposit, chefGuestRaw, chefGuestPayout, chefKeepsBeforeTip, chefReturnToCompany, ownerOwesChef, tip20, tip25, tip30 };
+  return { adults, kids, totalGuests, billableGuests, packageName, packagePrice, adultFoodTotal, kidFoodPrice, kidFoodTotal, minimumFoodTotal, packageSubtotal, proteinSelections, proteinSelectedTotal, proteinRequiredTotal, proteinPremiumCount, proteinUpcharge, addons, addonsTotal, qualifyingFoodTotal, minimumOrderAdjustment, foodSubtotal, waitstaffCount, waitstaffFee, additionalChefRequested, additionalChefFee, staffingFee, discount, depositRequired, depositPaid, travelFee, taxRate, taxLabel, taxableSubtotal, salesTax, companyFoodTotalAfterDiscount, companyBalanceDue, guestTotalBeforeDeposit, guestTotalAfterDeposit, chefGuestRaw, chefGuestPayout, chefKeepsBeforeTip, chefReturnToCompany, ownerOwesChef, tip20, tip25, tip30 };
 }
 function invoiceDateLine(order) {
   return [order.eventDate, order.eventTime].filter(Boolean).join(' ');
@@ -2870,9 +3039,12 @@ function guestInvoiceHtml(order) {
       <div class="invoice-money-block invoice-food-summary">
         <div class="invoice-row invoice-food-row"><span>Adult</span><em>Total: ${m.adults}</em><b>Total: ${money(m.adultFoodTotal)}</b></div>
         <div class="invoice-row invoice-food-row"><span>Kid</span><em>Total: ${m.kids}</em><b>Total: ${money(m.kidFoodTotal)}</b></div>
-        <div class="invoice-row invoice-food-row"><span>Package charge</span><em>${printSafe(m.packageName)}</em><b>Total: ${money(m.packageSubtotal)}</b></div>
+        <div class="invoice-row invoice-food-row"><span>Guest meals</span><em>${printSafe(m.packageName)}</em><b>Total: ${money(m.packageSubtotal)}</b></div>
         ${premiumProteinRow}
         ${addonsRows}
+        ${m.minimumOrderAdjustment ? `<div class="invoice-row invoice-food-row"><span>Minimum food-order adjustment</span><em>Food total brought to ${money(m.minimumFoodTotal)}</em><b>Total: ${money(m.minimumOrderAdjustment)}</b></div>` : ''}
+        ${m.waitstaffFee ? `<div class="invoice-row invoice-food-row"><span>Waitstaff</span><em>${m.waitstaffCount} × $100</em><b>Total: ${money(m.waitstaffFee)}</b></div>` : ''}
+        ${m.additionalChefRequested ? `<div class="invoice-row invoice-food-row"><span>Additional chef</span><em>${m.totalGuests > 30 ? 'Included for 30+ guests' : 'Approved request'}</em><b>Total: ${money(m.additionalChefFee)}</b></div>` : ''}
         <div class="invoice-row"><span>Travel Fee</span><em></em><b>Total: ${money(m.travelFee)}</b></div>
         <div class="invoice-row"><span>Sales Tax</span><em>${printSafe(m.taxLabel)}</em><b>Total: ${money(m.salesTax)}</b></div>
       </div>
@@ -2881,14 +3053,15 @@ function guestInvoiceHtml(order) {
     <div class="invoice-totals">
       <div><b>Promotion code:</b><span>${order.couponCode ? printSafe(order.couponCode) : ''}</span></div>
       <div><b>Discount:</b><span>${money(m.discount)}</span></div>
-      <div><b>Subtotal before tax:</b><span>${money(m.foodSubtotal + m.travelFee)}</span></div>
+      <div><b>Subtotal before tax:</b><span>${money(m.foodSubtotal + m.staffingFee + m.travelFee)}</span></div>
       <div><b>Sales tax:</b><span>${money(m.salesTax)}</span></div>
       <div><b>Total:</b><span>${money(m.guestTotalBeforeDeposit)}</span></div>
       <div><b>Deposit paid:</b><span>${money(m.depositPaid)}</span></div>
       <div><b>Balance due:</b><span>${money(m.guestTotalAfterDeposit)}</span></div>
       <small>(Food/package balance and tax belong to Phoenix Hibachi. Travel fee and optional tips belong to the chef.)</small>
     </div>
-    <div class="invoice-cash-note"><b>Payment note:</b><span>Cash only at the event unless Phoenix Hibachi confirms another payment method before service.</span></div>
+    <div class="invoice-cash-note"><b>Payment note:</b><span>Cash payment is preferred; Zelle is also accepted. A $200 deposit holds an approved date. Remaining balance is due when the chef arrives, before unloading/setup/cooking.</span></div>
+    <div class="invoice-cash-note"><b>Guaranteed count:</b><span>The final guest count locks 42 hours before the event. Fewer attendees do not reduce the balance. Extra meals require chef/manager approval and food availability.</span></div>
     <div class="invoice-notes invoice-food-alert"><b>FOOD ALLERGIES</b><span>${printSafe(allergies)}</span></div>
     <div class="invoice-protein-detail invoice-food-alert"><b>PROTEIN SELECTIONS</b><span>${printSafe(proteinLine)}</span></div>
     <div class="invoice-rule-box">
@@ -2996,22 +3169,21 @@ function orderProgressSteps(order = {}) {
     { label:'Completed', done:completed }
   ];
 }
-async function lookupOrderByNumber(orderNumber) {
+async function lookupOrderByNumber(orderNumber, bookingEmail = '') {
   const needle = normalizeOrderNumber(orderNumber);
   if (!needle) return null;
-  const local = [...getDashboardOrders(), ...getStoredOrders()].find(o => sameOrderNumber(o.id, needle));
+  const local = [...getDashboardOrders(), ...getStoredOrders()].find(o => sameOrderNumber(o.id, needle) && (!bookingEmail || String(o.email || '').trim().toLowerCase() === String(bookingEmail).trim().toLowerCase()));
   if (local) return local;
-  const client = initSupabaseClient();
-  if (!client) return null;
+  const cfg = window.PHOENIX_PAYMENT_CONFIG || {};
+  if (!cfg.supabaseFunctionsBaseUrl || !cfg.lookupBookingFunction || !bookingEmail) return null;
   try {
-    const { data, error } = await client.from('bookings').select('*').eq('booking_number', needle).maybeSingle();
-    if (error) {
-      console.warn('Order lookup failed:', error);
-      return null;
-    }
-    return data ? bookingRowToOrder(data) : null;
+    const endpoint = `${cfg.supabaseFunctionsBaseUrl.replace(/\/$/,'')}/${cfg.lookupBookingFunction}`;
+    const response = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderNumber:needle,bookingEmail})});
+    const data = await response.json();
+    if (!response.ok || !data?.order) return null;
+    return data.order;
   } catch (error) {
-    console.warn('Order lookup exception:', error);
+    console.warn('Secure order lookup exception:', error);
     return null;
   }
 }
@@ -3022,8 +3194,6 @@ function orderLookupResultHtml(order) {
     <header><strong>${escapeHtml(order.id || '')}</strong><span class="tag accepted">${escapeHtml(humanOrderStatus(order.status))}</span></header>
     <div class="lookup-steps">${steps}</div>
     <p><b>Date / Time:</b> ${escapeHtml(order.eventDate || '')} · ${escapeHtml(order.eventTime || '')}<br>
-    <b>Guest:</b> ${escapeHtml(order.name || 'Guest')} · ${escapeHtml(order.phone || '')}<br>
-    <b>Address:</b> ${escapeHtml(order.address || 'Not entered')}<br>
     <b>Package:</b> ${escapeHtml(order.package || 'Classic')} · ${formatGuestNumber(m.billableGuests)} billable guests<br>
     <b>Estimated total:</b> ${money(m.guestTotalBeforeDeposit)}<br>
     <b>Chef:</b> ${escapeHtml(order.assignedChef && order.assignedChef !== 'Unassigned' ? order.assignedChef : 'Pending chef assignment')}<br>
@@ -3067,7 +3237,7 @@ function showBookingSuccess(order) {
     : 'Your request is saved to the Phoenix Hibachi booking system. A manager still needs to review route timing, rain plan, allergies, travel fee, and payment before final confirmation.';
   if (successReceipt) {
     successReceipt.innerHTML = [
-      ['Order ID', order.id], ['Status lookup', isLocalFallback ? 'Local backup only on this browser. Text Phoenix Hibachi to make sure we receive it.' : 'Use the magnifying glass on the homepage to check this order number. No automatic SMS is sent.'], ['Date / Time', `${order.eventDate} · ${order.eventTime}`], ['Guest', `${order.name} · ${order.phone}`], ['Address', order.address || 'Not entered'], ['Package', `${order.package} · ${money(m.packagePrice)}/adult`], ['Guests', `${m.adults} adults · ${m.kids} kids · ${formatGuestNumber(m.billableGuests)} billable guests`], ['Proteins', proteinSummary(m.proteinSelections)], ['Premium protein upgrade', money(m.proteinUpcharge)], ['Food subtotal', money(m.foodSubtotal)], ['Travel fee to chef', money(m.travelFee)], ['Estimated total', money(m.guestTotalBeforeDeposit)], ['Payment status', 'Not paid yet'], ['Minimum deposit to hold time', money(MONEY_RULES.depositRequired)], ['Auto Dispatch', `${order.assignedChef || 'Unassigned'} · ${order.estimatedDriveMin || '?'} min drive`], ['Cancellation', cancellationMessage(order)]
+      ['Order ID', order.id], ['Status lookup', isLocalFallback ? 'Local backup only on this browser. Text Phoenix Hibachi to make sure we receive it.' : 'Use the magnifying glass on the homepage to check this order number. No automatic SMS is sent.'], ['Date / Time', `${order.eventDate} · ${order.eventTime}`], ['Guest', `${order.name} · ${order.phone}`], ['Address', order.address || 'Not entered'], ['Package', `${order.package} · ${money(m.packagePrice)}/adult`], ['Guests', `${m.adults} adults · ${m.kids} kids · ${formatGuestNumber(m.billableGuests)} adult-equivalent portions`], ['Proteins', proteinSummary(m.proteinSelections)], ['Premium protein upgrade', money(m.proteinUpcharge)], ['Food subtotal', money(m.foodSubtotal)], ['Travel fee to chef', money(m.travelFee)], ['Estimated total', money(m.guestTotalBeforeDeposit)], ['Payment status', 'Payment is optional now; manager review is still required'], ['Deposit normally required to hold an approved date', money(MONEY_RULES.depositRequired)], ['Auto Dispatch', `${order.assignedChef || 'Unassigned'} · ${order.estimatedDriveMin || '?'} min drive`], ['Cancellation', cancellationMessage(order)]
     ].map(([label,value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     if (isLocalFallback) {
       const smsBody = encodeURIComponent(localFallbackSmsBody(order));
@@ -3094,12 +3264,42 @@ function orderCard(order) {
   return `<article class="order-card"><header><div><strong>${order.routeLabel ? `<span class="route-letter-badge">${escapeHtml(order.routeLabel)}</span> ` : ''}${escapeHtml(order.id)}</strong><p>${escapeHtml(order.eventDate)} · ${escapeHtml(order.eventTime)}</p></div><span class="tag ${accepted || completed ? 'accepted' : ''}">${escapeHtml(order.status)}</span></header><p><b>${escapeHtml(order.name)}</b> · ${escapeHtml(order.phone || 'No phone')}<br>${escapeHtml(order.email || 'No email')}<br>${escapeHtml(order.address || 'No address')}<br>${escapeHtml(order.package)} · ${m.adults} adults · ${m.kids} kids · Food ${money(m.foodSubtotal)} · Tax ${money(m.salesTax)} · Total ${money(m.guestTotalBeforeDeposit)} · Travel fee ${money(m.travelFee)}<br>Proteins: ${escapeHtml(proteinSummary(m.proteinSelections))}</p><p>Chef: <b>${escapeHtml(order.assignedChef || 'Unassigned')}</b><br>Chef keeps before tips: <b>${money(m.chefKeepsBeforeTip)}</b> · Return to Phoenix: <b>${money(m.chefReturnToCompany)}</b><br>Drive: ${escapeHtml(order.estimatedDriveMin || '?')} min · Event block: ${escapeHtml(order.eventBlockMin || eventBlockMinutes(order))} min</p><p>Cancellation: ${escapeHtml(cancellationMessage(order))}</p>${assignControls}<div class="order-actions"><a href="${sms}">Manual text guest</a><a href="${maps}" target="_blank" rel="noreferrer">Map</a><button type="button" data-print-guest="${escapeHtml(order.id)}">Guest invoice</button><button type="button" data-print-chef="${escapeHtml(order.id)}">Chef settlement</button><button type="button" data-download-pdf="${escapeHtml(order.id)}">Download PDF</button><button type="button" data-copy-order="${escapeHtml(order.id)}">Copy chef note</button>${confirmAction}${completeAction}${deleteAction}</div></article>`;
 }
 
+
+function customerConfirmedPaymentPanel(order, m) {
+  const ref = escapeHtml(order.id || '');
+  const estimatedBalance = Math.max(0, Number(m.guestTotalBeforeDeposit || 0) - 200);
+  return `<section class="phx-inline-payment-card" aria-label="Confirmed order payment codes">
+    <div class="phx-inline-payment-heading">
+      <div>
+        <span class="phx-inline-payment-kicker">Confirmed booking payment</span>
+        <h4>Choose a payment method for this approved date.</h4>
+        <p><b>Cash is preferred for the remaining balance.</b> Stripe, Zelle, and Venmo are available after confirmation. Include booking reference <strong>${ref}</strong> or the event name in any manual payment note.</p>
+      </div>
+      <div class="phx-inline-payment-amount">
+        <span>Deposit</span><b>$200</b><small>Estimated balance at arrival: ${money(estimatedBalance)}</small>
+      </div>
+    </div>
+    <div class="phx-inline-payment-qrs">
+      <a class="phx-inline-pay-method phx-zelle" href="assets/payment-zelle-feny-motion-llc.png" target="_blank" rel="noopener noreferrer">
+        <span class="phx-inline-pay-qr"><img src="assets/payment-zelle-qr.png" alt="Zelle QR code for confirmed Phoenix Hibachi payment"></span>
+        <strong>Zelle</strong><small>Recipient may show FENY MOTION LLC</small>
+      </a>
+      <a class="phx-inline-pay-method phx-venmo" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer">
+        <span class="phx-inline-pay-qr"><img src="assets/payment-venmo-qr.png" alt="Venmo QR code for confirmed Phoenix Hibachi payment"></span>
+        <strong>Venmo</strong><small>@Phoenix-Hibachi</small>
+      </a>
+    </div>
+    <div class="phx-inline-payment-warning"><b>Staff verification required.</b> Sending money does not automatically mark the order paid.</div>
+  </section>`;
+}
+
 function customerOrderCard(order) {
   const statusKey = String(order.status || '').toLowerCase();
   const accepted = statusKey.includes('accepted') || statusKey.includes('confirmed') || statusKey.includes('prep') || statusKey.includes('completed');
   const m = calculateOrderMoney(order);
   const statusNote = statusKey.includes('prep') ? 'Your order has been accepted and prep has started.' : accepted ? 'Your request has been accepted by Phoenix Hibachi. Deposit/payment and final route confirmation may still be required.' : 'Your request is pending manager review.';
-  return `<article class="order-card"><header><div><strong>${escapeHtml(order.id)}</strong><p>${escapeHtml(order.eventDate)} · ${escapeHtml(order.eventTime)}</p></div><span class="tag ${accepted ? 'accepted' : ''}">${escapeHtml(order.status || 'Pending')}</span></header><p><b>${escapeHtml(statusNote)}</b><br>${escapeHtml(order.package)} · ${escapeHtml(order.totalGuests)} actual guests / ${formatGuestNumber(m.billableGuests)} billable<br>Proteins: ${escapeHtml(proteinSummary(m.proteinSelections))}<br>${escapeHtml(order.address || 'No address')}<br>Estimated total: <b>${money(m.guestTotalBeforeDeposit)}</b><br>Payment hold: $200 minimum deposit recommended · Final arrival window confirmed 24 hours before event<br>Cancellation policy: ${escapeHtml(cancellationMessage(order))}</p><div class="order-actions"><button type="button" data-print-guest="${escapeHtml(order.id)}">Print invoice</button><button type="button" data-download-pdf="${escapeHtml(order.id)}">Download PDF</button><button type="button" data-customer-cancel="${escapeHtml(order.id)}">Request cancellation</button><button type="button" data-customer-reschedule="${escapeHtml(order.id)}">Request reschedule</button>${accepted ? `<button type="button" data-open-share-reward>Social coupon</button>` : ``}<a href="${searchMapUrl(order.address)}" target="_blank" rel="noreferrer">Event map</a></div></article>`;
+  const inlinePayment = accepted ? customerConfirmedPaymentPanel(order, m) : `<div class="phx-payment-pending-note"><b>Payment codes unlock after manager confirmation.</b><span>Do not send a deposit until Phoenix Hibachi confirms the date, amount, and route.</span></div>`;
+  return `<article class="order-card"><header><div><strong>${escapeHtml(order.id)}</strong><p>${escapeHtml(order.eventDate)} · ${escapeHtml(order.eventTime)}</p></div><span class="tag ${accepted ? 'accepted' : ''}">${escapeHtml(order.status || 'Pending')}</span></header><p><b>${escapeHtml(statusNote)}</b><br>${escapeHtml(order.package)} · ${escapeHtml(order.totalGuests)} actual guests / ${formatGuestNumber(m.billableGuests)} billable<br>Proteins: ${escapeHtml(proteinSummary(m.proteinSelections))}<br>${escapeHtml(order.address || 'No address')}<br>Estimated total: <b>${money(m.guestTotalBeforeDeposit)}</b><br>Date hold: a $200 deposit is normally required after approval unless management confirms an exception · Cash is preferred for the remaining balance · Final guest count locks 42 hours before event<br>Cancellation policy: ${escapeHtml(cancellationMessage(order))}</p>${inlinePayment}<div class="order-actions"><button type="button" data-print-guest="${escapeHtml(order.id)}">Print invoice</button><button type="button" data-download-pdf="${escapeHtml(order.id)}">Download PDF</button>${accepted ? `<button type="button" data-open-payment="${escapeHtml(order.id)}">Open full payment view</button>` : ``}<button type="button" data-customer-cancel="${escapeHtml(order.id)}">Request cancellation</button><button type="button" data-customer-reschedule="${escapeHtml(order.id)}">Request reschedule</button>${accepted ? `<button type="button" data-open-share-reward>Social coupon</button>` : ``}<a href="${searchMapUrl(order.address)}" target="_blank" rel="noreferrer">Event map</a></div></article>`;
 }
 function chefOrderCard(order) {
   const m = calculateOrderMoney(order);
@@ -3111,7 +3311,7 @@ function feedbackCard(item) { return `<article class="feedback-card"><strong>${e
 
 const CHEF_APPLICATIONS_KEY = 'phoenix_chef_applications_v1';
 const REVIEW_HIGHLIGHTS_KEY = 'phoenix_review_highlights_v1';
-const GOOGLE_REVIEW_URL = '#'; // Replace with your real Google Business Profile review link.
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CfGCBLKWHZ4WEBM/review?utm_source=gbp&utm_medium=reviews&utm_campaign=qr';
 function getStoredChefApplications() { try { return JSON.parse(localStorage.getItem(CHEF_APPLICATIONS_KEY) || '[]'); } catch { return []; } }
 function saveStoredChefApplications(items) { localStorage.setItem(CHEF_APPLICATIONS_KEY, JSON.stringify(items)); }
 function getStoredReviewHighlights() { try { return JSON.parse(localStorage.getItem(REVIEW_HIGHLIGHTS_KEY) || '[]'); } catch { return []; } }
@@ -3442,7 +3642,7 @@ function renderDashboard(role = 'Admin') {
     const feedback = [...getStoredFeedback(), ...getSocialCouponRequests().map(socialCouponToFeedback)];
     const apps = getDashboardApplications();
     if (dashboardTitle) dashboardTitle.textContent = `${role} Dashboard`;
-    if (dashboardHelp) dashboardHelp.innerHTML = `<span class="role-badge">${escapeHtml(role)}</span> ${Array.isArray(remoteOrdersCache) ? '<span class="role-badge">Supabase live</span>' : '<span class="role-badge">Local demo</span>'} ${role === 'Member' ? 'Member portal: cancellation is available only more than 72 hours before the event. Inside 72 hours, reschedule only and deposit is non-refundable.' : role === 'Chef' ? 'Chef view: assigned parties, customer information, map, travel time and travel fee.' : 'Staff dashboard: orders, customer contacts, complaints, chef applications and dispatch are separated by tabs.'}`;
+    if (dashboardHelp) dashboardHelp.innerHTML = `<span class="role-badge">${escapeHtml(role)}</span> ${Array.isArray(remoteOrdersCache) ? '<span class="role-badge">Supabase live</span>' : '<span class="role-badge">Local demo</span>'} ${role === 'Member' ? 'Member portal: final guest count locks 42 hours before the event. Inside 72 hours, the $200 deposit is non-refundable and may be applied once to an approved event within 30 days.' : role === 'Chef' ? 'Chef view: assigned parties, customer information, map, travel time and travel fee.' : 'Staff dashboard: orders, customer contacts, complaints, chef applications and dispatch are separated by tabs.'}`;
     const statNew = document.getElementById('statNew');
     const statPending = document.getElementById('statPending');
     const statFeedback = document.getElementById('statFeedback');
@@ -3661,7 +3861,7 @@ function contactSettingsToDbV68(settings = getContactSettingsV60()) {
     booking_email: settings.bookingEmail || DEFAULT_V60_CONTACTS.bookingEmail,
     support_email: settings.supportEmail || settings.bookingEmail || DEFAULT_V60_CONTACTS.supportEmail,
     business_name: 'Phoenix Hibachi',
-    service_area_text: 'NY, NJ, CT, Long Island',
+    service_area_text: 'NY, NJ, CT, PA',
     cancellation_policy_title: '72-Hour Policy',
     cancellation_policy_text: settings.policy || DEFAULT_V60_CONTACTS.policy
   };
@@ -3918,7 +4118,7 @@ document.getElementById('quoteForm')?.addEventListener('submit', (e) => {
   const list = getStoredFeedback();
   list.unshift(feedback);
   localStorage.setItem(FEEDBACK_KEY, JSON.stringify(list));
-  alert('Thanks. Your message was captured in the demo dashboard. For launch, connect this form to email/SMS/backend.');
+  alert('Thanks. Your message was saved on this device. Please call or text Phoenix Hibachi for guaranteed delivery, especially if it is urgent.');
   form.reset();
 });
 document.querySelectorAll('[data-open-share-reward]').forEach(btn => btn.addEventListener('click', () => socialRewardModal?.showModal()));
@@ -3927,7 +4127,7 @@ document.addEventListener('click', (event) => {
 });
 function saveLastSubmittedPaymentPreference(extra = {}) {
   if (!lastSubmittedOrder) return null;
-  const choice = document.querySelector('input[name="paymentPreference"]:checked')?.value || 'Cash only at event';
+  const choice = document.querySelector('input[name="paymentPreference"]:checked')?.value || 'Cash preferred; Zelle accepted; balance due at chef arrival before setup';
   lastSubmittedOrder = {
     ...lastSubmittedOrder,
     paymentPreference: choice,
@@ -3950,13 +4150,27 @@ document.getElementById('savePaymentPreferenceBtn')?.addEventListener('click', (
 
 document.getElementById('confirmBookingRequestBtn')?.addEventListener('click', () => {
   if (!lastSubmittedOrder) { alert('No booking request found yet.'); return; }
-  const choice = saveLastSubmittedPaymentPreference({
+  const selected = document.querySelector('input[name="paymentPreference"]:checked')?.value || 'cash';
+  const manualClaimed = selected === 'zelle'
+    ? !!document.getElementById('zelleVerificationAcknowledge')?.checked
+    : selected === 'venmo'
+      ? !!document.getElementById('venmoVerificationAcknowledge')?.checked
+      : false;
+  const paymentStatus = manualClaimed ? 'deposit pending staff verification' : (selected === 'stripe' ? 'online payment optional' : 'unpaid');
+  saveLastSubmittedPaymentPreference({
     customerRequestConfirmed: true,
     customerConfirmedAt: new Date().toISOString(),
-    membershipOptional: true
+    membershipOptional: true,
+    depositPaymentMethod: selected,
+    depositClaimedAmount: manualClaimed ? MONEY_RULES.depositRequired : 0,
+    depositClaimedAt: manualClaimed ? new Date().toISOString() : null,
+    depositDeferred: true,
+    paymentStatus
   });
   successModal?.close();
-  alert('Booking request confirmed. Phoenix Hibachi will review and contact you. Payment note: cash only at the event unless another method is confirmed before service.');
+  alert(manualClaimed
+    ? 'Payment choice saved. Your manual deposit claim is waiting for staff verification. The date is not confirmed until Phoenix Hibachi accepts the order.'
+    : 'Payment choice saved. No payment is required now, and the date remains pending manager review.');
 });
 document.getElementById('printGuestInvoiceBtn')?.addEventListener('click', () => openPrintModalForOrder(lastSubmittedOrder, 'guest'));
 document.getElementById('printChefSettlementBtn')?.addEventListener('click', () => openPrintModalForOrder(lastSubmittedOrder, 'chef'));
@@ -3995,18 +4209,23 @@ function clearBookingSubmitNoticeV98(){
 }
 function showBookingSubmitNoticeV98(error){
   const box = ensureBookingSubmitNoticeV98();
-  const cleanError = String(error || 'Unknown booking error').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  const rawError = String(error || 'Unknown booking error');
+  const cleanError = rawError.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
   const supportPhone = '(516) 518-3325';
+  const debugMode = /(?:^|[?&])debug=1(?:&|$)/.test(location.search) || ['localhost','127.0.0.1'].includes(location.hostname);
   if (!box) {
-    alert('Your booking was NOT submitted. Please call/text Phoenix Hibachi at ' + supportPhone + ' or try again. Error: ' + error);
+    alert('Your booking was NOT submitted. Please call/text Phoenix Hibachi at ' + supportPhone + ' or try again.');
+    console.error('Booking submit technical error:', rawError);
     return;
   }
   box.innerHTML = `
     <strong>Booking was not submitted.</strong>
     <span>Please check the highlighted issue, try again, or call/text Phoenix Hibachi at <a href="tel:15165183325">${supportPhone}</a>.</span>
-    <small>Error: ${cleanError}</small>
+    <small>Reference: BOOKING-SUBMIT-ERROR</small>
+    ${debugMode ? `<details><summary>Technical details</summary><code>${cleanError}</code></details>` : ''}
   `;
   box.hidden = false;
+  console.error('Booking submit technical error:', rawError);
   requestAnimationFrame(() => box.classList.add('show'));
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(() => box.focus({ preventScroll: true }), 250);
@@ -4039,6 +4258,7 @@ function localFallbackSmsBody(order) {
 const orderLookupModal = document.getElementById('orderLookupModal');
 const orderLookupForm = document.getElementById('orderLookupForm');
 const orderLookupInput = document.getElementById('orderLookupInput');
+const orderLookupEmail = document.getElementById('orderLookupEmail');
 const orderLookupResult = document.getElementById('orderLookupResult');
 document.querySelectorAll('[data-open-order-lookup]').forEach(btn => btn.addEventListener('click', () => {
   if (orderLookupResult) orderLookupResult.innerHTML = '<div class="empty-state">Enter your order number to see the latest status.</div>';
@@ -4048,8 +4268,9 @@ document.querySelectorAll('[data-open-order-lookup]').forEach(btn => btn.addEven
 orderLookupForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const value = orderLookupInput?.value || '';
+  const email = orderLookupEmail?.value || '';
   if (orderLookupResult) orderLookupResult.innerHTML = '<div class="empty-state">Searching order status...</div>';
-  const order = await lookupOrderByNumber(value);
+  const order = await lookupOrderByNumber(value, email);
   if (!order) {
     if (orderLookupResult) orderLookupResult.innerHTML = '<div class="empty-state">Order not found. Check the order number, or contact Phoenix Hibachi if this was submitted on another device.</div>';
     return;
@@ -4075,6 +4296,7 @@ document.getElementById('bookingPopupForm')?.addEventListener('submit', async (e
     sendBookingRequestBtn.textContent = 'Sending...';
   }
   const order = buildOrderFromForm(form);
+  await prepareBookingPaymentAccessToken(order);
   const saved = await saveBookingToSupabase(order);
   if (sendBookingRequestBtn) {
     delete sendBookingRequestBtn.dataset.v98Sending;
@@ -4116,7 +4338,7 @@ function getMembershipApplications(){
 function saveMembershipApplications(list){ localStorage.setItem(MEMBERSHIP_KEY, JSON.stringify(list)); }
 async function tryCreateMemberPortalAccount(item, password) {
   const client = initSupabaseClient();
-  if (!client || !item?.email || !password) return { ok:false, message:'Saved as membership application only. Supabase account creation is not available in this preview.' };
+  if (!client || !item?.email || !password) return { ok:false, message:'Saved as membership application only. Supabase account creation is not available right now.' };
   try {
     const { data, error } = await client.auth.signUp({
       email: item.email,
@@ -4214,7 +4436,7 @@ document.getElementById('socialCouponForm')?.addEventListener('submit', (event) 
 
 async function tryCreateChefPortalAccount(app, password) {
   const client = initSupabaseClient();
-  if (!client || !app?.email || !password) return { ok:false, userId:null, message:'Saved as chef application only. Supabase chef account creation is not available in this preview.' };
+  if (!client || !app?.email || !password) return { ok:false, userId:null, message:'Saved as chef application only. Supabase chef account creation is not available right now.' };
   try {
     const { data, error } = await client.auth.signUp({
       email: app.email,
@@ -4490,9 +4712,9 @@ const V60_FORCE_PASSWORD_KEY = 'phoenixHibachiForcePasswordChangeV60';
 const DEFAULT_V60_CONTACTS = {
   phone: '5165183325',
   textPhone: '5165183325',
-  bookingEmail: 'booking@phoenix-hibachi.com',
-  supportEmail: 'support@phoenix-hibachi.com',
-  policy: 'Over 72 hours: cancellation can be reviewed. Inside 72 hours: deposit is non-refundable; reschedule only.'
+  bookingEmail: 'phoenixhibachi.team@gmail.com',
+  supportEmail: 'phoenixhibachi.team@gmail.com',
+  policy: 'A $200 deposit holds an approved date. Final guest count locks 42 hours before the event. Inside 72 hours, the deposit is non-refundable and may be applied once to an approved event within 30 days.'
 };
 function formatPhoneV60(value){
   const digits=String(value||'').replace(/\D/g,'');
@@ -4513,7 +4735,7 @@ function applyContactSettingsV60(){
   const mail=document.getElementById('contactEmailCard'); if(mail){ mail.href=`mailto:${email}`; mail.querySelector('span') && (mail.querySelector('span').textContent=email); }
   document.querySelectorAll('a[href^="tel:+10000000000"],a[href^="tel:+15165183325"]').forEach(a=>a.href=`tel:+1${phoneDigits}`);
   document.querySelectorAll('a[href^="sms:+10000000000"],a[href^="sms:+15165183325"]').forEach(a=>a.href=`sms:+1${textDigits}`);
-  document.querySelectorAll('a[href^="mailto:booking@phoenix-hibachi.com"],a[href^="mailto:booking@phoenix-hibachi.com"]').forEach(a=>a.href=`mailto:${email}`);
+  document.querySelectorAll('a[href^="mailto:phoenixhibachi.team@gmail.com"],a[href^="mailto:phoenixhibachi.team@gmail.com"]').forEach(a=>a.href=`mailto:${email}`);
   const policyBox=[...document.querySelectorAll('.contact-modal .contact-card, .contact-modal .policy-box, .contact-modal [class*="policy"]')].find(el=>/72-hour/i.test(el.textContent||''));
   if(policyBox){ const p=policyBox.querySelector('p,span') || policyBox; if(p) p.textContent=s.policy; }
   const phoneInput=document.getElementById('sitePhoneInput'); if(phoneInput) phoneInput.value=s.phone;
@@ -4533,7 +4755,7 @@ document.getElementById('saveContactSettingsBtn')?.addEventListener('click',()=>
     policy:document.getElementById('sitePolicyInput')?.value?.trim()||DEFAULT_V60_CONTACTS.policy
   });
   applyContactSettingsV60();
-  alert('Contact settings saved for this browser preview. Connect Supabase site_settings for live multi-device storage.');
+  alert('Contact settings were saved on this browser only. Sign in as Admin and connect Supabase for multi-device storage.');
 });
 
 function setLoginRoleV60(role, chefOnly=false){
@@ -4582,7 +4804,7 @@ document.getElementById('changePasswordForm')?.addEventListener('submit',async(e
     if(error){ alert('Password update failed: '+error.message); return; }
   }
   changePasswordModal?.close?.();
-  alert('Password updated. If this was a local preview account, update the real Supabase Auth password before launch.');
+  alert('Password updated. If this is a local-only account record, also update the Supabase Auth password.');
 });
 
 // Replace profile alert with a profile/password modal.
@@ -5770,13 +5992,15 @@ setTimeout(() => {
   function attachInlineDeleteFallbacks(){
     document.querySelectorAll('[data-delete-order]').forEach(btn => {
       btn.classList.add('phx-v75-delete-ready');
-      btn.setAttribute('onpointerdown', 'return window.PHX_FORCE_DELETE_ORDER_V75(event,this)');
-      btn.setAttribute('onclick', 'return window.PHX_FORCE_DELETE_ORDER_V75(event,this)');
+      const pointerHandler = 'return window.PHX_FORCE_DELETE_ORDER_V75(event,this)';
+      if (btn.getAttribute('onpointerdown') !== pointerHandler) btn.setAttribute('onpointerdown', pointerHandler);
+      if (btn.getAttribute('onclick') !== pointerHandler) btn.setAttribute('onclick', pointerHandler);
     });
     document.querySelectorAll('[data-person-delete]').forEach(btn => {
       btn.classList.add('phx-v75-delete-ready');
-      btn.setAttribute('onpointerdown', 'return window.PHX_FORCE_DELETE_PERSON_V75(event,this)');
-      btn.setAttribute('onclick', 'return window.PHX_FORCE_DELETE_PERSON_V75(event,this)');
+      const pointerHandler = 'return window.PHX_FORCE_DELETE_PERSON_V75(event,this)';
+      if (btn.getAttribute('onpointerdown') !== pointerHandler) btn.setAttribute('onpointerdown', pointerHandler);
+      if (btn.getAttribute('onclick') !== pointerHandler) btn.setAttribute('onclick', pointerHandler);
     });
   }
 
@@ -5929,12 +6153,9 @@ setTimeout(() => {
   if (prevRenderDashboard) {
     renderDashboard = function(role = currentDashboardRole || 'Admin'){
       const out = prevRenderDashboard(role);
-      setTimeout(() => {
-        attachInlineDeleteFallbacks();
-        renderPausedAdminCalendarV75();
-        try { renderMainCalendar(); renderMiniCalendar(); } catch {}
-      }, 0);
-      setTimeout(attachInlineDeleteFallbacks, 300);
+      attachInlineDeleteFallbacks();
+      renderPausedAdminCalendarV75();
+      try { renderMainCalendar(); renderMiniCalendar(); } catch {}
       return out;
     };
   }
@@ -5945,12 +6166,11 @@ setTimeout(() => {
     try { renderMainCalendar(); renderMiniCalendar(); } catch {}
   });
 
-  setInterval(attachInlineDeleteFallbacks, 1000);
-  setTimeout(() => {
+  if (document.readyState !== 'loading') {
     attachInlineDeleteFallbacks();
     renderPausedAdminCalendarV75();
     try { renderMainCalendar(); renderMiniCalendar(); } catch {}
-  }, 500);
+  }
 })();
 
 
@@ -6280,9 +6500,7 @@ setTimeout(() => {
       const clean = normalizeRole(role);
       currentDashboardRole = clean;
       const out = oldRenderDashboard(clean);
-      setTimeout(() => window.PHX_APPLY_ROLE_VISIBILITY_V85(clean), 0);
-      setTimeout(() => window.PHX_APPLY_ROLE_VISIBILITY_V85(clean), 120);
-      setTimeout(() => window.PHX_APPLY_ROLE_VISIBILITY_V85(clean), 350);
+      window.PHX_APPLY_ROLE_VISIBILITY_V85(clean);
       return out;
     };
   }
@@ -6492,8 +6710,6 @@ setTimeout(() => {
     }
 
     try { window.PHX_APPLY_ROLE_VISIBILITY_V85?.(clean); } catch {}
-    setTimeout(() => { try { window.PHX_APPLY_ROLE_VISIBILITY_V85?.(clean); } catch {} }, 120);
-    setTimeout(() => { try { window.PHX_APPLY_ROLE_VISIBILITY_V85?.(clean); } catch {} }, 400);
 
     return true;
   }
@@ -6866,7 +7082,7 @@ setTimeout(() => {
     const m = calculateOrderMoney(order);
     const settings = contactSettingsV96();
     const supportPhone = settings.textPhone || settings.phone || '5165183325';
-    const supportEmail = settings.supportEmail || settings.bookingEmail || 'support@phoenix-hibachi.com';
+    const supportEmail = settings.supportEmail || settings.bookingEmail || 'phoenixhibachi.team@gmail.com';
     const chef = assignedChefInfoV96(order);
     const statusText = typeof humanOrderStatus === 'function' ? humanOrderStatus(order.status) : (order.status || 'Pending manager review');
     const chefLine = chef.phone ? `${chef.name} · ${formatPhoneV96(chef.phone)}` : chef.name;
@@ -7040,9 +7256,7 @@ setTimeout(() => {
     renderDashboard = function(role = currentDashboardRole || 'Member'){
       const clean = cleanRoleV96(role);
       const out = previousRenderDashboardV96(clean);
-      setTimeout(() => applyMemberDashboardV96(clean), 0);
-      setTimeout(() => applyMemberDashboardV96(clean), 120);
-      setTimeout(() => applyMemberDashboardV96(clean), 350);
+      applyMemberDashboardV96(clean);
       return out;
     };
   }
@@ -7094,7 +7308,7 @@ setTimeout(() => {
     document.addEventListener('DOMContentLoaded', () => { ensureProfileModalV96(); applyMemberDashboardV96(currentDashboardRole); });
   } else {
     ensureProfileModalV96();
-    setTimeout(() => applyMemberDashboardV96(currentDashboardRole), 0);
+    applyMemberDashboardV96(currentDashboardRole);
   }
 })();
 
@@ -7833,7 +8047,7 @@ setTimeout(() => {
     const chef = v101ConfirmedChef(order);
     const settings = (() => { try { return getContactSettingsV60?.() || {}; } catch { return {}; } })();
     const supportPhone = settings.textPhone || settings.phone || '5165183325';
-    const supportEmail = settings.supportEmail || settings.bookingEmail || 'support@phoenix-hibachi.com';
+    const supportEmail = settings.supportEmail || settings.bookingEmail || 'phoenixhibachi.team@gmail.com';
     const status = typeof humanOrderStatus === 'function' ? humanOrderStatus(order.status) : (order.status || 'Pending manager review');
     const confirmed = String(order.status || '').toLowerCase().match(/confirm|accept|assigned|complete|updated/);
     const chefLine = chef.phone ? `${chef.name} · ${chef.phone}` : chef.name;
@@ -8039,15 +8253,13 @@ setTimeout(() => {
   if (previousRenderV101) {
     renderDashboard = function(role = currentDashboardRole || 'Member'){
       const out = previousRenderV101(role);
-      setTimeout(() => {
-        try {
-          const clean = String(role || currentDashboardRole || '').toLowerCase();
-          if (clean.includes('member') || clean.includes('customer')) {
-            const orders = getDashboardOrders?.() || [];
-            if (orderList) orderList.innerHTML = orders.length ? orders.map(v101MemberOrderCard).join('') : '<div class="empty-state">No bookings are linked to this member account yet.</div>';
-          }
-        } catch (error) { console.warn('V101 member re-render skipped:', error); }
-      }, 420);
+      try {
+        const clean = String(role || currentDashboardRole || '').toLowerCase();
+        if (clean.includes('member') || clean.includes('customer')) {
+          const orders = getDashboardOrders?.() || [];
+          if (orderList) orderList.innerHTML = orders.length ? orders.map(v101MemberOrderCard).join('') : '<div class="empty-state">No bookings are linked to this member account yet.</div>';
+        }
+      } catch (error) { console.warn('V101 member re-render skipped:', error); }
       return out;
     };
   }
@@ -11427,20 +11639,23 @@ setTimeout(() => {
     const isMember = clean === 'Member';
     const stats = document.querySelector('.dashboard-stats');
     if (stats) {
-      stats.hidden = isMember;
-      stats.style.display = isMember ? 'none' : '';
-      stats.setAttribute('aria-hidden', isMember ? 'true' : 'false');
+      if (stats.hidden !== isMember) stats.hidden = isMember;
+      const display = isMember ? 'none' : '';
+      if (stats.style.display !== display) stats.style.display = display;
+      const aria = isMember ? 'true' : 'false';
+      if (stats.getAttribute('aria-hidden') !== aria) stats.setAttribute('aria-hidden', aria);
     }
 
     document.body.classList.toggle('member-dashboard-clean-v125', isMember);
 
     const help = document.getElementById('dashboardHelp');
     if (help && isMember) {
-      help.innerHTML = '<span class="role-badge">Member</span> Member portal: view your booking details, latest status, party start time, assigned chef, payment status, invoice, and Phoenix support contact.';
+      const memberHelp = '<span class="role-badge">Member</span> Member portal: view your booking details, latest status, party start time, assigned chef, payment status, invoice, and Phoenix support contact.';
+      if (help.innerHTML !== memberHelp) help.innerHTML = memberHelp;
     }
 
     const title = document.getElementById('dashboardTitle');
-    if (title && isMember) title.textContent = 'Member Dashboard';
+    if (title && isMember && title.textContent !== 'Member Dashboard') title.textContent = 'Member Dashboard';
   }
 
   const previousApplyRole = window.PHX_APPLY_ROLE_VISIBILITY_V85;
@@ -11448,8 +11663,7 @@ setTimeout(() => {
     window.__PHX_V125_ROLE_VISIBILITY_WRAPPED__ = true;
     window.PHX_APPLY_ROLE_VISIBILITY_V85 = function(role){
       const out = previousApplyRole.apply(this, arguments);
-      setTimeout(() => applyMemberDashboardCleanupV125(role), 0);
-      setTimeout(() => applyMemberDashboardCleanupV125(role), 120);
+      applyMemberDashboardCleanupV125(role);
       return out;
     };
   }
@@ -11460,16 +11674,16 @@ setTimeout(() => {
     renderDashboard = function(role){
       const out = previousRenderDashboard.apply(this, arguments);
       const clean = normalizeRoleV125(role || window.currentDashboardRole);
-      setTimeout(() => applyMemberDashboardCleanupV125(clean), 0);
-      setTimeout(() => applyMemberDashboardCleanupV125(clean), 160);
-      setTimeout(() => applyMemberDashboardCleanupV125(clean), 420);
+      applyMemberDashboardCleanupV125(clean);
       return out;
     };
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => applyMemberDashboardCleanupV125(window.currentDashboardRole), 0);
-  });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => applyMemberDashboardCleanupV125(window.currentDashboardRole), {once:true});
+  } else {
+    applyMemberDashboardCleanupV125(window.currentDashboardRole);
+  }
 })();
 
 /* ======================================================================
@@ -11725,8 +11939,7 @@ setTimeout(() => {
     window.__PHX_V126_ROLE_WRAP__ = true;
     window.PHX_APPLY_ROLE_VISIBILITY_V85 = function(role){
       const out = prevRoleVisibility.apply(this, arguments);
-      setTimeout(() => applyChefTabsAndPanels(role), 0);
-      setTimeout(() => applyChefTabsAndPanels(role), 160);
+      applyChefTabsAndPanels(role);
       return out;
     };
   }
@@ -11736,9 +11949,7 @@ setTimeout(() => {
     renderDashboard = function(role){
       const out = prevRender.apply(this, arguments);
       const clean = roleClean(role || (typeof currentDashboardRole !== 'undefined' ? currentDashboardRole : ''));
-      setTimeout(() => applyChefTabsAndPanels(clean), 0);
-      setTimeout(() => applyChefTabsAndPanels(clean), 180);
-      setTimeout(() => applyChefTabsAndPanels(clean), 500);
+      applyChefTabsAndPanels(clean);
       return out;
     };
   }
@@ -11758,11 +11969,15 @@ setTimeout(() => {
 
   document.addEventListener('click', function(event){
     if (event.target.closest?.('[data-dashboard-tab], [data-portal-logout], [data-account-action]')) {
-      setTimeout(() => applyChefTabsAndPanels(typeof currentDashboardRole !== 'undefined' ? currentDashboardRole : ''), 140);
+      queueMicrotask(() => applyChefTabsAndPanels(typeof currentDashboardRole !== 'undefined' ? currentDashboardRole : ''));
     }
-  }, true);
+  }, false);
 
-  setTimeout(() => applyChefTabsAndPanels(typeof currentDashboardRole !== 'undefined' ? currentDashboardRole : ''), 600);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => applyChefTabsAndPanels(typeof currentDashboardRole !== 'undefined' ? currentDashboardRole : ''), {once:true});
+  } else {
+    applyChefTabsAndPanels(typeof currentDashboardRole !== 'undefined' ? currentDashboardRole : '');
+  }
 })();
 
 
@@ -12119,9 +12334,9 @@ setTimeout(() => {
       <div class="member-avatar-preview-v133" data-member-avatar-preview-v133>${avatar ? `<img src="${avatar}" alt="Member avatar">` : `<span>${initials()}</span>`}</div>
       <div class="member-avatar-copy-v133">
         <strong>Profile photo</strong>
-        <small>Optional. Add a photo so Phoenix support can recognize your account faster.</small>
+        <small>Upload any horizontal, vertical, square, portrait, or logo image. You can drag, zoom, rotate, fill the circle, or show the full image before saving.</small>
         <div class="member-avatar-actions-v133">
-          <label class="outline-btn member-avatar-upload-v133">Upload photo<input type="file" accept="image/*" data-member-avatar-input-v133 hidden></label>
+          <label class="outline-btn member-avatar-upload-v133">Upload / Adjust<input type="file" accept="image/*" data-member-avatar-input-v133 hidden></label>
           <button type="button" class="outline-btn" data-member-avatar-remove-v133>Remove</button>
         </div>
       </div>
@@ -12195,6 +12410,7 @@ setTimeout(() => {
   document.addEventListener('change', async (event) => {
     const input = event.target?.closest?.('[data-member-avatar-input-v133]');
     if (!input) return;
+    if (window.__PHX_V167_AVATAR_EDITOR_ENABLED__) return;
     const file = input.files?.[0];
     if (!file) return;
     try {
@@ -12240,7 +12456,7 @@ setTimeout(() => {
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick);
   else setTimeout(tick, 0);
-  setInterval(tick, 1500);
+  // V166: event-driven profile refresh replaces polling.
 })();
 
 /* ======================================================================
@@ -12484,7 +12700,7 @@ setTimeout(() => {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else setTimeout(boot, 0);
-  setInterval(() => { ensureDashboardProfileButton(); updateSupportTicketCounter(); }, 2000);
+  // V166: dashboard profile/ticket refresh is event-driven.
 })();
 
 
@@ -12870,9 +13086,14 @@ setTimeout(() => {
     catch {
       const pricing = pricingV143();
       const packagePrice = numberV143(pricing.packages?.[pkg], 55);
-      const billableGuests = Math.max(numberV143(pricing.moneyRules?.minimumBillableGuests, 10), adults + kids * 0.5);
+      const billableGuests = Math.max(0, adults + kids * 0.5);
+      const kidPrice = pkg === 'Classic' ? 28 : Math.ceil(packagePrice / 2);
       const addonsTotal = addons.reduce((sum, item) => sum + item.price, 0);
-      m = { packagePrice, billableGuests, addonsTotal, travelFee, salesTax:0, foodSubtotal: billableGuests * packagePrice + addonsTotal, guestTotalBeforeDeposit: billableGuests * packagePrice + addonsTotal + travelFee };
+      const rawFood = adults * packagePrice + kids * kidPrice + addonsTotal;
+      const minimumFoodTotal = numberV143(pricing.moneyRules?.minimumFoodOrder, 550);
+      const minimumOrderAdjustment = Math.max(0, minimumFoodTotal - rawFood);
+      const foodSubtotal = rawFood + minimumOrderAdjustment;
+      m = { packagePrice, billableGuests, addonsTotal, minimumFoodTotal, minimumOrderAdjustment, travelFee, salesTax:0, foodSubtotal, guestTotalBeforeDeposit: foodSubtotal + travelFee };
     }
     return {fd, order, m, addons};
   }
@@ -12880,7 +13101,7 @@ setTimeout(() => {
     const {fd, order, m, addons} = quoteValuesV143();
     const addOnLine = addons.length ? addons.map(item => `${item.name} ${moneyV143(item.price)}`).join(', ') : 'No add-ons selected';
     if (quoteEstimateText) {
-      quoteEstimateText.innerHTML = `<b>${moneyV143(m.guestTotalBeforeDeposit)}</b> estimated total before final confirmation.<small>${order.package} · ${m.billableGuests || 0} billable guests · Food ${moneyV143(m.foodSubtotal || 0)} · Add-ons ${moneyV143(m.addonsTotal || 0)} · Travel ${moneyV143(m.travelFee || 0)} · Tax ${moneyV143(m.salesTax || 0)}</small>`;
+      quoteEstimateText.innerHTML = `<b>${moneyV143(m.guestTotalBeforeDeposit)}</b> estimated total before final confirmation.<small>${order.package} · ${order.adults + order.kids} guests · Food ${moneyV143(m.foodSubtotal || 0)} · Side orders ${moneyV143(m.addonsTotal || 0)} · Minimum adjustment ${moneyV143(m.minimumOrderAdjustment || 0)} · Travel pending manager review · Tax ${moneyV143(m.salesTax || 0)}</small>`;
     }
     const customer = safeTextV143(fd.get('quoteName')) || 'Guest';
     const date = safeTextV143(fd.get('quoteDate')) || 'date not decided';
@@ -13071,9 +13292,14 @@ setTimeout(() => {
       const out = originalUpdateSummary.apply(this, arguments);
       const summaryText = document.getElementById('bookingSummaryText');
       const modalPackage = document.getElementById('modalPackage');
-      const extra = extraChefInput?.checked ? ' · Additional chef requested' : '';
-      if (summaryText && extra && !summaryText.textContent.includes('Additional chef requested')) summaryText.textContent += extra;
-      if (modalPackage && extra && !modalPackage.value.includes('Additional chef requested')) modalPackage.value += extra;
+      const guestTotal = Number(document.getElementById('adultsValue')?.value || 0) + Number(document.getElementById('kidsValue')?.value || 0);
+      const extra = extraChefInput?.checked ? ` · Additional chef ${guestTotal > 30 ? 'included' : '+$150 if approved'}` : '';
+      const waitstaffQty = document.getElementById('waitstaffRequested')?.checked ? Math.max(1, Number(document.getElementById('waitstaffCount')?.value || 1)) : 0;
+      const waitstaff = waitstaffQty ? ` · Waitstaff ${waitstaffQty} +$${waitstaffQty * 100}` : '';
+      if (summaryText && extra && !summaryText.textContent.includes('Additional chef')) summaryText.textContent += extra;
+      if (modalPackage && extra && !modalPackage.value.includes('Additional chef')) modalPackage.value += extra;
+      if (summaryText && waitstaff && !summaryText.textContent.includes('Waitstaff')) summaryText.textContent += waitstaff;
+      if (modalPackage && waitstaff && !modalPackage.value.includes('Waitstaff')) modalPackage.value += waitstaff;
       return out;
     };
   }
@@ -13093,14 +13319,14 @@ setTimeout(() => {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cleanup);
   else cleanup();
-  window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
+  window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 })();
 
 /* ======================================================================
    PHX V160 — invoice text cleanup + persistent profile avatar helper
    ====================================================================== */
 (function phoenixV160InvoiceAvatarCleanup(){
-  window.PHX_BUILD_VERSION = 'V161_72H_MEDIA_TERMS';
+  window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 
   // Keep final invoice wording clean even when older wrapped invoice functions are cached.
   try {
@@ -13113,7 +13339,7 @@ setTimeout(() => {
           .replace(/<b>\s*Tip Suggestions\s*<small>cash only\s*·\s*optional<\/small>\s*<\/b>/i, '<b>Tip Suggestions</b>')
           .replace(/<small>cash only\s*·\s*optional<\/small>/ig, '')
           .replace(/Tips are optional and always appreciated\. Tips are cash only\./ig, 'Tips are optional and appreciated. Cash tips only.')
-          .replace(/Cash only at the event unless Phoenix Hibachi confirms another payment method before service\./ig, 'Cash only at the event unless Phoenix Hibachi confirms another payment method before service.');
+          .replace(/Cash only at the event unless Phoenix Hibachi confirms another payment method before service\./ig, 'Cash payment is preferred; Zelle is also accepted. Balance is due when the chef arrives before setup.');
         return html;
       };
     }
@@ -13167,6 +13393,7 @@ setTimeout(() => {
   document.addEventListener('change', async (event) => {
     const input = event.target?.closest?.('[data-member-avatar-input-v133]');
     if (!input || !input.files?.[0]) return;
+    if (window.__PHX_V167_AVATAR_EDITOR_ENABLED__) return;
     try {
       const dataUrl = await fileToSmallDataUrl(input.files[0]);
       await saveAvatarToSupabase(dataUrl);
@@ -13185,7 +13412,7 @@ setTimeout(() => {
       try { if (window.supabaseProfile) window.supabaseProfile.avatar_url = null; } catch {}
     } catch (error) { console.warn('V160 Supabase avatar remove skipped:', error); }
   }, true);
-  setInterval(() => { const url = currentAvatarUrl(); if (url) setAvatarDom(url); }, 1200);
+  // V166: avatar refresh is event-driven.
 })();
 
 
@@ -13193,7 +13420,7 @@ setTimeout(() => {
    PHX V162 — Customer Service role fix + invoice/coupon cleanup
    ====================================================================== */
 (function phoenixV162FinalCleanup(){
-  window.PHX_BUILD_VERSION = 'V162_COUPON_INVOICE_ROLE_CLEANUP';
+  window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 
   function escV162(value){
     try { return (typeof escapeHtml === 'function' ? escapeHtml(value ?? '') : String(value ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))); }
@@ -13312,9 +13539,10 @@ setTimeout(() => {
           <div class="invoice-money-block invoice-money-block-v162">
             <div class="invoice-row"><span>Adult</span><em>Total: ${m.adults}</em><b>Total: ${moneyV162(m.adultFoodTotal)}</b></div>
             <div class="invoice-row"><span>Kid</span><em>Total: ${m.kids}</em><b>Total: ${moneyV162(m.kidFoodTotal)}</b></div>
-            <div class="invoice-row"><span>Package charge</span><em>${escV162(m.packageName)}</em><b>Total: ${moneyV162(m.packageSubtotal)}</b></div>
+            <div class="invoice-row"><span>Guest meals</span><em>${escV162(m.packageName)}</em><b>Total: ${moneyV162(m.packageSubtotal)}</b></div>
             ${premiumProteinRow}
             ${addonsRows}
+            ${m.minimumOrderAdjustment ? `<div class="invoice-row"><span>Minimum food-order adjustment</span><em>Food total brought to ${moneyV162(m.minimumFoodTotal)}</em><b>Total: ${moneyV162(m.minimumOrderAdjustment)}</b></div>` : ''}
             <div class="invoice-row"><span>Travel Fee</span><em></em><b>Total: ${moneyV162(m.travelFee)}</b></div>
             <div class="invoice-row"><span>Sales Tax</span><em>${escV162(m.taxLabel)}</em><b>Total: ${moneyV162(m.salesTax)}</b></div>
           </div>
@@ -13357,19 +13585,19 @@ setTimeout(() => {
 })();
 
 /*
-   PHX V163 — Booking email field cleanup for Make notifications
+   Phoenix booking email field cleanup retained in V1651
    - Store final_total / balance_due in Supabase bookings rows.
-   - Add dedicated protein_summary / protein_selections / service_notes fields when the V163 SQL migration is installed.
+   - Add dedicated protein_summary / protein_selections / service_notes fields when the booking email fields migration is installed.
    - Stop mixing protein selections into admin_notes for new public bookings.
 */
-(function phoenixV163BookingEmailFields(){
-  window.PHX_BUILD_VERSION = 'V163_BOOKING_EMAIL_FIELDS';
+(function phoenixV1651BookingEmailFields(){
+  window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 
-  const oldOrderToBookingRowV163 = typeof orderToBookingRow === 'function' ? orderToBookingRow : null;
-  if (oldOrderToBookingRowV163 && !window.__PHX_V163_BOOKING_ROW_PATCH__) {
-    window.__PHX_V163_BOOKING_ROW_PATCH__ = true;
+  const oldOrderToBookingRowV1651 = typeof orderToBookingRow === 'function' ? orderToBookingRow : null;
+  if (oldOrderToBookingRowV1651 && !window.__PHX_V1651_BOOKING_ROW_PATCH__) {
+    window.__PHX_V1651_BOOKING_ROW_PATCH__ = true;
     orderToBookingRow = function(order){
-      const row = oldOrderToBookingRowV163(order) || {};
+      const row = oldOrderToBookingRowV1651(order) || {};
       const m = typeof calculateOrderMoney === 'function' ? calculateOrderMoney(order || {}) : {};
       const selections = (order && order.proteinSelections) || (typeof proteinSelectionsFromText === 'function' ? proteinSelectionsFromText(row.admin_notes || '') : {});
       const proteinText = typeof proteinSummary === 'function' ? proteinSummary(selections) : String(order?.proteinSummary || '');
@@ -13380,7 +13608,7 @@ setTimeout(() => {
       row.travel_fee = Number(m.travelFee || order?.travelFee || row.travel_fee || 0);
       row.paid_amount = Number(order?.paidAmount || order?.paid_amount || 0);
 
-      // These columns are added by supabase/migrations/phoenix_hibachi_live_v163_booking_email_fields.sql.
+      // These columns are added by supabase/migrations/booking_email_fields.sql.
       // They make Make/Gmail order notifications clean without abusing admin_notes.
       row.protein_selections = selections || {};
       row.protein_summary = proteinText || '';
@@ -13394,15 +13622,31 @@ setTimeout(() => {
       if (typeof attachPreferredTimeNote === 'function') {
         row.admin_notes = attachPreferredTimeNote(serviceNotes, order?.eventTime || '', order?.customTimeRequest || '');
       }
+
+      // V2.2.5 booking/payment foundation. Missing-column fallback keeps older databases usable
+      // until the reviewed migration is installed.
+      row.request_status = order?.requestStatus || 'pending_review';
+      row.payment_preference = order?.paymentPreference || 'cash';
+      row.deposit_status = Number(order?.depositPaid || order?.deposit_amount || 0) > 0 ? 'pending_manual_verification' : 'unpaid';
+      row.deposit_required_cents = Math.round(Number(order?.depositRequired || 200) * 100);
+      row.deposit_due_cents = Math.max(0, row.deposit_required_cents - Math.round(Number(order?.depositPaid || 0) * 100));
+      row.deposit_deferred = row.deposit_due_cents > 0;
+      row.payment_verification_status = 'not_verified';
+      row.payment_access_token_hash = order?.paymentAccessTokenHash || null;
+      row.food_subtotal_cents = Math.max(0, Math.round(Number(m.foodSubtotal || 0) * 100));
+      row.sales_tax_cents = Math.max(0, Math.round(Number(m.salesTax || 0) * 100));
+      row.tip_cents = 0;
+      row.order_total_cents = Math.max(0, Math.round(Number(m.guestTotalBeforeDeposit || 0) * 100));
+      row.balance_due_cents = Math.max(0, Math.round(Number(m.guestTotalBeforeDeposit || 0) * 100) - Math.round(Number(order?.depositPaid || 0) * 100));
       return row;
     };
   }
 
-  const oldBookingRowToOrderV163 = typeof bookingRowToOrder === 'function' ? bookingRowToOrder : null;
-  if (oldBookingRowToOrderV163 && !window.__PHX_V163_BOOKING_READ_PATCH__) {
-    window.__PHX_V163_BOOKING_READ_PATCH__ = true;
+  const oldBookingRowToOrderV1651 = typeof bookingRowToOrder === 'function' ? bookingRowToOrder : null;
+  if (oldBookingRowToOrderV1651 && !window.__PHX_V1651_BOOKING_READ_PATCH__) {
+    window.__PHX_V1651_BOOKING_READ_PATCH__ = true;
     bookingRowToOrder = function(row){
-      const order = oldBookingRowToOrderV163(row) || {};
+      const order = oldBookingRowToOrderV1651(row) || {};
       const selections = row?.protein_selections && typeof row.protein_selections === 'object'
         ? row.protein_selections
         : (typeof proteinSelectionsFromText === 'function' ? proteinSelectionsFromText(row?.protein_summary || row?.admin_notes || '') : {});
@@ -13418,11 +13662,11 @@ setTimeout(() => {
   }
 
   // Update the guest invoice coupon text if the V162 override has not already done so in cache.
-  if (typeof guestInvoiceHtml === 'function' && typeof calculateOrderMoney === 'function' && !window.__PHX_V163_INVOICE_COUPON_COPY__) {
-    window.__PHX_V163_INVOICE_COUPON_COPY__ = true;
-    const originalGuestInvoiceV163 = guestInvoiceHtml;
+  if (typeof guestInvoiceHtml === 'function' && typeof calculateOrderMoney === 'function' && !window.__PHX_V1651_INVOICE_COUPON_COPY__) {
+    window.__PHX_V1651_INVOICE_COUPON_COPY__ = true;
+    const originalGuestInvoiceV1651 = guestInvoiceHtml;
     guestInvoiceHtml = function(order){
-      let html = originalGuestInvoiceV163(order);
+      let html = originalGuestInvoiceV1651(order);
       html = html.replace(/<span>First completed party over \$600: \$50 off, not combinable with other coupons\.<\/span>/g,
         '<span>First booking with food/package subtotal before tax over $700: receive a $50 coupon for the next Phoenix Hibachi party after staff review.</span>');
       html = html.replace(/<span>Birthday month: \$50 coupon, valid for parties over \$600\.<\/span>/g,
@@ -13434,3 +13678,11 @@ setTimeout(() => {
     };
   }
 })();
+
+
+/* V1651 clean rebuild marker */
+window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
+
+
+/* Phoenix Hibachi V2.2.6 complete optimized build marker */
+window.PHX_BUILD_VERSION = 'V226_COMPLETE_OPTIMIZED';

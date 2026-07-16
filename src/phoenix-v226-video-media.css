@@ -1,0 +1,19 @@
+/* Phoenix Hibachi V2.2.6 — Cloudflare R2 + Stream media layer */
+.phx-media-clickable{cursor:pointer;position:relative;overflow:hidden}
+.phx-media-clickable::after{content:"▶";position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:999px;display:grid;place-items:center;padding-left:3px;background:rgba(7,4,2,.78);border:1px solid rgba(246,189,70,.55);color:#f6bd46;font-size:20px;box-shadow:0 12px 36px rgba(0,0,0,.38);transition:transform .2s ease,background .2s ease}
+.phx-media-clickable:hover::after,.phx-media-clickable:focus-visible::after{transform:translate(-50%,-50%) scale(1.08);background:rgba(15,8,3,.92)}
+.phx-media-clickable img{transition:transform .35s ease}
+.phx-media-clickable:hover img{transform:scale(1.025)}
+.phx-media-provider-badge{position:absolute;left:12px;top:12px;z-index:2;padding:5px 9px;border-radius:999px;background:rgba(5,3,2,.78);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.86);font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.phx-stream-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.88);backdrop-filter:blur(8px)}
+.phx-stream-modal[data-open="true"]{display:flex}
+.phx-stream-dialog{width:min(1040px,96vw);max-height:94vh;overflow:auto;border-radius:22px;background:#0b0704;border:1px solid rgba(246,189,70,.28);box-shadow:0 30px 90px rgba(0,0,0,.62)}
+.phx-stream-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.phx-stream-head strong{color:#fff;font-size:1rem}
+.phx-stream-close{appearance:none;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;width:38px;height:38px;border-radius:999px;font-size:22px;cursor:pointer}
+.phx-stream-frame-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#000}
+.phx-stream-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.phx-stream-copy{padding:14px 18px 18px;color:rgba(255,255,255,.68);line-height:1.65}
+.hero-live-video[data-provider="cloudflare-r2"]{object-fit:cover;width:100%;height:100%}
+@media (max-width:640px){.phx-stream-modal{padding:8px}.phx-stream-dialog{width:100%;border-radius:16px}.phx-media-clickable::after{width:46px;height:46px;font-size:17px}}
+@media (prefers-reduced-motion:reduce){.phx-media-clickable img,.phx-media-clickable::after{transition:none}.hero-live-video{animation:none}}

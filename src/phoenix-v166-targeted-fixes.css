@@ -1,0 +1,50 @@
+/* Phoenix Hibachi V166 — targeted stability fixes only.
+   Baseline: V1653. Print reference: V163. No pricing/database/domain changes. */
+:root{--phx-build-version:"V166_TARGETED_STABILITY";}
+
+/* Dashboard: prevent the sticky tab strip from covering the title/actions. */
+#dashboardModal .dashboard-card{position:relative!important;display:block!important;overflow:auto!important;}
+#dashboardModal .dashboard-head{position:relative!important;inset:auto!important;z-index:2!important;display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:18px!important;flex-wrap:wrap!important;margin:0 0 14px!important;}
+#dashboardModal .dashboard-head>div:first-child{min-width:260px;flex:1 1 520px;}
+#dashboardModal .dashboard-actions{position:relative!important;inset:auto!important;z-index:3!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:10px!important;flex:0 1 auto!important;flex-wrap:wrap!important;}
+#dashboardModal .dashboard-tabs,
+body.portal-mode #dashboardModal .dashboard-tabs{position:relative!important;top:auto!important;left:auto!important;right:auto!important;z-index:1!important;margin:14px 0 16px!important;padding:0 0 10px!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:thin;}
+#dashboardModal .dashboard-tabs button{flex:0 0 auto!important;}
+#dashboardModal .dashboard-pages{position:relative!important;z-index:0!important;clear:both!important;}
+#dashboardModal #dashboardAssistantPanel{display:none!important;}
+#dashboardModal #dashAssistantBtn{white-space:nowrap!important;min-width:104px!important;}
+
+/* Stop old transition/animation layers from flashing during dashboard/print re-render. */
+#dashboardModal,
+#dashboardModal .dashboard-card,
+#dashboardModal .dashboard-head,
+#dashboardModal .dashboard-tabs,
+#dashboardModal .dashboard-page,
+#dashboardModal .phx-v120-orders-board,
+#printModal,
+#printModal .print-card,
+#printArea,
+#printArea .guest-invoice{animation:none!important;transition:none!important;}
+#dashboardModal.phx-v166-ready .dashboard-page.active{visibility:visible!important;opacity:1!important;}
+
+/* Primary dispatch board appears in normal document flow immediately. */
+#dashboardModal #phxV120OrdersBoard{position:relative!important;inset:auto!important;visibility:visible!important;opacity:1!important;transform:none!important;}
+#dashboardModal #phxV1649CalendarFallback,
+#dashboardModal #phxV1654CalendarFallback{display:none!important;}
+
+/* Profile/avatar: retain the two approved V1654 behaviors without changing the rest of the dashboard. */
+#accountAvatar.has-photo-v166{overflow:hidden!important;padding:0!important;}
+#accountAvatar.has-photo-v166 img{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:50%!important;display:block!important;}
+
+/* Print preview and real print intentionally inherit the proven V163 rules from style.css.
+   V166 only removes later patch classes in JavaScript; it does not restyle the invoice. */
+#printModal[open]{max-width:none!important;}
+
+/* The dashboard already has Logout and browser/back navigation. Keep the old hidden close control hidden. */
+#dashboardModal > .modal-card > .modal-close{display:none!important;}
+
+@media(max-width:820px){
+  #dashboardModal .dashboard-head{display:block!important;}
+  #dashboardModal .dashboard-actions{justify-content:flex-start!important;margin-top:12px!important;}
+  #dashboardModal .dashboard-tabs{display:flex!important;flex-wrap:nowrap!important;}
+}

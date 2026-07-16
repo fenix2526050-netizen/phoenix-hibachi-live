@@ -824,14 +824,19 @@
   });
   rootObserver.observe(document.body, {childList:true, subtree:true});
 
+  // V166: expose the existing primary board renderer for an immediate, targeted dashboard refresh.
+  window.PHX_RENDER_ORDERS_BOARD_V166 = function(reason='v166-external'){
+    try { renderBoard(reason); } catch (error) { console.warn('V166 dispatch render warning:', error); }
+  };
+  document.addEventListener('phoenix:v166-dashboard-ready', () => {
+    scheduleRender('force');
+  });
+
   // Also run after dashboard tabs / renders.
   document.addEventListener('DOMContentLoaded', ()=>scheduleRender('dom'));
   window.addEventListener('load', ()=>scheduleRender('load'));
-  setInterval(()=>{
-    const modal = document.getElementById('dashboardModal');
-    const active = document.querySelector('[data-dashboard-page="orders"].active');
-    if(modal?.open && active && roleAllowed() && !document.getElementById('phxV120OrdersBoard')) scheduleRender('interval');
-  }, 1000);
+  /* V166: removed the one-second fallback poll. The dashboard-ready event and
+     missing-board observer render immediately without delayed re-painting. */
 })();
 
 /* =============================================================

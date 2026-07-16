@@ -1,0 +1,15 @@
+/* Phoenix Hibachi V2.2.4 — Stripe-ready deposit UI. */
+.phx-v224-payment-tabs{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:15px 0}
+.phx-v224-pay-tab{position:relative;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:13px;border:1px solid rgba(246,189,70,.27);border-radius:15px;background:rgba(0,0,0,.23);cursor:pointer;min-width:0}
+.phx-v224-pay-tab input{position:absolute;opacity:0}.phx-v224-pay-tab:has(input:checked){border-color:#f6bd46;box-shadow:0 0 0 2px rgba(246,189,70,.11)}
+.phx-v224-pay-tab-primary{grid-template-columns:auto 1fr auto}.phx-v224-pay-tab strong,.phx-v224-pay-tab small{display:block}.phx-v224-pay-tab small{color:#cdbda8;font-size:.72rem;margin-top:3px}
+.phx-v224-pay-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#fff;color:#18110a;font-weight:950}.phx-v224-recommended{font-size:.64rem;color:#171008;background:#f6bd46;border-radius:999px;padding:5px 8px;font-weight:950;text-transform:uppercase}
+.phx-v224-stripe-panel,.phx-v224-manual-panel{border:1px solid rgba(246,189,70,.24);border-radius:16px;padding:14px;background:rgba(0,0,0,.2)}
+.phx-v224-secure-head{display:flex;justify-content:space-between;gap:14px;align-items:start}.phx-v224-secure-head b,.phx-v224-secure-head small{display:block}.phx-v224-secure-head small{color:#cabaa4;line-height:1.4;margin-top:3px}.phx-v224-secure-head>span{color:#8fe0a5;font-weight:850;white-space:nowrap}
+.phx-v224-wallet-row{display:flex;flex-wrap:wrap;gap:7px;margin:13px 0}.phx-v224-wallet-row span{padding:6px 9px;border-radius:8px;background:#fff;color:#15100b;font-weight:850;font-size:.72rem}
+.phx-v224-stripe-mount{min-height:42px;margin:9px 0}.phx-v224-card-mount{min-height:92px;padding:13px;border-radius:12px;background:#fff}.phx-v224-loading{color:#675d54;font-size:.76rem;line-height:1.45}
+.phx-v224-pay-button{margin-top:10px}.phx-v224-payment-message{font-size:.72rem;color:#cdbda8;margin-top:8px;line-height:1.45}.phx-v224-payment-message.error{color:#ff9898}.phx-v224-payment-message.success{color:#8fe0a5;font-weight:800}
+.phx-v224-manual-card{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}.phx-v224-manual-card h3{margin:0 0 5px}.phx-v224-manual-card p{margin:0 0 8px}.phx-v224-manual-card a{color:#f6bd46;font-weight:800}
+body.light-theme .phx-v224-pay-tab,body.light-theme .phx-v224-stripe-panel,body.light-theme .phx-v224-manual-panel{background:#fffaf0;color:#2a160b}.body.light-theme .phx-v224-pay-tab small{color:#604e3d}
+@media(max-width:780px){.phx-v224-payment-tabs{grid-template-columns:1fr 1fr}.phx-v224-pay-tab-primary{grid-column:1/-1}.phx-v224-manual-card{grid-template-columns:1fr;text-align:center}.phx-v224-manual-card .phx-preconfirm-qr{margin:auto}}
+@media(max-width:480px){.phx-v224-payment-tabs{grid-template-columns:1fr}.phx-v224-pay-tab-primary{grid-column:auto}.phx-v224-recommended{display:none}.phx-v224-secure-head{display:block}.phx-v224-secure-head>span{display:inline-block;margin-top:8px}}

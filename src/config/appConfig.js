@@ -1,9 +1,13 @@
-export const PHOENIX_APP_VERSION = 'V164_PHOENIX_OS_MASTER_BUILD';
+export const PHOENIX_APP_VERSION = 'V226_COMPLETE_OPTIMIZED';
 
 export const CONTACT_DEFAULTS = Object.freeze({
   businessName: 'Phoenix Hibachi',
   adminEmail: 'phoenixhibachi.team@gmail.com',
   phone: '5165183325',
+  email: 'phoenixhibachi.team@gmail.com',
+  website: 'https://phoenix-hibachi.com',
+  businessHours: 'Daily 9:00 AM–9:00 PM',
+  serviceArea: 'NY, NJ, CT, PA',
 });
 
 export const STORAGE_BUCKETS = Object.freeze({
