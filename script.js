@@ -3238,6 +3238,20 @@ Notes: ${order.specialNotes || '-'}`;
 }
 function showBookingSuccess(order) {
   lastSubmittedOrder = order;
+  try {
+    const bookingNumber = String(order?.booking_number || order?.bookingNumber || order?.id || '').trim();
+    const customerEmail = String(order?.customer_email || order?.customerEmail || order?.email || '').trim().toLowerCase();
+    if (bookingNumber) {
+      window.lastSubmittedBookingId = bookingNumber;
+      if (successReceipt) successReceipt.dataset.bookingId = bookingNumber;
+      const paymentAccessToken = sessionStorage.getItem(`phoenix_payment_access_${bookingNumber}`) || '';
+      sessionStorage.setItem('phoenix_last_payment_context_v230', JSON.stringify({
+        bookingNumber, customerEmail, paymentAccessToken, savedAt: Date.now()
+      }));
+    }
+  } catch (contextError) {
+    console.warn('Unable to preserve payment context:', contextError);
+  }
   const m = calculateOrderMoney(order);
   const isLocalFallback = !!order.localFallback;
   const eyebrow = successModal?.querySelector('.eyebrow');

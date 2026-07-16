@@ -1,4 +1,4 @@
-/* Phoenix Hibachi V2.2.5 Stripe client: optional deposit, server-calculated amount, no secret keys. */
+/* Phoenix Hibachi V2.3.0 Stripe client: resilient booking context + secure server checkout. */
 (function initPhoenixStripeClient(){
   if(window.__PHX_STRIPE_CLIENT__) return; window.__PHX_STRIPE_CLIENT__=true;
   const cfg=window.PHOENIX_PAYMENT_CONFIG||{};
@@ -8,13 +8,36 @@
   const stripeEnabled=cfg.features?.stripe===true;
   const sandboxMode=cfg.mode==='sandbox';
 
+  function cleanBookingNumber(value=''){
+    const raw=String(value||'').replace(/[\u200B-\u200D\uFEFF]/g,'').trim();
+    const match=raw.toUpperCase().match(/PHX-\d{6}-[A-Z0-9]{4,12}/);
+    return match?.[0]||raw;
+  }
+  function readStoredContext(){
+    try{return JSON.parse(sessionStorage.getItem('phoenix_last_payment_context_v230')||'{}')||{}}catch{return {}}
+  }
   function context(){
     let order={};
     try{ if(typeof lastSubmittedOrder!=='undefined'&&lastSubmittedOrder) order=lastSubmittedOrder }catch{}
+    const stored=readStoredContext();
     const receipt=document.getElementById('successReceipt');
-    const bookingNumber=order.id||receipt?.dataset?.bookingId||receipt?.querySelector('[data-booking-reference]')?.textContent?.trim()||window.lastSubmittedBookingId||'';
-    const customerEmail=order.email||'';
-    let paymentAccessToken='';try{paymentAccessToken=sessionStorage.getItem(`phoenix_payment_access_${bookingNumber}`)||''}catch{}return {bookingNumber,customerEmail,paymentAccessToken,paymentType:'deposit'};
+    const bookingNumber=cleanBookingNumber(
+      order.booking_number||order.bookingNumber||order.id||
+      receipt?.dataset?.bookingId||
+      receipt?.querySelector('[data-booking-reference]')?.textContent?.trim()||
+      window.lastSubmittedBookingId||stored.bookingNumber||''
+    );
+    const customerEmail=String(
+      order.customer_email||order.customerEmail||order.email||stored.customerEmail||''
+    ).trim().toLowerCase();
+    let paymentAccessToken='';
+    try{
+      paymentAccessToken=sessionStorage.getItem(`phoenix_payment_access_${bookingNumber}`)||stored.paymentAccessToken||'';
+      if(bookingNumber&&customerEmail){
+        sessionStorage.setItem('phoenix_last_payment_context_v230',JSON.stringify({bookingNumber,customerEmail,paymentAccessToken,savedAt:Date.now()}));
+      }
+    }catch{}
+    return {bookingNumber,customerEmail,paymentAccessToken,paymentType:'deposit'};
   }
 
   async function startCheckout(){
@@ -23,14 +46,21 @@
       message.className='phx-v224-payment-message error';return;
     }
     const payload=context();
-    if(!payload.bookingNumber||!payload.customerEmail){message.textContent='Booking reference or customer email is missing. Close this window and reopen the saved order.';message.className='phx-v224-payment-message error';return}
-    payBtn.disabled=true;message.textContent='Opening secure Stripe checkout…';message.className='phx-v224-payment-message';
+    if(!payload.bookingNumber||!payload.customerEmail){message.textContent='Booking reference or customer email is missing. Submit a new booking request, then open card payment from the confirmation window.';message.className='phx-v224-payment-message error';return}
+    payBtn.disabled=true;message.textContent=`Opening secure Stripe checkout for ${payload.bookingNumber}…`;message.className='phx-v224-payment-message';
     try{
       stripe=stripe||window.Stripe(cfg.stripePublishableKey);
       const endpoint=`${cfg.supabaseFunctionsBaseUrl.replace(/\/$/,'')}/${cfg.createCheckoutFunction}`;
-      let authHeader={};try{const client=typeof initSupabaseClient==='function'?initSupabaseClient():null;const session=client?(await client.auth.getSession()).data.session:null;if(session?.access_token)authHeader={Authorization:`Bearer ${session.access_token}`}}catch{}const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...authHeader},body:JSON.stringify(payload)});
-      const data=await res.json();
-      if(!res.ok) throw new Error(data.error||'Unable to create checkout session');
+      let authHeader={};try{const client=typeof initSupabaseClient==='function'?initSupabaseClient():null;const session=client?(await client.auth.getSession()).data.session:null;if(session?.access_token)authHeader={Authorization:`Bearer ${session.access_token}`}}catch{}
+      const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...authHeader},body:JSON.stringify(payload)});
+      let data={};try{data=await res.json()}catch{}
+      if(!res.ok) throw new Error(data.error||`Unable to create checkout session (${res.status})`);
+      if(data.resolvedBookingNumber&&data.resolvedBookingNumber!==payload.bookingNumber){
+        try{
+          window.lastSubmittedBookingId=data.resolvedBookingNumber;
+          sessionStorage.setItem('phoenix_last_payment_context_v230',JSON.stringify({...payload,bookingNumber:data.resolvedBookingNumber,savedAt:Date.now()}));
+        }catch{}
+      }
       if(data.alreadyPaid||data.coveredByBenefits){window.dispatchEvent(new CustomEvent('phoenix:stripe-deposit-verified'));message.textContent=data.coveredByBenefits?'Deposit is fully covered by verified gift card or Phoenix Credit.':'Deposit is already paid.';return}
       if(data.clientSecret&&stripe.initEmbeddedCheckout){
         if(checkout?.destroy) checkout.destroy();
@@ -51,7 +81,7 @@
       banner.innerHTML='<b>Stripe Sandbox Test</b><span>No real money is charged. Use only Stripe test card details.</span>';
       panel.insertBefore(banner,panel.firstChild);
     }
-    if(message){message.textContent='Sandbox test only. Submit a booking using the Phoenix Hibachi company email, then use a Stripe test card.';message.className='phx-v224-payment-message';}
+    if(message){message.textContent='Sandbox test only. Submit a new booking using booking@phoenix-hibachi.com, then pay from that confirmation window.';message.className='phx-v224-payment-message';}
   } else if(payBtn&&!stripeEnabled){payBtn.disabled=true;payBtn.textContent='Online card payment setup in progress';if(message){message.textContent='Choose cash, Zelle, or Venmo for now. Card payment will appear only after the secure Stripe backend is activated.';message.className='phx-v224-payment-message';}}
   payBtn?.addEventListener('click',startCheckout);
 })();
