@@ -12,3 +12,9 @@ Important:
 6. Upload the files at this folder's root. Do not upload this folder as an extra nested directory.
 
 V228 changes: wide success/payment window on desktop; four equal payment cards; consistent icon sizing and colors; cash banknote icon; Zelle transfer icon; credit-card icon; Venmo transfer icon; card preference remains selectable while checkout activation is pending; clearer inactive-card messaging.
+
+V229 Stripe Sandbox gate:
+- Normal visitors do not see an active test card form.
+- Open https://phoenix-hibachi.com/?stripe_test=1 in the same browser tab to activate Sandbox checkout.
+- Sandbox checkout is server-restricted to bookings using BOOKING_COMPANY_EMAIL.
+- Do not switch to live Stripe keys until the full end-to-end test passes.

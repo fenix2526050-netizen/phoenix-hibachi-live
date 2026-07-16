@@ -13713,3 +13713,6 @@ window.PHX_BUILD_VERSION = 'V168_QUOTE_NAVIGATION_POLISH';
 
 /* Phoenix Hibachi V2.2.6 complete optimized build marker */
 window.PHX_BUILD_VERSION = 'V226_COMPLETE_OPTIMIZED';
+
+/* Phoenix Hibachi V2.2.9 Stripe Sandbox gated test build marker */
+window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';

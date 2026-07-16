@@ -4853,3 +4853,13 @@ body.light-theme .phx-payment-method-badge{color:#5d4935;border-color:rgba(75,43
   .phx-payment-method-grid .phx-payment-method-card{min-height:126px!important;padding:15px!important}
   .phx-payment-method-copy{padding-top:10px}
 }
+
+/* Phoenix Hibachi V2.2.9 — isolated Stripe Sandbox test banner. */
+.phx-stripe-sandbox-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:0 0 14px;padding:11px 14px;border:1px solid #ffb020;border-radius:14px;
+  background:rgba(255,176,32,.12);color:#ffe0a0;font-size:.82rem;line-height:1.35
+}
+.phx-stripe-sandbox-banner b{color:#ffc34f;white-space:nowrap}
+.phx-stripe-sandbox-banner span{color:#f3dec0;text-align:right}
+@media(max-width:600px){.phx-stripe-sandbox-banner{align-items:flex-start;flex-direction:column}.phx-stripe-sandbox-banner span{text-align:left}}

@@ -6,6 +6,7 @@
   const message=document.getElementById('stripeDepositMessage');
   let stripe=null, checkout=null;
   const stripeEnabled=cfg.features?.stripe===true;
+  const sandboxMode=cfg.mode==='sandbox';
 
   function context(){
     let order={};
@@ -40,6 +41,17 @@
       } else if(data.url){location.assign(data.url)} else throw new Error('Checkout session did not return a client secret or URL');
     }catch(err){message.textContent=`Payment setup error: ${err.message}`;message.className='phx-v224-payment-message error';payBtn.disabled=false}
   }
-  if(payBtn&&!stripeEnabled){payBtn.disabled=true;payBtn.textContent='Online card payment setup in progress';if(message){message.textContent='Choose cash, Zelle, or Venmo for now. Card payment will appear only after the secure Stripe backend is activated.';message.className='phx-v224-payment-message';}}
+  if(payBtn&&stripeEnabled&&sandboxMode){
+    payBtn.disabled=false;
+    payBtn.textContent='Test the $200 deposit (Sandbox)';
+    const panel=payBtn.closest('[data-payment-panel="stripe"]');
+    if(panel&&!panel.querySelector('.phx-stripe-sandbox-banner')){
+      const banner=document.createElement('div');
+      banner.className='phx-stripe-sandbox-banner';
+      banner.innerHTML='<b>Stripe Sandbox Test</b><span>No real money is charged. Use only Stripe test card details.</span>';
+      panel.insertBefore(banner,panel.firstChild);
+    }
+    if(message){message.textContent='Sandbox test only. Submit a booking using the Phoenix Hibachi company email, then use a Stripe test card.';message.className='phx-v224-payment-message';}
+  } else if(payBtn&&!stripeEnabled){payBtn.disabled=true;payBtn.textContent='Online card payment setup in progress';if(message){message.textContent='Choose cash, Zelle, or Venmo for now. Card payment will appear only after the secure Stripe backend is activated.';message.className='phx-v224-payment-message';}}
   payBtn?.addEventListener('click',startCheckout);
 })();
