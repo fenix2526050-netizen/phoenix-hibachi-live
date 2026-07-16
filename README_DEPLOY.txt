@@ -1,13 +1,14 @@
-Phoenix Hibachi V2.2.7 UX polish
+Phoenix Hibachi V2.2.8 payment layout polish
 
 Upload the CONTENTS of this folder to the GitHub Pages repository root.
 Do not upload the parent 02_SUPABASE or 03_DOCS folders to GitHub.
 
 Important:
-1. V2.2.7 adds no new database columns. If the V2.2.6 booking fix already returned 13 rows, no new SQL is required for this update.
-2. Stripe, Gift Card, Phoenix Credit and points remain disabled until secure Edge Functions, keys and webhooks are deployed and tested.
-3. Cloudflare R2 remains the preferred hero-video source. A 9-second, approximately 2.7MB local MP4 is included as an immediate fallback so the hero still moves before the R2 URL is configured.
-4. Never put service-role, Stripe secret, webhook secret or Cloudflare API tokens in this folder.
-5. Upload the files at this folder's root. Do not upload this folder as an extra nested directory.
+1. V2.2.8 adds no new database columns. If the V2.2.6 booking fix already returned 13 rows, no new SQL is required for this visual update.
+2. Desktop/tablet/mobile behavior is now explicit: four payment cards on wide desktop, two on tablet, one on phone.
+3. Cash and Zelle remain the preferred methods. All four cards use the same dimensions, background treatment and professional SVG icon system.
+4. The credit-card preference can now be selected, but actual Stripe checkout is still OFF until secure keys, Edge Functions and the webhook are deployed and tested.
+5. Never put the Stripe secret key, webhook secret, Supabase service-role key or Cloudflare API token in this public GitHub folder.
+6. Upload the files at this folder's root. Do not upload this folder as an extra nested directory.
 
-V227 changes: readable two-column payment choices; cash/Zelle priority; disclosed eligible credit-card fee wording; restored autoplay video fallback; aligned social QR cards; centered confirmed-payment modal; branded Zelle page; red invoice add-on alert; one preferred-time selector; one-pass terms review.
+V228 changes: wide success/payment window on desktop; four equal payment cards; consistent icon sizing and colors; cash banknote icon; Zelle transfer icon; credit-card icon; Venmo transfer icon; card preference remains selectable while checkout activation is pending; clearer inactive-card messaging.

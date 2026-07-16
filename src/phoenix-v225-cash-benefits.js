@@ -25,7 +25,7 @@
   function statusCopy(method){
     if(depositVerified) return 'Stripe verified the $200 deposit. The request still requires manager approval.';
     if(method==='cash') return 'Cash selected. You can submit the request without paying now.';
-    if(method==='stripe') return 'Online payment selected. Paying now is optional; you can still submit the request.';
+    if(method==='stripe') return features.stripe===true?'Online payment selected. Paying now is optional; you can still submit the request.':'Credit card selected as your preference. Secure online checkout is not active yet; Phoenix Hibachi staff will contact you before any card payment is requested.';
     if(method==='zelle') return document.getElementById('zelleVerificationAcknowledge')?.checked?'Zelle payment claimed. Staff must verify it.':'Zelle selected. You can submit now and pay later.';
     return document.getElementById('venmoVerificationAcknowledge')?.checked?'Venmo payment claimed. Staff must verify it.':'Venmo selected. You can submit now and pay later.';
   }
@@ -43,7 +43,7 @@
 
   async function persistPreference(){
     const ref=bookingRef(), method=selected();
-    if(!ref||features.preferenceUpdate!==true||!cfg.supabaseFunctionsBaseUrl||!cfg.updatePreferenceFunction){if(choiceStatus)choiceStatus.textContent='Booking saved. Cash remains the default until the secure payment-update service is activated.';return;}
+    if(!ref||features.preferenceUpdate!==true||!cfg.supabaseFunctionsBaseUrl||!cfg.updatePreferenceFunction){if(choiceStatus)choiceStatus.textContent=method==='stripe'?'Booking saved. Card preference noted on this device; secure card checkout still requires Stripe activation.':'Booking saved. Tell staff your preferred payment method when they contact you.';return;}
     try{
       let customerEmail='';try{if(typeof lastSubmittedOrder!=='undefined'&&lastSubmittedOrder)customerEmail=lastSubmittedOrder.email||''}catch{}
       let authHeader={};try{const client=typeof initSupabaseClient==='function'?initSupabaseClient():null;const session=client?(await client.auth.getSession()).data.session:null;if(session?.access_token)authHeader={Authorization:`Bearer ${session.access_token}`}}catch{}
@@ -108,7 +108,7 @@
   });
 
   const stripeRadio=document.querySelector('input[name="paymentPreference"][value="stripe"]');
-  if(stripeRadio&&features.stripe!==true){stripeRadio.disabled=true;stripeRadio.closest('label')?.setAttribute('title','Card payment is not active until Stripe test deployment is completed.');}
+  if(stripeRadio&&features.stripe!==true){stripeRadio.closest('label')?.setAttribute('title','You may select card as your preference. Actual online checkout activates after Stripe test deployment.');}
   if(features.benefits!==true){document.querySelectorAll('[data-v225-apply]').forEach(btn=>{btn.disabled=true;btn.title='Benefit redemption activates after the secure Supabase functions are deployed.';});}
   if(features.creditTopup!==true){document.querySelectorAll('[data-v225-topup]').forEach(btn=>{btn.disabled=true;btn.title='Phoenix Credit recharge is not active yet.';});}
 

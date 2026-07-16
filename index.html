@@ -889,27 +889,30 @@
           <span>You can review or request changes after submission. Final guest count and food selections lock 42 hours before the event. The system will issue a 72-hour cancellation/reschedule reminder and a 42-hour final-count reminder.</span>
         </div>
 
-        <div class="phx-v224-payment-tabs phx-v225-payment-tabs phx-v227-payment-tabs" role="radiogroup" aria-label="Choose intended payment method">
-          <label class="phx-v224-pay-tab phx-v224-pay-tab-primary phx-v225-cash-tab phx-v227-preferred-pay">
+        <div class="phx-v224-payment-tabs phx-payment-method-grid" role="radiogroup" aria-label="Choose intended payment method">
+          <label class="phx-v224-pay-tab phx-payment-method-card phx-payment-method-priority">
             <input type="radio" name="paymentPreference" value="cash" checked>
-            <span class="phx-v224-pay-icon">$</span>
-            <span><strong>Cash — best price</strong><small>No online fee. Pay after the booking is confirmed.</small></span>
+            <span class="phx-v224-pay-icon"><img src="assets/payment-icon-cash.svg" alt=""></span>
+            <span class="phx-payment-method-copy"><strong>Cash</strong><em>Best price</em><small>No online processing fee. Pay after the booking is confirmed.</small></span>
             <span class="phx-v224-recommended">Preferred</span>
           </label>
-          <label class="phx-v224-pay-tab phx-v227-zelle-tab phx-v227-preferred-pay">
+          <label class="phx-v224-pay-tab phx-payment-method-card phx-payment-method-priority">
             <input type="radio" name="paymentPreference" value="zelle">
-            <span class="phx-v224-pay-icon">Z</span>
-            <span><strong>Zelle — recommended</strong><small>No card processing fee. Staff verification required.</small></span>
+            <span class="phx-v224-pay-icon"><img src="assets/payment-icon-zelle.svg" alt=""></span>
+            <span class="phx-payment-method-copy"><strong>Zelle</strong><em>Recommended</em><small>No card processing fee. Staff verification is required.</small></span>
             <span class="phx-v224-recommended">Recommended</span>
           </label>
-          <label class="phx-v224-pay-tab phx-v227-card-tab">
+          <label class="phx-v224-pay-tab phx-payment-method-card">
             <input type="radio" name="paymentPreference" value="stripe">
-            <span class="phx-v224-pay-icon">▣</span>
-            <span><strong>Card / digital wallet</strong><small>Eligible credit-card payments may include a disclosed processing fee.</small></span>
+            <span class="phx-v224-pay-icon"><img src="assets/payment-icon-card.svg" alt=""></span>
+            <span class="phx-payment-method-copy"><strong>Credit card</strong><em>Secure online payment</em><small>Eligible credit-card payments may include a disclosed processing fee.</small></span>
+            <span class="phx-payment-method-badge">Online</span>
           </label>
-          <label class="phx-v224-pay-tab">
+          <label class="phx-v224-pay-tab phx-payment-method-card">
             <input type="radio" name="paymentPreference" value="venmo">
-            <span class="phx-v224-pay-icon">V</span><span><strong>Venmo</strong><small>Transfer payment · staff verification</small></span>
+            <span class="phx-v224-pay-icon"><img src="assets/payment-icon-venmo.svg" alt=""></span>
+            <span class="phx-payment-method-copy"><strong>Venmo</strong><em>Manual transfer</em><small>Staff verification is required before the balance is marked paid.</small></span>
+            <span class="phx-payment-method-badge">Manual</span>
           </label>
         </div>
 

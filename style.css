@@ -4722,3 +4722,134 @@ body{overflow-y:scroll;}
 .invoice-addon-alert b,.invoice-addon-alert span{color:#b40000!important}
 @media(max-width:760px){.invoice-addon-alert{grid-template-columns:1fr}}
 @media print{.invoice-addon-row span,.invoice-addon-row em,.invoice-addon-row b,.invoice-addon-alert b,.invoice-addon-alert span{color:#b40000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.invoice-addon-alert{border-color:#b40000!important;background:#fff!important}}
+
+/* Phoenix Hibachi V2.2.8 — wide desktop payment chooser and consistent professional icons. */
+.success-modal .success-card{
+  width:min(1180px,calc(100vw - 48px))!important;
+  max-width:none!important;
+}
+.phx-payment-method-grid{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:14px!important;
+  width:100%;
+}
+.phx-payment-method-grid .phx-payment-method-card{
+  position:relative;
+  display:grid!important;
+  grid-template-columns:50px minmax(0,1fr)!important;
+  grid-template-rows:1fr;
+  gap:13px!important;
+  align-items:center!important;
+  min-height:158px!important;
+  padding:18px 16px!important;
+  border:1px solid rgba(246,189,70,.27)!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,rgba(30,22,13,.96),rgba(13,9,6,.96))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  color:var(--text)!important;
+  overflow:hidden;
+}
+.phx-payment-method-grid .phx-payment-method-card:hover{
+  border-color:rgba(246,189,70,.58)!important;
+  transform:translateY(-1px);
+}
+.phx-payment-method-grid .phx-payment-method-card:has(input:checked){
+  border-color:#f6bd46!important;
+  box-shadow:0 0 0 2px rgba(246,189,70,.13),inset 0 1px 0 rgba(255,255,255,.04)!important;
+  background:linear-gradient(180deg,rgba(43,31,16,.98),rgba(17,11,7,.98))!important;
+}
+.phx-payment-method-grid .phx-v224-pay-icon{
+  width:50px!important;
+  height:50px!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  color:#15110c!important;
+  padding:8px!important;
+  box-shadow:0 5px 18px rgba(0,0,0,.18);
+}
+.phx-payment-method-grid .phx-v224-pay-icon img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.phx-payment-method-copy{
+  display:grid!important;
+  grid-template-rows:auto auto 1fr;
+  align-self:stretch;
+  align-content:center;
+  min-width:0;
+  padding-top:13px;
+}
+.phx-payment-method-copy strong{
+  color:#fff!important;
+  font-size:1rem!important;
+  line-height:1.2!important;
+  letter-spacing:0!important;
+}
+.phx-payment-method-copy em{
+  color:#f6bd46;
+  font-style:normal;
+  font-size:.76rem;
+  font-weight:900;
+  line-height:1.2;
+  margin-top:5px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.phx-payment-method-copy small{
+  color:#d0c1ae!important;
+  font-size:.75rem!important;
+  line-height:1.42!important;
+  margin-top:8px!important;
+}
+.phx-payment-method-grid .phx-v224-recommended,
+.phx-payment-method-badge{
+  position:absolute;
+  top:12px;
+  right:12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:24px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:.58rem;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.045em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.phx-payment-method-grid .phx-v224-recommended{
+  color:#171008!important;
+  background:#f6bd46!important;
+}
+.phx-payment-method-badge{
+  color:#d9cbb9;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.04);
+}
+body.light-theme .phx-payment-method-grid .phx-payment-method-card{
+  background:linear-gradient(180deg,#fffaf0,#f7ead4)!important;
+  color:#29170b!important;
+  border-color:rgba(145,92,16,.28)!important;
+}
+body.light-theme .phx-payment-method-grid .phx-payment-method-card:has(input:checked){
+  background:linear-gradient(180deg,#fff7df,#f4dfb8)!important;
+  border-color:#b57913!important;
+}
+body.light-theme .phx-payment-method-copy strong{color:#241308!important}
+body.light-theme .phx-payment-method-copy small{color:#614b37!important}
+body.light-theme .phx-payment-method-badge{color:#5d4935;border-color:rgba(75,43,12,.2);background:rgba(75,43,12,.04)}
+@media(max-width:980px){
+  .success-modal .success-card{width:min(820px,calc(100vw - 32px))!important}
+  .phx-payment-method-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:600px){
+  .success-modal .success-card{width:calc(100vw - 14px)!important;padding:18px!important;border-radius:20px!important}
+  .phx-payment-method-grid{grid-template-columns:1fr!important;gap:10px!important}
+  .phx-payment-method-grid .phx-payment-method-card{min-height:126px!important;padding:15px!important}
+  .phx-payment-method-copy{padding-top:10px}
+}
