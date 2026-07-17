@@ -1,4 +1,4 @@
-/* Phoenix Hibachi V2.3.3 Stripe client: compact checkout, polling confirmation, and paid-state collapse. */
+/* Phoenix Hibachi Stripe UX repair: safely close/recreate Embedded Checkout when payment amount changes. */
 (function initPhoenixStripeClient(){
   if(window.__PHX_STRIPE_CLIENT__) return;
   window.__PHX_STRIPE_CLIENT__ = true;
@@ -14,6 +14,18 @@
   const depositTitle = document.getElementById('stripeDepositOptionTitle');
   const depositHelp = document.getElementById('stripeDepositOptionHelp');
   const customAmountInput = document.getElementById('stripeCustomAmount');
+
+  const checkoutControls = document.createElement('div');
+  checkoutControls.id = 'stripeCheckoutControls';
+  checkoutControls.className = 'phx-stripe-checkout-controls';
+  checkoutControls.hidden = true;
+  checkoutControls.innerHTML = `
+    <button type="button" class="phx-stripe-change-amount" data-phx-close-checkout>
+      ← Change amount / close secure payment form
+    </button>
+  `;
+  if (mount?.parentNode) mount.parentNode.insertBefore(checkoutControls, mount);
+
   let stripe = null;
   let checkout = null;
   let activeSessionId = '';
@@ -175,8 +187,12 @@
       .phx-stripe-amount-option small{color:#c7bfb4;line-height:1.42}
       .phx-stripe-custom-input-wrap{display:flex!important;align-items:center;gap:7px;margin-top:10px;padding:8px 10px;border:1px solid rgba(245,184,51,.28);border-radius:10px;background:#0c0906;color:#f5c65d;font-weight:900}
       .phx-stripe-custom-input-wrap input{width:100%;border:0!important;outline:0!important;background:transparent!important;color:#fff!important;font:inherit;padding:0!important;box-shadow:none!important}
-      [data-stripe-state="open"] .phx-stripe-amount-choice,[data-stripe-state="loading"] .phx-stripe-amount-choice,[data-stripe-state="paid"] .phx-stripe-amount-choice{display:none}
-      @media(max-width:900px){.phx-stripe-amount-choice{grid-template-columns:1fr}}
+      .phx-stripe-checkout-controls{width:min(780px,100%);margin:14px auto 8px;display:flex;justify-content:flex-end}
+      .phx-stripe-checkout-controls[hidden]{display:none!important}
+      .phx-stripe-change-amount{border:1px solid rgba(245,184,51,.55);border-radius:999px;background:rgba(245,184,51,.08);color:#ffd36b;padding:10px 16px;font:inherit;font-weight:900;cursor:pointer}
+      .phx-stripe-change-amount:hover{background:rgba(245,184,51,.16)}
+      .phx-stripe-change-amount:focus-visible{outline:3px solid rgba(245,184,51,.32);outline-offset:3px}
+      @media(max-width:900px){.phx-stripe-amount-choice{grid-template-columns:1fr}.phx-stripe-checkout-controls{justify-content:stretch}.phx-stripe-change-amount{width:100%}}
       @media(max-width:620px){.phx-stripe-result-card{padding:24px 17px}.phx-stripe-result-grid{grid-template-columns:1fr}.phx-stripe-result-actions{flex-direction:column}.phx-stripe-result-actions button,.phx-stripe-result-actions a{width:100%}}
     `;
     document.head.appendChild(style);
@@ -193,6 +209,39 @@
   function stopStatusPolling() {
     if (pollTimer) window.clearTimeout(pollTimer);
     pollTimer = 0;
+  }
+
+  function closeCheckout(reason = 'Secure payment form closed. Choose an amount and click the payment button again.') {
+    stopStatusPolling();
+    try { checkout?.destroy?.(); } catch {}
+    checkout = null;
+    activeSessionId = '';
+    completionHandled = false;
+
+    try { sessionStorage.removeItem('phoenix_active_stripe_session'); } catch {}
+
+    if (mount) {
+      mount.hidden = true;
+      mount.innerHTML = '';
+    }
+    if (checkoutControls) checkoutControls.hidden = true;
+
+    setPanelMode('idle');
+
+    if (payBtn) {
+      payBtn.hidden = false;
+      payBtn.disabled = false;
+    }
+    refreshAmountChoice();
+
+    if (message) {
+      message.textContent = reason;
+      message.className = 'phx-v224-payment-message';
+    }
+  }
+
+  function checkoutIsOpen() {
+    return Boolean(checkout) || panel?.dataset?.stripeState === 'open' || panel?.dataset?.stripeState === 'loading';
   }
 
   function clearReturnParam() {
@@ -361,6 +410,7 @@
     stopStatusPolling();
     try { checkout?.destroy?.(); } catch {}
     checkout = null;
+    if (checkoutControls) checkoutControls.hidden = true;
     if (mount) {
       mount.hidden = false;
       mount.innerHTML = `<div class="phx-stripe-inline-success phx-stripe-inline-success-compact"><div class="check">✓</div><div class="phx-stripe-success-copy"><h3>Payment received</h3><p>Confirming your ${payload?.paymentType === 'full_balance' ? 'full payment' : payload?.paymentType === 'custom' ? 'custom payment' : 'booking deposit'}…</p></div></div>`;
@@ -512,6 +562,7 @@
         }
 
         checkout.mount('#stripePaymentMount');
+        if (checkoutControls) checkoutControls.hidden = false;
         startStatusPolling(activeSessionId, payload);
         if (message) {
           message.textContent = `Use the secure Stripe form to pay ${money(data.amountDue || (payload.paymentType==='custom'?payload.customAmountCents:requiredDepositCents()))}.`;
@@ -573,17 +624,57 @@
     }
   }
 
-  amountInputs.forEach(input => input.addEventListener('change', refreshAmountChoice));
+  amountInputs.forEach(input => input.addEventListener('change', () => {
+    if (checkoutIsOpen()) {
+      closeCheckout('Payment amount changed. Review the new amount, then click the payment button to open a fresh secure form.');
+    } else {
+      refreshAmountChoice();
+    }
+  }));
+
   customAmountInput?.addEventListener('focus', () => {
     const customRadio = document.querySelector('input[name="stripePaymentAmount"][value="custom"]');
-    if (customRadio && !customRadio.checked) { customRadio.checked = true; customRadio.dispatchEvent(new Event('change', {bubbles:true})); }
+    if (customRadio && !customRadio.checked) {
+      customRadio.checked = true;
+      customRadio.dispatchEvent(new Event('change', {bubbles:true}));
+    }
   });
-  customAmountInput?.addEventListener('input', refreshAmountChoice);
-  window.addEventListener('phoenix:booking-summary-updated', refreshAmountChoice);
+
+  customAmountInput?.addEventListener('input', () => {
+    if (checkoutIsOpen()) {
+      closeCheckout('Custom amount changed. Review the new amount, then click the payment button to open a fresh secure form.');
+    } else {
+      refreshAmountChoice();
+    }
+  });
+
+  checkoutControls?.querySelector('[data-phx-close-checkout]')?.addEventListener('click', () => {
+    closeCheckout();
+  });
+
+  document.querySelectorAll('input[name="paymentPreference"]').forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.checked && input.value !== 'stripe' && checkoutIsOpen()) {
+        closeCheckout('Card payment form closed. You can return to Online Card at any time.');
+      }
+    });
+  });
+
+  window.addEventListener('phoenix:booking-summary-updated', () => {
+    if (checkoutIsOpen()) {
+      closeCheckout('Booking amount changed. Review the updated total, then reopen the secure payment form.');
+    } else {
+      refreshAmountChoice();
+    }
+  });
+
   setTimeout(refreshAmountChoice, 0);
   setTimeout(refreshAmountChoice, 800);
   payBtn?.addEventListener('click', startCheckout);
-  window.addEventListener('pagehide', stopStatusPolling, { once:true });
+  window.addEventListener('pagehide', () => {
+    stopStatusPolling();
+    try { checkout?.destroy?.(); } catch {}
+  }, { once:true });
   handleStripeReturn().catch((error) => {
     showResultOverlay({ message: error.message }, 'error');
   });
