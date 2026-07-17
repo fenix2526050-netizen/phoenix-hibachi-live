@@ -10,7 +10,7 @@
   } catch {}
 
   // Leave blank until Stripe live mode is approved and the live webhook is tested.
-  const liveStripePublishableKey = ''; // Paste your Stripe pk_live_... public key here to activate live card payments.
+  const liveStripePublishableKey = 'pk_live_51TtL8mH39SJxAuT7IcWNch5Wbq4L9d008p2Buv7SbRQWqSfppbq6b5vExb1UIUSgCs6A0mRij5TTeqEn0EBbn7PC00sLn5ySNu'; // Paste your Stripe pk_live_... public key here to activate live card payments.
   const testStripePublishableKey = 'pk_test_51TtL8mH39SJxAuT7487B378g1RHg0mCkbdCTCKxBHxc7aZHbZOqqeyWB1XY718D0FfmTZMznfasLBPaQgU2KszZEO0YwStGyjd';
   const liveStripeEnabled = /^pk_live_/.test(liveStripePublishableKey);
 
