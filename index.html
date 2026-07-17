@@ -22,9 +22,10 @@
   <link rel="stylesheet" href="src/phoenix-v224-stripe.css" />
   <link rel="stylesheet" href="src/phoenix-v225-cash-benefits.css" />
   <link rel="stylesheet" href="src/phoenix-v226-video-media.css" />
-  <meta name="phx-build" content="V227_UX_POLISH" />
+  <meta name="phx-build" content="V234_COMPLETE_LIFECYCLE_FULL_PAYMENT_NOTIFICATIONS" />
   <script src="https://js.stripe.com/v3/"></script>
   <script src="src/phoenix-payment-config.js"></script>
+  <meta name="phx-launch-build" content="V235_MAKE_NOTIFICATIONS_SMS_CONSENT" />
 </head>
 <body>
   <div class="top-strip service-strip compact-service-strip">
@@ -321,12 +322,12 @@
 
   <footer class="footer">
     <div class="container footer-grid">
-      <div><a class="brand footer-brand" href="#home"><span class="logo-badge"><img src="assets/phoenix-logo-transparent.png" alt="Phoenix Hibachi 3D phoenix logo"></span><span class="brand-text"><strong>Phoenix Hibachi</strong><small>Private Backyard Catering</small></span></a><p>Private hibachi catering across NY, NJ, CT & PA. Fire, food, and showmanship — right in your backyard.</p><p class="muted">📍 NY · NJ · CT · PA<br>🕘 Daily 9:00 AM–9:00 PM<br>✉ phoenixhibachi.team@gmail.com</p></div>
+      <div><a class="brand footer-brand" href="#home"><span class="logo-badge"><img src="assets/phoenix-logo-transparent.png" alt="Phoenix Hibachi 3D phoenix logo"></span><span class="brand-text"><strong>Phoenix Hibachi</strong><small>Private Backyard Catering</small></span></a><p>Private hibachi catering across NY, NJ, CT & PA. Fire, food, and showmanship — right in your backyard.</p><p class="muted">📍 NY · NJ · CT · PA<br>🕘 Daily 9:00 AM–9:00 PM<br>✉ booking@phoenix-hibachi.com</p></div>
       <div><h4>Service Areas</h4><p>New York, including Long Island<br>New Jersey<br>Connecticut<br>Pennsylvania</p><p class="muted">Hours: daily 9:00 AM–9:00 PM</p></div>
       <div><h4>Packages</h4><p>Classic — $55 / person<br>Premium — $65 / person<br>Signature — $110 / person</p></div>
       <div><h4>Side Orders</h4><p>Sushi Roll Tray<br>Premium Sushi Tray<br>Gyoza & Edamame<br>Noodle / Yakisoba Tray</p></div>
     </div>
-    <div class="container footer-bottom">© 2026 Phoenix Hibachi · Phoenix Hibachi booking and event management.</div>
+    <div class="container footer-bottom">© 2026 Phoenix Hibachi · <a href="privacy.html">Privacy</a> · <a href="sms-terms.html">SMS Terms</a> · Phoenix Hibachi booking and event management.</div>
   </footer>
 
   <button class="floating-book" data-open-contact>Contact</button>
@@ -343,7 +344,7 @@
       <div class="contact-options">
         <a href="tel:+15165183325" id="contactCallCard"><strong>Call Phoenix Hibachi</strong><span id="contactPhoneText">(516) 518-3325</span></a>
         <a href="sms:+15165183325" id="contactTextCard"><strong>Text Us</strong><span id="contactTextPhoneText">(516) 518-3325 · Fastest for same-week party questions</span></a>
-        <a href="mailto:phoenixhibachi.team@gmail.com" id="contactEmailCard"><strong>Email Us</strong><span id="contactEmailText">phoenixhibachi.team@gmail.com</span></a>
+        <a href="mailto:booking@phoenix-hibachi.com" id="contactEmailCard"><strong>Email Us</strong><span id="contactEmailText">booking@phoenix-hibachi.com</span></a>
         <button type="button" data-contact-feedback><strong>Guest Feedback</strong><span>Suggestions, compliments or complaints</span></button>
       </div>
       <div class="contact-actions">
@@ -444,7 +445,7 @@
           <div class="form-grid two">
             <label>Name<input name="name" placeholder="Customer name" required></label>
             <label>Phone<input name="phone" placeholder="Phone number" required></label>
-            <label>Email<input name="email" type="email" placeholder="Email address"></label>
+            <label>Email<input name="email" type="email" placeholder="Email address" required></label>
             <label>Event type
               <select name="eventType">
                 <option>Birthday party</option>
@@ -655,6 +656,7 @@
             </div>
             <button type="button" class="outline-btn mini-policy-btn" data-open-booking-terms>Review & agree</button>
             <label class="terms-agree-line"><input id="bookingPolicyAgree" type="checkbox" required> I reviewed the complete Phoenix Hibachi booking terms and agree to the required policies.</label>
+            <label class="terms-agree-line phx-sms-consent-line"><input id="bookingSmsOptIn" name="smsOptIn" type="checkbox" value="Yes"> <span>I agree to receive transactional text messages from Phoenix Hibachi about this booking, payment, scheduling, chef arrival, and event updates. Message and data rates may apply. Reply STOP to opt out. Consent is not a condition of booking. See the <a href="sms-terms.html" target="_blank" rel="noopener">SMS Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
             <input id="bookingMediaAcknowledge" name="mediaAcknowledge" type="checkbox" value="Yes" hidden>
             <input id="bookingMarketingConsent" name="marketingConsent" type="checkbox" value="Yes" hidden>
           </div>
@@ -693,7 +695,7 @@
 
         <section><h3>12. Event photos and videos</h3><p>The host must acknowledge before submitting that Phoenix Hibachi may photograph or record the chef, food, grill, and event setup for service records, training, and portfolio content. Identifiable guest faces will not be publicly posted without separate permission. Public marketing use involving identifiable adults requires the optional marketing-consent checkbox or later written permission. Phoenix Hibachi will not intentionally use identifiable images of minors for public advertising without specific permission from a parent or legal guardian.</p></section>
         <section><h3>13. Liability waiver</h3><p>By booking, the customer understands that live hibachi service involves heat, open flame, oil, smoke, sharp tools, hot surfaces, food allergens, outdoor conditions, guest behavior, and any customer-requested entertainment activity. To the fullest extent permitted by law, the customer agrees to hold Phoenix Hibachi, its owners, contractors, chefs, and staff harmless from claims arising from unsafe setup, inaccurate information, guest behavior, pets, children, property conditions, weather, parking/access issues, undisclosed allergies, or extra activities requested by the host or guests.</p></section>
-        <section><h3>14. Final agreement</h3><p>By checking the agreement box and submitting the request, the customer confirms that the information provided is accurate, the host accepts these rules, and Phoenix Hibachi may contact the customer by phone, text, or email to confirm details, collect deposit, and finalize the event.</p></section>
+        <section><h3>14. Final agreement and transactional updates</h3><p>By checking the agreement box and submitting the request, the customer confirms that the information provided is accurate, the host accepts these rules, and Phoenix Hibachi may send transactional booking updates by phone, text, or email for request receipt, manager confirmation, payment receipt, changes, reminders, and event finalization. Marketing messages require separate optional consent.</p></section>
         <label class="terms-marketing-choice"><input id="bookingTermsMarketingConsent" type="checkbox"> Optional: I allow Phoenix Hibachi to publicly use event photos/videos that may include identifiable adult guests for its website, social media, and advertising. This optional choice is not required to book.</label>
       </div>
       <div class="terms-modal-actions">
@@ -805,12 +807,12 @@
       <button type="button" class="modal-close" data-close-modal aria-label="Close">×</button>
       <p class="eyebrow">Order Status</p>
       <h2>Check your Phoenix Hibachi order</h2>
-      <p class="modal-help">Enter the order number and the same email used for booking. Only limited status details are shown here; payment and benefit changes require the secure confirmation token or account login.</p>
-      <label>Order number
-        <input id="orderLookupInput" name="orderNumber" placeholder="PHX-123456" autocomplete="off" required>
+      <p class="modal-help">Search an active upcoming booking by order number, exact phone number, or exact booking email. Abandoned, cancelled, completed, expired, and past-event records are not returned.</p>
+      <label>Order number, phone, or email
+        <input id="orderLookupInput" name="orderQuery" placeholder="PHX-260716-ABCD · (516) 555-1234 · name@email.com" autocomplete="off" required>
       </label>
-      <label>Booking email
-        <input id="orderLookupEmail" name="bookingEmail" type="email" placeholder="Email used on the booking" autocomplete="email" required>
+      <label>Verification phone or email <small>(required only when searching by order number)</small>
+        <input id="orderLookupEmail" name="bookingContact" type="text" placeholder="Phone or email used on the booking" autocomplete="email">
       </label>
       <div class="modal-actions">
         <button class="gold-btn" type="submit">Search order</button>
@@ -929,9 +931,13 @@
           <div class="phx-v224-wallet-row" aria-label="Supported express payment options"><span>Apple Pay</span><span>Google Pay</span><span>Link</span><span>Cash App Pay</span></div>
           <div class="phx-v225-fee-disclosure"><b>Cash is preferred.</b><span>Eligible credit-card payments may include a clearly disclosed card-price adjustment where permitted. Debit cards and Connecticut events will not receive a card surcharge. The exact total must appear before payment. This adjustment remains disabled until the advertised-price basis and state rules are approved.</span></div>
           <div id="stripeExpressCheckoutMount" class="phx-v224-stripe-mount"></div>
-          <div id="stripePaymentMount" class="phx-v224-stripe-mount phx-v224-card-mount"><div class="phx-v224-loading">Stripe payment form will appear here after the secure server connection is configured.</div></div>
+          <div class="phx-stripe-amount-choice" id="stripePaymentAmountChoice" aria-label="Choose card payment amount">
+            <label class="phx-stripe-amount-option selected"><input type="radio" name="stripePaymentAmount" value="deposit" checked><span><b>Pay $200 deposit</b><small>Activates the request after Stripe verifies payment.</small></span></label>
+            <label class="phx-stripe-amount-option"><input type="radio" name="stripePaymentAmount" value="full_balance"><span><b>Pay full remaining balance</b><small id="stripeFullBalanceAmount">Exact amount is verified by the server before payment.</small></span></label>
+          </div>
+          <div id="stripePaymentMount" class="phx-v224-stripe-mount phx-v224-card-mount" hidden></div>
           <button type="button" class="gold-btn full phx-v224-pay-button" id="payStripeDepositBtn">Pay the $200 deposit securely</button>
-          <div class="phx-v224-payment-message" id="stripeDepositMessage" role="status">Payment is optional at this stage. You can submit the request without paying.</div>
+          <div class="phx-v224-payment-message" id="stripeDepositMessage" role="status">Payment is optional. You may finalize the request with cash, Zelle, or Venmo instead.</div>
         </section>
 
         <section class="phx-v224-manual-panel" data-payment-panel="zelle" hidden>
@@ -944,7 +950,7 @@
           <label class="phx-preconfirm-ack"><input type="checkbox" id="venmoVerificationAcknowledge"> I already sent the $200 deposit. Staff verification is still required.</label>
         </section>
 
-        <section class="phx-v225-benefits" aria-labelledby="benefitPaymentHeading">
+        <section class="phx-v225-benefits" aria-labelledby="benefitPaymentHeading" hidden data-launch-disabled="unfinished-stored-value-features">
           <div class="phx-v225-benefit-head">
             <div><strong id="benefitPaymentHeading">Coupons, gift cards, Phoenix Credit & points</strong><p>Discounts and stored value are calculated on the server before Stripe is asked to charge the remaining amount.</p></div>
             <span>Secure balance lookup</span>

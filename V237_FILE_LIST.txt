@@ -1,0 +1,23 @@
+Total files: 21
+
+MAKE_MAPPING_V237_CN.md
+V237_FILE_LIST.txt
+V237_GITHUB_UPDATE_CN.txt
+V237_VALIDATION_RESULTS.txt
+index.html
+privacy.html
+script.js
+sms-terms.html
+src/config/appConfig.js
+src/orders-dispatch-v120.js
+src/phoenix-clean-v1652.css
+src/phoenix-clean-v1652.js
+src/phoenix-payment-config.js
+src/phoenix-v167-commercial-details.js
+supabase/functions/booking-lifecycle/index.ts
+supabase/functions/create-stripe-checkout-session/index.ts
+supabase/functions/send-booking-reminders/index.ts
+supabase/functions/stripe-session-status/index.ts
+supabase/functions/stripe-webhook/index.ts
+supabase/migrations/03_V235_MAKE_NOTIFICATIONS_SMS_CONSENT.sql
+supabase/migrations/04_V235_SCHEDULE_72H_REMINDERS_TEMPLATE.sql

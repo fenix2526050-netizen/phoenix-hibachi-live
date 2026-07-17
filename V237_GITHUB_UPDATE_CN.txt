@@ -1,0 +1,57 @@
+Phoenix Hibachi V2.3.7 — GitHub 更新包（100 文件以内）
+
+本包用途
+========
+这是在 V2.3.5 稳定网站基础上整理的 V2.3.7 更新包。
+重点升级：正式客户邮件模板，加入 Logo、人数、套餐、菜单选择、付款方式、付款状态、已付金额、余额、地址与特殊要求。
+
+文件数量
+========
+当前部署文件：18 个（远低于 GitHub 网页一次最多 100 个文件的限制）。
+ZIP 内没有 node_modules、缓存、历史备份或真实密钥。
+
+GitHub 上传方法
+==============
+1. 解压 ZIP。
+2. 打开现有 Phoenix Hibachi GitHub 仓库。
+3. 选择 Add file → Upload files。
+4. 把“解压后的内容”拖入仓库根目录，不要把最外层文件夹整个套进去。
+5. 同名文件选择覆盖/更新。
+6. 不要删除仓库里现有的 assets、CNAME、_headers、.nojekyll 或其他未包含文件。
+7. Commit message 可写：Update Phoenix Hibachi to V2.3.7 branded email.
+
+重要：GitHub 与 Supabase 是两步
+=============================
+把文件上传 GitHub，只会更新仓库代码；通常不会自动部署 Supabase Edge Function。
+GitHub 上传完成后，还要执行：
+Supabase → Edge Functions → booking-lifecycle → Code
+把本包中的：
+supabase/functions/booking-lifecycle/index.ts
+复制覆盖进去，然后点 Deploy。
+
+Supabase Secret
+===============
+确认存在：
+SITE_LOGO_URL=https://phoenix-hibachi.com/assets/phoenix-logo-transparent.png
+
+Make 保持不变
+=============
+客人 Gmail 路线：
+Subject = 5.email_subject
+Content = 5.email_html
+Body type = Raw HTML
+
+测试顺序
+========
+1. Make 点击 Run once，等待 Waiting for data。
+2. 网站提交一个全新的未来日期测试订单。
+3. 测试邮箱填 fenix2526050@gmail.com。
+4. 暂时不要勾选 SMS consent，以免发客人测试短信。
+5. 邮件应显示：Logo、姓名、订单号、日期时间、地址、人数、套餐、菜单选择、付款方式、付款状态、金额与余额。
+6. 再到 Admin 确认订单，测试 booking_confirmed 邮件。
+7. 两次成功后，把 Make 场景切换为 ON / Immediately as data arrives。
+
+安全提醒
+========
+不要把 Stripe Secret、Make API Key、Supabase service-role key 或任何真实密码上传 GitHub。
+本包只通过 Deno.env.get(...) 读取 Secrets，没有写入真实密钥值。

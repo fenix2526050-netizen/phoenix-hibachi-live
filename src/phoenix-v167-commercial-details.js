@@ -22,7 +22,7 @@
 
   const OFFICIAL={
     name:'Phoenix Hibachi',phone:'516-518-3325',phoneDigits:'15165183325',
-    email:'phoenixhibachi.team@gmail.com',website:'phoenix-hibachi.com',
+    email:'booking@phoenix-hibachi.com',website:'phoenix-hibachi.com',
     hours:'Daily 9:00 AM–9:00 PM',serviceArea:'NY · NJ · CT · PA'
   };
   const AVATAR_BUCKET='profile-avatars';

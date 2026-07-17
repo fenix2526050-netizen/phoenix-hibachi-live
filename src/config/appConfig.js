@@ -1,10 +1,10 @@
-export const PHOENIX_APP_VERSION = 'V226_COMPLETE_OPTIMIZED';
+export const PHOENIX_APP_VERSION = 'V235_MAKE_NOTIFICATIONS_SMS_CONSENT';
 
 export const CONTACT_DEFAULTS = Object.freeze({
   businessName: 'Phoenix Hibachi',
   adminEmail: 'phoenixhibachi.team@gmail.com',
   phone: '5165183325',
-  email: 'phoenixhibachi.team@gmail.com',
+  email: 'booking@phoenix-hibachi.com',
   website: 'https://phoenix-hibachi.com',
   businessHours: 'Daily 9:00 AM–9:00 PM',
   serviceArea: 'NY, NJ, CT, PA',

@@ -19,9 +19,9 @@
     phoneDigits: '5165183325',
     phoneDisplay: '(516) 518-3325',
     phoneHref: '+15165183325',
-    bookingEmail: 'phoenixhibachi.team@gmail.com',
+    bookingEmail: 'booking@phoenix-hibachi.com',
     ordersEmail: 'orders@phoenix-hibachi.com',
-    supportEmail: 'phoenixhibachi.team@gmail.com',
+    supportEmail: 'support@phoenix-hibachi.com',
     infoEmail: 'info@phoenix-hibachi.com',
     internalGmail: 'phoenixhibachi.team@gmail.com',
     logo: 'assets/phoenix-logo-transparent.png',
@@ -385,8 +385,8 @@
       const m = calculateOrderMoney(order || {});
       const ref = esc(order.id || order.booking_number || (typeof generateOrderId === 'function' ? generateOrderId('PHX') : 'PHX'));
       const addons = (m.addons || []).length
-        ? m.addons.map(item => `<div class="invoice-row"><span>${esc(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><em></em><b>Total: ${moneySafe(item.price)}</b></div>`).join('')
-        : `<div class="invoice-row"><span>Add-ons</span><em></em><b>Total: $0</b></div>`;
+        ? m.addons.map(item => `<div class="invoice-row invoice-addon-row" style="color:#c00000;font-weight:900;"><span style="color:#c00000!important;font-weight:900!important;">${esc(item.name)}${item.qty && item.qty > 1 ? ' × ' + item.qty : ''}</span><em></em><b style="color:#c00000!important;font-weight:900!important;">Total: ${moneySafe(item.price)}</b></div>`).join('')
+        : `<div class="invoice-row"><span>Add-ons</span><em></em><b style="color:#c00000;font-weight:800;">Total: $0</b></div>`;
       const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${moneySafe(m.proteinUpcharge)}</b></div>` : '';
       const allergies = Array.isArray(order.allergies) ? order.allergies.join(', ') : (order.allergies || order.allergyNotes || 'None listed');
       const adj = invoiceAdjustmentRows(order, m);
@@ -417,7 +417,7 @@
             <div class="invoice-row"><span>Package charge</span><em>${esc(m.packageName)}</em><b>Total: ${moneySafe(m.packageSubtotal)}</b></div>
             ${premiumProteinRow}
             ${addons}
-            <div class="invoice-row"><span>Travel Fee</span><em></em><b>Total: ${moneySafe(m.travelFee)}</b></div>
+            <div class="invoice-row"><span>Travel Fee</span><em></em><b style="color:#c00000;font-weight:800;">Total: ${moneySafe(m.travelFee)}</b></div>
             <div class="invoice-row"><span>Sales Tax</span><em>${esc(m.taxLabel)}</em><b>Total: ${moneySafe(m.salesTax)}</b></div>
           </div>
         </div>
@@ -528,8 +528,8 @@
     businessName: 'Phoenix Hibachi',
     phoneDisplay: '(516) 518-3325',
     phoneDigits: '5165183325',
-    bookingEmail: 'phoenixhibachi.team@gmail.com',
-    supportEmail: 'phoenixhibachi.team@gmail.com',
+    bookingEmail: 'booking@phoenix-hibachi.com',
+    supportEmail: 'support@phoenix-hibachi.com',
     websiteLabel: 'phoenix-hibachi.com'
   };
 
@@ -587,6 +587,57 @@
       const balance = Math.max(0, Number(m.guestTotalAfterDeposit || total - paid || 0));
       return `Total ${moneyText(total)} · Travel ${moneyText(travel)} · Balance ${moneyText(balance)}`;
     } catch { return 'Totals available on invoice.'; }
+  }
+
+
+  function numberValue(value, fallback = 0){
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  function paymentSummary(order = {}){
+    const depositPaid = Math.max(0, numberValue(order.depositPaid ?? order.deposit_amount ?? order.paidAmount ?? order.paid_amount, 0));
+    const depositStatus = String(order.depositStatus || order.deposit_status || '').trim().toLowerCase();
+    const verification = String(order.paymentVerificationStatus || order.payment_verification_status || '').trim().toLowerCase();
+    const paymentStatus = String(order.paymentStatus || order.payment_status || '').trim().toLowerCase();
+    const preference = String(order.paymentPreference || order.payment_preference || '').trim();
+    const balanceRaw = order.balanceDueCents ?? order.balance_due_cents;
+    const hasBalance = balanceRaw !== null && balanceRaw !== undefined && String(balanceRaw) !== '';
+    const balanceCents = hasBalance ? Math.max(0, numberValue(balanceRaw, 0)) : null;
+    let calculatedTotal = 0;
+    try { calculatedTotal = numberValue(window.calculateOrderMoney?.(order)?.guestTotalBeforeDeposit, 0); } catch {}
+    const fullPaid = (
+      /\bpaid\s*in\s*full\b|\bfully\s*paid\b/.test(paymentStatus) ||
+      (balanceCents !== null && balanceCents <= 0 && verification === 'verified' && depositPaid > 0) ||
+      (calculatedTotal > 0 && depositPaid >= calculatedTotal - 0.01)
+    );
+    const depositVerified = (
+      ['paid', 'paid_by_benefits'].includes(depositStatus) ||
+      (verification === 'verified' && depositPaid > 0) ||
+      /\bdeposit\s*received\b|\bcash\s*deposit\b|\bzelle\s*deposit\b/.test(paymentStatus)
+    );
+    const pending = (
+      ['pending', 'pending_manual_verification'].includes(depositStatus) ||
+      ['awaiting_webhook', 'not_verified'].includes(verification) ||
+      /\btransfer\s*pending\b/.test(paymentStatus)
+    );
+    if (fullPaid) return { kind:'full', label:'PAID IN FULL', detail: preference || 'Verified payment' };
+    if (depositVerified) return { kind:'deposit', label:`DEPOSIT PAID ${depositPaid > 0 ? '$' + depositPaid.toFixed(0) : ''}`.trim(), detail: preference || 'Verified deposit' };
+    if (pending) return { kind:'pending', label:'PAYMENT PENDING', detail: preference || 'Awaiting verification' };
+    return { kind:'unpaid', label:'DEPOSIT UNPAID', detail:'No verified deposit' };
+  }
+  function updatePaymentBadge(header, order){
+    if (!header) return;
+    const summary = paymentSummary(order);
+    let badge = header.querySelector('[data-v233-payment-badge]');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.setAttribute('data-v233-payment-badge', 'true');
+      badge.className = 'phx-v233-payment-badge';
+      header.appendChild(badge);
+    }
+    badge.className = `phx-v233-payment-badge is-${summary.kind}`;
+    badge.textContent = summary.label;
+    badge.title = summary.detail;
   }
 
   function enhanceOrderCards(){
@@ -649,8 +700,8 @@
       html = html.replace(/\b\d+\s*\/\s*\d+\s*portions?\s*/gi, match => cleanProteinText(match));
       html = html.replace(/347-471-9190/g, official.phoneDisplay || '(516) 518-3325');
       html = html.replace(/www\.phoenixhibachi\.com/g, official.websiteLabel || 'phoenix-hibachi.com');
-      html = html.replace(/support@phoenix-hibachi\.com/g, official.supportEmail || 'phoenixhibachi.team@gmail.com');
-      html = html.replace(/booking@phoenix-hibachi\.com/g, official.bookingEmail || 'phoenixhibachi.team@gmail.com');
+      html = html.replace(/support@phoenix-hibachi\.com/g, official.supportEmail || 'support@phoenix-hibachi.com');
+      html = html.replace(/booking@phoenix-hibachi\.com/g, official.bookingEmail || 'booking@phoenix-hibachi.com');
       return html;
     };
   }
@@ -1120,6 +1171,8 @@
 
 
 
+/* Phoenix Hibachi V2.3.3 adds verified payment badges and red add-on packing alerts. */
+
 /* Phoenix OS V164.3 Order Age + Print Polish
    Purpose: show order age on admin cards and improve one-page invoice print.
    No database schema changes. */
@@ -1215,6 +1268,7 @@
         meta.textContent = orderAgeLabel(order);
         const exact = submittedExactLabel(order);
         if (exact) meta.title = exact;
+        updatePaymentBadge(header, order);
       }
       card.querySelectorAll('[data-v120-action="details"], [data-v102-details], [data-v101-details]').forEach(btn => {
         btn.textContent = 'Order details / edit';
@@ -1244,6 +1298,39 @@
       html = html.replace(/(PROTEIN SELECTIONS<\/b>\s*<span>)([^<]*)(<\/span>)/i, (all, a, body, c) => `${a}${esc(cleanProteinText(body))}${c}`);
       html = html.replace(/\b\d+\s*\/\s*\d+\s*portions?\s*/gi, match => cleanProteinText(match));
       html = html.replace(/<div class="invoice-footer-red">[\s\S]*?<\/div>/i, '');
+
+      let addons = [];
+      try { addons = window.calculateOrderMoney?.(order)?.addons || []; } catch {}
+      if (!Array.isArray(addons) || !addons.length) {
+        const raw = order.addons || order.add_ons || [];
+        addons = Array.isArray(raw) ? raw.map(item => typeof item === 'string' ? {name:item, qty:1} : item).filter(Boolean) : [];
+      }
+
+      if (addons.length) {
+        const host = document.createElement('div');
+        host.innerHTML = html;
+        const names = addons.map(item => String(item?.name || item || '').trim()).filter(Boolean);
+        host.querySelectorAll('.invoice-row').forEach(row => {
+          const rowText = String(row.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          if (names.some(name => rowText.includes(name.toLowerCase()))) {
+            row.classList.add('invoice-addon-row', 'phx-v233-addon-row');
+          }
+        });
+
+        let alert = host.querySelector('.invoice-addon-alert');
+        if (!alert) {
+          alert = document.createElement('div');
+          alert.className = 'invoice-addon-alert phx-v233-addon-alert';
+          const target = host.querySelector('.invoice-payment-grid-v164, .invoice-ledger-grid-v164, .invoice-rule-box, .invoice-food-alert');
+          if (target?.parentNode) target.parentNode.insertBefore(alert, target);
+          else host.querySelector('.guest-invoice')?.appendChild(alert);
+        } else {
+          alert.classList.add('phx-v233-addon-alert');
+        }
+        alert.setAttribute('style','border:2px solid #c00000!important;background:#fff0f0!important;color:#c00000!important;font-weight:900!important;padding:7px 9px!important;');
+        alert.innerHTML = `<b style="color:#c00000!important;">ADD-ONS TO BRING</b><span style="color:#c00000!important;font-weight:900!important;">${addons.map(item => `${esc(item?.name || item)}${Number(item?.qty || 1) > 1 ? ` × ${Number(item.qty)}` : ''}`).join(' · ')}</span>`;
+        html = host.innerHTML;
+      }
       return html;
     };
   }
@@ -1588,7 +1675,7 @@
 
   const LAST_CONFIRM_EMAIL = 'phx_last_confirmation_email_v1645';
   const BUSINESS_PHONE_DIGITS = '15165183325';
-  const BOOKING_EMAIL = 'phoenixhibachi.team@gmail.com';
+  const BOOKING_EMAIL = 'booking@phoenix-hibachi.com';
 
   function cleanEmail(value){ return String(value || '').trim().toLowerCase(); }
   function digits(value){ return String(value || '').replace(/\D/g,''); }

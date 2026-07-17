@@ -1,0 +1,29 @@
+PASS required file index.html
+PASS required file script.js
+PASS required file privacy.html
+PASS required file sms-terms.html
+PASS required file src/orders-dispatch-v120.js
+PASS required file src/phoenix-clean-v1652.css
+PASS required file src/phoenix-clean-v1652.js
+PASS required file src/phoenix-payment-config.js
+PASS required file src/phoenix-v167-commercial-details.js
+PASS required file src/config/appConfig.js
+PASS required file supabase/functions/booking-lifecycle/index.ts
+PASS required file supabase/functions/create-stripe-checkout-session/index.ts
+PASS required file supabase/functions/stripe-webhook/index.ts
+PASS required file supabase/functions/stripe-session-status/index.ts
+PASS required file supabase/functions/send-booking-reminders/index.ts
+PASS required file supabase/migrations/03_V235_MAKE_NOTIFICATIONS_SMS_CONSENT.sql
+PASS required file supabase/migrations/04_V235_SCHEDULE_72H_REMINDERS_TEMPLATE.sql
+PASS V2.3.7 Logo secret support
+PASS guest count in email
+PASS package in email
+PASS menu selections in email
+PASS payment method in email
+PASS amount paid in email
+PASS balance due in email
+PASS no hardcoded Make key
+PASS no Stripe live secret
+FAIL no Stripe test secret
+PASS no service role literal
+PASS actual file count 20 < 100

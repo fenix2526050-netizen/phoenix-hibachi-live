@@ -1082,3 +1082,122 @@ body.phx-mobile-menu-open [data-floating-actions] {
   body.printing-invoice #printArea.phx-v1645-readable-print .invoice-security-seal-v164,
   body.printing-invoice #printArea.phx-v1645-readable-print .invoice-security-seal-v103 { border-style:dashed !important; }
 }
+
+
+/* Phoenix Hibachi V2.3.3 — verified payment badges + red add-on packing alert. */
+.phx-v1643-order-header{
+  grid-template-columns:minmax(180px,1fr) auto auto auto!important;
+  align-items:start!important;
+}
+.phx-v233-payment-badge{
+  justify-self:end;
+  align-self:start;
+  border-radius:999px;
+  padding:5px 10px;
+  font-size:11px;
+  line-height:1.1;
+  font-weight:950;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.06);
+  color:#ddd;
+}
+.phx-v233-payment-badge.is-full{
+  color:#07170d;
+  background:#62e59a;
+  border-color:#62e59a;
+}
+.phx-v233-payment-badge.is-deposit{
+  color:#0a1a10;
+  background:#9cf0bd;
+  border-color:#73dca0;
+}
+.phx-v233-payment-badge.is-pending{
+  color:#2b1b00;
+  background:#ffd36a;
+  border-color:#ffd36a;
+}
+.phx-v233-payment-badge.is-unpaid{
+  color:#ffd0d0;
+  background:rgba(197,48,48,.16);
+  border-color:rgba(255,102,102,.48);
+}
+
+.print-modal[open] #printArea .invoice-addon-row span,
+.print-modal[open] #printArea .invoice-addon-row b,
+.print-modal[open] #printArea .phx-v233-addon-row span,
+.print-modal[open] #printArea .phx-v233-addon-row b{
+  color:#c60000!important;
+  font-weight:950!important;
+}
+.print-modal[open] #printArea .invoice-addon-alert,
+.print-modal[open] #printArea .phx-v233-addon-alert{
+  display:grid!important;
+  grid-template-columns:112px minmax(0,1fr)!important;
+  gap:8px!important;
+  align-items:start!important;
+  margin:6px 0!important;
+  padding:7px 9px!important;
+  border:2px solid #e00000!important;
+  border-radius:4px!important;
+  background:#fff0f0!important;
+  color:#b00000!important;
+}
+.print-modal[open] #printArea .invoice-addon-alert b,
+.print-modal[open] #printArea .phx-v233-addon-alert b{
+  color:#b00000!important;
+  font-weight:950!important;
+  letter-spacing:.03em!important;
+}
+.print-modal[open] #printArea .invoice-addon-alert span,
+.print-modal[open] #printArea .phx-v233-addon-alert span{
+  color:#b00000!important;
+  font-weight:900!important;
+}
+
+@media print{
+  body.printing-invoice #printArea .invoice-addon-row span,
+  body.printing-invoice #printArea .invoice-addon-row b,
+  body.printing-invoice #printArea .phx-v233-addon-row span,
+  body.printing-invoice #printArea .phx-v233-addon-row b{
+    color:#b00000!important;
+    font-weight:950!important;
+  }
+  body.printing-invoice #printArea .invoice-addon-alert,
+  body.printing-invoice #printArea .phx-v233-addon-alert{
+    display:grid!important;
+    grid-template-columns:90px minmax(0,1fr)!important;
+    gap:5px!important;
+    margin:4px 0!important;
+    padding:4px 6px!important;
+    border:1.5px solid #b00000!important;
+    background:#fff!important;
+    color:#b00000!important;
+    break-inside:avoid!important;
+  }
+  body.printing-invoice #printArea .invoice-addon-alert b,
+  body.printing-invoice #printArea .invoice-addon-alert span,
+  body.printing-invoice #printArea .phx-v233-addon-alert b,
+  body.printing-invoice #printArea .phx-v233-addon-alert span{
+    color:#b00000!important;
+    font-weight:950!important;
+    font-size:7.2pt!important;
+  }
+}
+@media(max-width:980px){
+  .phx-v1643-order-header{grid-template-columns:minmax(150px,1fr) auto!important}
+  .phx-v1643-order-age,
+  .phx-v233-payment-badge{grid-column:1/-1;justify-self:start}
+}
+
+
+/* V235 transactional SMS consent */
+.phx-sms-consent-line{align-items:flex-start!important;gap:12px!important;background:rgba(255,255,255,.035)!important;border:1px solid rgba(227,167,45,.2)!important}
+.phx-sms-consent-line input{margin-top:4px;flex:0 0 auto}
+.phx-sms-consent-line span{display:block;line-height:1.55}
+.phx-sms-consent-line a{color:#f3bf4d;text-decoration:underline;text-underline-offset:2px}
+.footer-bottom a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+
+body.phx-stripe-disabled .phx-payment-method-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+@media(max-width:900px){body.phx-stripe-disabled .phx-payment-method-grid{grid-template-columns:1fr!important}}

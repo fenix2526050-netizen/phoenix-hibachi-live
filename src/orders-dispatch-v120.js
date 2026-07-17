@@ -1,3 +1,4 @@
+/* V2.3.3 payment-state sync: Stripe deposit/full-payment status is reflected in admin payment controls. */
 /* Phoenix Hibachi V122 — Week wheel + weekday date labels + admin revenue analytics.
    Built from the stable V121 dispatch board. It only takes over Admin/Manager Orders view. */
 (function PHXV120OrdersDispatch(){
@@ -104,7 +105,10 @@
       'phoenix_dashboard_orders',
       'bookings'
     ].forEach(key => rows.push(...arrayFromStorage(key)));
-    return dedupeOrders(rows);
+    return dedupeOrders(rows).filter(order => {
+      try { return typeof window.phoenixIsOfficialBookingV234 === 'function' ? window.phoenixIsOfficialBookingV234(order) : true; }
+      catch { return true; }
+    });
   }
   function roleAllowed(){
     const role = normalizedRole(window.currentDashboardRole || localStorage.getItem('phoenix_portal_role') || localStorage.getItem('phoenix_dashboard_role') || 'Admin');
@@ -245,7 +249,7 @@
       <button type="button" data-v120-action="details" data-v120-order-id="${id}">Order details</button>
       <button type="button" data-v120-action="time" data-v120-order-id="${id}">Modify time</button>
       <button type="button" data-v120-action="chef" data-v120-order-id="${id}">Assign chef</button>
-      <button type="button" data-v120-action="print" data-v120-order-id="${id}">Print</button>
+      <button type="button" data-v120-action="print" data-v120-order-id="${id}">Print</button><button type="button" class="v235-cancel-order" data-v120-action="cancel" data-v120-order-id="${id}">Cancel order</button>
       <button type="button" class="v107-payment-button" data-v120-action="payment" data-v120-order-id="${id}">Payment / price</button>
     </div>`;
   }
@@ -257,8 +261,17 @@
     const received = Number(order.depositPaid || order.deposit_amount || noteValue(notes, 'Payment received') || 0);
     const discount = Number(noteValue(notes, 'Manager discount') || 0);
     const finalTotal = noteValue(notes, 'Final total override');
-    const paymentStatus = noteValue(notes, 'Payment status note') || order.paymentStatus || order.payment_status || 'unpaid';
-    const paymentMethod = noteValue(notes, 'Payment method') || '';
+    const depositState = String(order.depositStatus || order.deposit_status || '').toLowerCase();
+    const verificationState = String(order.paymentVerificationStatus || order.payment_verification_status || '').toLowerCase();
+    const balanceRaw = order.balanceDueCents ?? order.balance_due_cents;
+    const balanceKnown = balanceRaw !== null && balanceRaw !== undefined && String(balanceRaw) !== '';
+    const balanceCents = balanceKnown ? Math.max(0, Number(balanceRaw || 0)) : null;
+    const automaticallyPaidInFull = balanceCents !== null && balanceCents <= 0 && verificationState === 'verified' && received > 0;
+    const automaticallyDepositPaid = ['paid','paid_by_benefits'].includes(depositState) || (verificationState === 'verified' && received > 0);
+    const paymentStatus = noteValue(notes, 'Payment status note')
+      || (automaticallyPaidInFull ? 'paid in full' : (automaticallyDepositPaid ? 'deposit received' : ''))
+      || order.paymentStatus || order.payment_status || 'unpaid';
+    const paymentMethod = noteValue(notes, 'Payment method') || order.paymentPreference || order.payment_preference || '';
     const reason = noteValue(notes, 'Adjustment reason') || '';
     const customerNote = noteValue(notes, 'Customer payment note') || '';
     const waived = /yes|true|1|waived/i.test(noteValue(notes, 'Travel fee waived'));
@@ -618,8 +631,13 @@
     let notes = notesOf(order);
     notes = upsertNoteLine(notes, 'Confirmed at', nowLabel());
     notes = upsertNoteLine(notes, 'Customer visible note', 'Your booking request has been confirmed by Phoenix Hibachi.');
-    const ok = await updateOrderV120(orderId, {status:'Confirmed', admin_notes:notes}, {status:'Confirmed', specialNotes:notes, admin_notes:notes});
-    alert(ok ? 'Order confirmed.' : 'Order updated locally. Supabase did not confirm yet; check Admin permission/RLS.');
+    const ok = await updateOrderV120(orderId, {status:'Confirmed', request_status:'confirmed', activated_at:new Date().toISOString(), admin_notes:notes}, {status:'Confirmed', requestStatus:'confirmed', specialNotes:notes, admin_notes:notes});
+    let notified = false;
+    if(ok && typeof window.phoenixAdminBookingActionV234 === 'function') {
+      try { const result = await window.phoenixAdminBookingActionV234('admin_confirm', orderId); notified = !!result?.notification?.sentAny; }
+      catch(error) { console.warn('Confirmation notification failed:', error); }
+    }
+    alert(ok ? (notified ? 'Order confirmed. Customer email/SMS notification was sent.' : 'Order confirmed. Notification delivery is not configured or did not send.') : 'Order updated locally. Supabase did not confirm yet; check Admin permission/RLS.');
   }
   async function saveTimeV120(orderId){
     const card = document.querySelector(`[data-v120-order-card="${CSS.escape(String(orderId))}"]`);
@@ -635,7 +653,12 @@
     const dbTime = (typeof parseEventTimeForDb === 'function') ? parseEventTimeForDb(timeValue) : timeValue;
     const status = String(order.status || '').toLowerCase().includes('confirm') ? 'Confirmed - exact time updated' : 'Time updated';
     const ok = await updateOrderV120(orderId, {event_date:dateValue, event_time:dbTime, status, admin_notes:notes}, {eventDate:uiDateFromInput(dateValue), event_date:dateValue, eventTime:timeValue, event_time:timeValue, status, specialNotes:notes, admin_notes:notes});
-    alert(ok ? 'Party start time saved.' : 'Updated locally. Supabase did not confirm yet.');
+    let notified = false;
+    if(ok && typeof window.phoenixAdminBookingActionV234 === 'function') {
+      try { const result = await window.phoenixAdminBookingActionV234('admin_reschedule', orderId, {eventDate:dateValue, eventTime:dbTime}); notified = !!result?.notification?.sentAny; }
+      catch(error) { console.warn('Reschedule notification failed:', error); }
+    }
+    alert(ok ? (notified ? 'Party start time saved. Customer update was queued.' : 'Party start time saved. Customer notification was not queued.') : 'Updated locally. Supabase did not confirm yet.');
   }
   async function saveChefV120(orderId){
     const card = document.querySelector(`[data-v120-order-card="${CSS.escape(String(orderId))}"]`);
@@ -681,8 +704,36 @@
     notes = upsertNoteLine(notes, 'Travel fee waived', waived ? 'yes' : 'no');
     notes = upsertNoteLine(notes, 'Adjustment reason', reason);
     notes = upsertNoteLine(notes, 'Customer payment note', customerNote);
-    const ok = await updateOrderV120(orderId, {payment_status:status, deposit_amount:received, travel_fee: waived ? 0 : travel, admin_notes:notes}, {paymentStatus:status, payment_status:status, depositPaid:received, deposit_amount:received, travelFee:waived ? 0 : travel, travel_fee:waived ? 0 : travel, specialNotes:notes, admin_notes:notes});
-    alert(ok ? 'Payment / price saved.' : 'Saved locally. Supabase did not confirm yet.');
+    const statusLower = String(status || '').toLowerCase();
+    const calculatedTotal = Number(finalTotal || orderTotal(order) || 0);
+    const paidInFull = statusLower.includes('paid in full') || (calculatedTotal > 0 && received >= calculatedTotal);
+    const depositPaid = paidInFull || statusLower.includes('deposit received') || statusLower.includes('cash deposit') || statusLower.includes('zelle deposit');
+    const verifiedDeposit = depositPaid ? Math.min(received, Number(order.depositRequired || order.deposit_required_cents / 100 || 200)) : Number(order.depositPaid || order.deposit_amount || 0);
+    const remainingCents = paidInFull ? 0 : Math.max(0, Math.round((calculatedTotal - received) * 100));
+    const dbPatch = {payment_status:status, paid_amount:received, deposit_amount:verifiedDeposit, balance_due_cents:remainingCents, travel_fee: waived ? 0 : travel, admin_notes:notes};
+    if (paidInFull) { dbPatch.balance_due_cents = 0; dbPatch.payment_verification_status = 'verified'; }
+    if (depositPaid) { dbPatch.deposit_status = 'paid'; dbPatch.deposit_due_cents = 0; dbPatch.deposit_deferred = false; dbPatch.deposit_paid_at = new Date().toISOString(); dbPatch.payment_verification_status = 'verified'; }
+    const ok = await updateOrderV120(orderId, dbPatch, {paymentStatus:status, payment_status:status, paidAmount:received, paid_amount:received, depositPaid:verifiedDeposit, deposit_amount:verifiedDeposit, balanceDueCents:dbPatch.balance_due_cents, balance_due_cents:dbPatch.balance_due_cents, travelFee:waived ? 0 : travel, travel_fee:waived ? 0 : travel, specialNotes:notes, admin_notes:notes});
+    let notified = false;
+    if(ok && (depositPaid || paidInFull) && typeof window.phoenixAdminBookingActionV234 === 'function') {
+      try { const result = await window.phoenixAdminBookingActionV234('admin_payment_update', orderId, {paymentStatus:status, paymentMethod:method, amountReceived:received, paidInFull}); notified = !!result?.notification?.sentAny; }
+      catch(error) { console.warn('Payment notification failed:', error); }
+    }
+    alert(ok ? ((depositPaid || paidInFull) ? (notified ? 'Payment saved. Customer email/SMS notification was sent.' : 'Payment saved. Notification delivery is not configured or did not send.') : 'Payment / price saved.') : 'Saved locally. Supabase did not confirm yet.');
+  }
+  async function cancelOrderV235(orderId){
+    const order = findOrderById(orderId);
+    if(!order) return alert('Order not found.');
+    const reason = window.prompt('Cancellation reason (shown in the customer record):', 'Cancelled by Phoenix Hibachi after manager review.');
+    if(reason === null) return;
+    if(!window.confirm(`Cancel booking ${orderId}? It will leave the active order list and the customer will receive an update.`)) return;
+    try {
+      if(typeof window.phoenixAdminBookingActionV234 !== 'function') throw new Error('Secure booking action is unavailable.');
+      const result = await window.phoenixAdminBookingActionV234('admin_cancel', orderId, {reason});
+      try { if (typeof loadDashboardDataFromSupabase === 'function') await loadDashboardDataFromSupabase(); } catch {}
+      try { if (typeof renderDashboard === 'function') renderDashboard(window.currentDashboardRole || 'Manager'); } catch {}
+      alert(result?.notification?.sentAny ? 'Booking cancelled. Customer notification was queued.' : 'Booking cancelled. Customer notification was not queued.');
+    } catch(error) { alert(`Cancellation failed: ${error.message}`); }
   }
   function printOrderV120(orderId){
     const order = findOrderById(orderId);
@@ -705,6 +756,7 @@
       else if(action === 'chef') toggleV120Panel(orderId, 'chef');
       else if(action === 'payment') toggleV120Panel(orderId, 'payment');
       else if(action === 'print') printOrderV120(orderId);
+      else if(action === 'cancel') { actionBtn.disabled = true; cancelOrderV235(orderId).finally(()=>actionBtn.disabled=false); }
       else if(action === 'confirm') { actionBtn.disabled = true; confirmOrderV120(orderId).finally(()=>actionBtn.disabled=false); }
       else if(actionBtn.dataset.v120SaveTime) { actionBtn.disabled = true; saveTimeV120(orderId).finally(()=>actionBtn.disabled=false); }
       else if(actionBtn.dataset.v120SaveChef) { actionBtn.disabled = true; saveChefV120(orderId).finally(()=>actionBtn.disabled=false); }
