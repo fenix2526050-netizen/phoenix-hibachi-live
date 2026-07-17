@@ -201,7 +201,22 @@
     const amount = quickDeposit
       ? requiredDeposit(order)
       : moneyNumber(panel.querySelector('[data-v107-payment-received]')?.value);
-    const method = clean(panel.querySelector('[data-v107-payment-method]')?.value);
+    const panelMethod = clean(panel.querySelector('[data-v107-payment-method]')?.value);
+    const claimedMethod = clean(
+      order.paymentPreference || order.payment_preference ||
+      order.depositPaymentMethod || order.deposit_payment_method ||
+      order.paymentMethod || order.payment_method
+    );
+    const normalizedClaimedMethod = /zelle/i.test(claimedMethod)
+      ? 'Zelle'
+      : /venmo/i.test(claimedMethod)
+        ? 'Venmo'
+        : /cash\s*app/i.test(claimedMethod)
+          ? 'Cash App'
+          : /cash/i.test(claimedMethod)
+            ? 'Cash'
+            : claimedMethod;
+    const method = panelMethod || (quickDeposit ? (normalizedClaimedMethod || 'Manual transfer') : '');
     const chosenStatus = clean(panel.querySelector('[data-v107-payment-status]')?.value);
     const calculated = (() => {
       try {
@@ -211,6 +226,13 @@
     })();
     const paidInFull = /paid\s*in\s*full|full/i.test(chosenStatus)
       || (calculated > 0 && amount >= calculated);
+
+    if (quickDeposit) {
+      const accepted = window.confirm(
+        `Confirm that Phoenix Hibachi received $${amount.toFixed(2)}${method ? ` by ${method}` : ''}?\n\nThis will immediately send the customer a deposit-received email and, when opted in, an SMS.`
+      );
+      if (!accepted) return;
+    }
 
     button.disabled = true;
     try {

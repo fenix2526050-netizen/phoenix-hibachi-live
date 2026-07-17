@@ -4283,6 +4283,7 @@ function clearBookingSubmitNoticeV98(){
 function showBookingSubmitNoticeV98(error){
   const box = ensureBookingSubmitNoticeV98();
   const rawError = String(error || 'Unknown booking error');
+  const duplicateBooking = /DUPLICATE_BOOKING|duplicate booking request/i.test(rawError);
   const cleanError = rawError.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
   const supportPhone = '(516) 518-3325';
   const debugMode = /(?:^|[?&])debug=1(?:&|$)/.test(location.search) || ['localhost','127.0.0.1'].includes(location.hostname);
@@ -4291,7 +4292,12 @@ function showBookingSubmitNoticeV98(error){
     console.error('Booking submit technical error:', rawError);
     return;
   }
-  box.innerHTML = `
+  box.innerHTML = duplicateBooking ? `
+    <strong>A matching booking request already exists.</strong>
+    <span>Please do not submit the same event again. Check your email/order number, use Order Status, or call/text Phoenix Hibachi at <a href="tel:15165183325">${supportPhone}</a>.</span>
+    <small>Reference: DUPLICATE-BOOKING-BLOCKED</small>
+    ${debugMode ? `<details><summary>Technical details</summary><code>${cleanError}</code></details>` : ''}
+  ` : `
     <strong>Booking was not submitted.</strong>
     <span>Please check the highlighted issue, try again, or call/text Phoenix Hibachi at <a href="tel:15165183325">${supportPhone}</a>.</span>
     <small>Reference: BOOKING-SUBMIT-ERROR</small>
@@ -8367,7 +8373,7 @@ setTimeout(() => {
   };
 
   const staffRoles = ['admin','manager','customer service','chef'];
-  const managerRoles = ['admin','manager','customer service'];
+  const managerRoles = ['owner','admin','manager','staff','customer service','customer_service','customer-service'];
 
   function text(value){ return String(value ?? '').trim(); }
   function esc(value){
@@ -8852,7 +8858,7 @@ setTimeout(() => {
     customerPaymentNote: 'Customer payment note'
   };
 
-  const managerRoles = ['admin','manager','customer service'];
+  const managerRoles = ['owner','admin','manager','staff','customer service','customer_service','customer-service'];
 
   function text(value){ return String(value ?? '').trim(); }
   function esc(value){
@@ -9038,6 +9044,23 @@ setTimeout(() => {
     btn.textContent = 'Payment / price';
     if (!canManagePayments()) btn.disabled = true;
     tools.appendChild(btn);
+
+    const paymentStatusText = String(
+      order.paymentStatus || order.payment_status || order.depositStatus || order.deposit_status || ''
+    ).toLowerCase();
+    const depositAlreadyConfirmed = /paid in full|deposit received|cash deposit received|zelle deposit received/.test(paymentStatusText)
+      || ['paid','paid_by_benefits'].includes(String(order.depositStatus || order.deposit_status || '').toLowerCase());
+
+    if (!depositAlreadyConfirmed && !card.querySelector('.v107-confirm-deposit-button')) {
+      const confirmDepositBtn = document.createElement('button');
+      confirmDepositBtn.type = 'button';
+      confirmDepositBtn.className = 'v107-confirm-deposit-button gold-btn-mini';
+      confirmDepositBtn.dataset.v107MarkDeposit = String(order.id || order.booking_number);
+      confirmDepositBtn.textContent = 'Confirm deposit received';
+      if (!canManagePayments()) confirmDepositBtn.disabled = true;
+      tools.appendChild(confirmDepositBtn);
+    }
+
     const holder = document.createElement('div');
     holder.innerHTML = paymentPanel(order);
     card.appendChild(holder.firstElementChild);
@@ -9133,7 +9156,16 @@ setTimeout(() => {
     const baseMoney = calculateOrderMoney?.(order) || {};
     const status = panel.querySelector(`[data-v107-payment-status]`)?.value || 'unpaid';
     const method = panel.querySelector(`[data-v107-payment-method]`)?.value || '';
-    const received = quickDeposit ? 200 : numberV107(panel.querySelector(`[data-v107-payment-received]`)?.value, 0);
+    const quickRequiredDeposit = (() => {
+      try {
+        const guests = Number(order.totalGuests || order.guest_count || (Number(order.adults || 0) + Number(order.kids || 0)) || 0);
+        if (typeof phoenixDepositRequiredForGuests === 'function') return Number(phoenixDepositRequiredForGuests(guests)) || 100;
+        if (guests >= 31) return 300;
+        if (guests >= 21) return 200;
+        return 100;
+      } catch { return 100; }
+    })();
+    const received = quickDeposit ? quickRequiredDeposit : numberV107(panel.querySelector(`[data-v107-payment-received]`)?.value, 0);
     const discount = numberV107(panel.querySelector(`[data-v107-discount]`)?.value, 0);
     const finalRaw = text(panel.querySelector(`[data-v107-final-total]`)?.value || '');
     const travelFeeInput = numberV107(panel.querySelector(`[data-v107-travel-fee]`)?.value, Number(order.travelFee || baseMoney.travelFee || 0));
