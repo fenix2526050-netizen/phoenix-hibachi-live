@@ -1,37 +1,86 @@
-# Phoenix Hibachi V163 — Make Email Field Cleanup
+# Phoenix Hibachi — Current Deployment Status
 
-This version keeps the V162 stable live baseline and improves the booking data sent to Supabase / Make / Gmail.
+## Current baseline
 
-## What changed
+- Website baseline: **V2.3.5 launch-ready**
+- Notification and branded email update: **V2.3.7**
+- Live stack: GitHub Pages + Supabase + Make + Gmail + Quo + Stripe
 
-- Adds dedicated booking fields for cleaner Make email notifications:
-  - `protein_summary`
-  - `protein_selections`
-  - `protein_upcharge`
-  - `food_subtotal`
-  - `sales_tax`
-  - `service_notes`
-  - `preferred_arrival_window`
-- Saves `final_total`, `balance_due`, `travel_fee`, and `paid_amount` into the booking row.
-- Stops mixing protein selections into `admin_notes` for new public bookings.
-- Updates invoice coupon language where older cache text may still appear.
+This repository is the current Phoenix Hibachi website. Older version numbers that appear inside
+historical migration files or archived notes are retained only as implementation history and are
+not instructions to downgrade the live site.
 
-## Run first in Supabase
+## V2.3.7 notification update
 
-Open and run:
+The current customer notification flow supports:
 
-`supabase/migrations/phoenix_hibachi_live_v163_booking_email_fields.sql`
+- Booking request received
+- Manager confirmation
+- Deposit received
+- Paid in full
+- Rescheduled booking
+- Cancelled booking
+- 72-hour event reminder
+- Customer email through Gmail
+- Transactional SMS through Quo when the customer opted in
+- Internal owner SMS alerts
+- Internal company email alerts
 
-Then upload the extracted files to GitHub Pages.
+The branded customer email can display:
 
-## Make email fields to use
+- Phoenix Hibachi logo
+- Customer name
+- Booking number
+- Event date and time
+- Event address
+- Adult, child, and total guest counts
+- Package name
+- Protein/menu selections
+- Payment method and payment status
+- Amount paid and balance due
+- Special requests
 
-Use the new fields in the Gmail module:
+## Active Make mapping
 
-- Total: `record → final_total`
-- Balance due: `record → balance_due`
-- Travel fee: `record → travel_fee`
-- Food subtotal: `record → food_subtotal`
-- Sales tax: `record → sales_tax`
-- Protein selections: `record → protein_summary`
-- Notes: `record → service_notes`
+Customer Gmail route:
+
+- To: `customer_email`
+- Subject: `email_subject`
+- Body type: `Raw HTML`
+- Content: `email_html`
+- Reply-To: `booking@phoenix-hibachi.com`
+
+Customer Quo route:
+
+- Content: `sms_content`
+- To: `customer_phone`
+- Filter: `sms_opt_in = true` and phone is not empty
+
+## Supabase deployment
+
+The active Edge Function is:
+
+`supabase/functions/booking-lifecycle/index.ts`
+
+The deployed Supabase function must match the current V2.3.7 version in this repository.
+
+Required custom secrets include:
+
+- `MAKE_CUSTOMER_NOTIFICATIONS_WEBHOOK_URL`
+- `MAKE_CUSTOMER_NOTIFICATIONS_API_KEY`
+- `BOOKING_COMPANY_EMAIL`
+- `SITE_PHONE`
+- `PUBLIC_SITE_ORIGIN`
+- `SITE_LOGO_URL`
+
+Current logo URL:
+
+`https://phoenix-hibachi.com/assets/phoenix-logo-transparent.png`
+
+## Important note about older files
+
+Do **not** run an old migration merely because its filename contains V163, V164, or another older
+version number. Migration files are retained as database history. Only run a migration when the
+current deployment instructions explicitly require it.
+
+The old “V163 — Make Email Field Cleanup” README has been replaced by this current status file.

@@ -1,20 +1,25 @@
-Phoenix Hibachi V2.2.8 payment layout polish
+Phoenix Hibachi — Current Deployment Notes
+============================================
 
-Upload the CONTENTS of this folder to the GitHub Pages repository root.
-Do not upload the parent 02_SUPABASE or 03_DOCS folders to GitHub.
+Current website baseline: V2.3.5 launch-ready
+Current notification/email module: V2.3.7
 
-Important:
-1. V2.2.8 adds no new database columns. If the V2.2.6 booking fix already returned 13 rows, no new SQL is required for this visual update.
-2. Desktop/tablet/mobile behavior is now explicit: four payment cards on wide desktop, two on tablet, one on phone.
-3. Cash and Zelle remain the preferred methods. All four cards use the same dimensions, background treatment and professional SVG icon system.
-4. The credit-card preference can now be selected, but actual Stripe checkout is still OFF until secure keys, Edge Functions and the webhook are deployed and tested.
-5. Never put the Stripe secret key, webhook secret, Supabase service-role key or Cloudflare API token in this public GitHub folder.
-6. Upload the files at this folder's root. Do not upload this folder as an extra nested directory.
+GitHub upload:
+1. Upload update files into the existing repository root.
+2. Overwrite files with the same names.
+3. Do not delete assets, CNAME, _headers, .nojekyll, or unrelated existing files.
 
-V228 changes: wide success/payment window on desktop; four equal payment cards; consistent icon sizing and colors; cash banknote icon; Zelle transfer icon; credit-card icon; Venmo transfer icon; card preference remains selectable while checkout activation is pending; clearer inactive-card messaging.
+Supabase:
+- If booking-lifecycle V2.3.7 has already been deployed successfully, do not deploy it again.
+- Confirm SITE_LOGO_URL exists and points to:
+  https://phoenix-hibachi.com/assets/phoenix-logo-transparent.png
 
-V229 Stripe Sandbox gate:
-- Normal visitors do not see an active test card form.
-- Open https://phoenix-hibachi.com/?stripe_test=1 in the same browser tab to activate Sandbox checkout.
-- Sandbox checkout is server-restricted to bookings using BOOKING_COMPANY_EMAIL.
-- Do not switch to live Stripe keys until the full end-to-end test passes.
+Make:
+- Customer email Subject = email_subject
+- Customer email Content = email_html
+- Body type = Raw HTML
+- Customer SMS Content = sms_content
+- Customer SMS filter requires sms_opt_in = true
+
+Do not run the old V163 migration based only on the old README.
+Historical migration files may remain in the repository for audit/history.
