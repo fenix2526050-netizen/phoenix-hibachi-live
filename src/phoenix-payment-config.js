@@ -10,7 +10,7 @@
   } catch {}
 
   // Leave blank until Stripe live mode is approved and the live webhook is tested.
-  const liveStripePublishableKey = '';
+  const liveStripePublishableKey = ''; // Paste your Stripe pk_live_... public key here to activate live card payments.
   const testStripePublishableKey = 'pk_test_51TtL8mH39SJxAuT7487B378g1RHg0mCkbdCTCKxBHxc7aZHbZOqqeyWB1XY718D0FfmTZMznfasLBPaQgU2KszZEO0YwStGyjd';
   const liveStripeEnabled = /^pk_live_/.test(liveStripePublishableKey);
 
@@ -24,7 +24,7 @@
     updatePreferenceFunction: 'update-booking-payment-preference',
     lookupBookingFunction: 'booking-lifecycle',
     bookingLifecycleFunction: 'booking-lifecycle',
-    depositAmountCents: 20000,
+    depositAmountCents: 10000,
     currency: 'usd',
     features: Object.freeze({
       preferenceUpdate: false,

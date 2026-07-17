@@ -27,14 +27,25 @@ function notificationType(paymentType: string, b: Row): EventType { return payme
 
 function makePayload(b: Row, eventType: EventType, amountCents: number, sessionId: string) {
   const full = eventType === 'paid_in_full'
+  const partial = !full && String(b.deposit_status || '').toLowerCase() === 'partially_paid'
   const amountPaid = Number(b.paid_amount ?? b.deposit_amount ?? (amountCents / 100))
   const balanceDue = Number(b.balance_due_cents || 0) / 100
-  const subject = full ? `Phoenix Hibachi paid in full – ${b.booking_number}` : `Phoenix Hibachi deposit received – ${b.booking_number}`
-  const title = full ? 'Payment in full received' : 'Your deposit was received'
-  const lead = full ? `Booking ${b.booking_number} now has a $0.00 balance.` : `We recorded ${moneyCents(amountCents)} toward booking ${b.booking_number}.`
+  const subject = full
+    ? `Phoenix Hibachi paid in full – ${b.booking_number}`
+    : partial
+      ? `Phoenix Hibachi payment received – ${b.booking_number}`
+      : `Phoenix Hibachi deposit received – ${b.booking_number}`
+  const title = full ? 'Payment in full received' : partial ? 'Your payment was received' : 'Your deposit was received'
+  const lead = full
+    ? `Booking ${b.booking_number} now has a $0.00 balance.`
+    : partial
+      ? `We recorded ${moneyCents(amountCents)} toward booking ${b.booking_number}. The required deposit is not yet fully covered.`
+      : `We recorded ${moneyCents(amountCents)} toward booking ${b.booking_number}.`
   const sms = full
     ? `Phoenix Hibachi: ${b.booking_number} is paid in full. Balance $0.00. Thank you! ${sitePhone}. Reply STOP to opt out.`
-    : `Phoenix Hibachi: Deposit received for ${b.booking_number}. Paid ${moneyCents(amountCents)}; balance ${moneyDollars(balanceDue)}. ${sitePhone}. Reply STOP to opt out.`
+    : partial
+      ? `Phoenix Hibachi: Payment received for ${b.booking_number}. Paid ${moneyCents(amountCents)}; balance ${moneyDollars(balanceDue)}. The required deposit is not fully covered yet. ${sitePhone}. Reply STOP to opt out.`
+      : `Phoenix Hibachi: Deposit received for ${b.booking_number}. Paid ${moneyCents(amountCents)}; balance ${moneyDollars(balanceDue)}. ${sitePhone}. Reply STOP to opt out.`
   const emailText = `${title}\n\n${lead}\n\nBooking: ${text(b.booking_number)}\nDate: ${text(b.event_date)}\nTime: ${text(b.event_time)}\nPayment status: ${text(b.payment_status)}\nAmount paid: ${moneyDollars(amountPaid)}\nBalance due: ${moneyDollars(balanceDue)}\n\nQuestions? Call or text ${sitePhone}.\n${websiteUrl}`
   const emailHtml = `<div style="font-family:Arial,sans-serif;color:#21160b;line-height:1.55;max-width:620px;margin:auto"><div style="border:1px solid #d69a28;border-radius:16px;overflow:hidden"><div style="background:#170e05;color:#ffd36b;padding:20px 24px"><strong style="font-size:21px">Phoenix Hibachi</strong><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase">Private Backyard Catering</div></div><div style="padding:24px"><h2 style="color:#9a5d08;margin-top:0">${esc(title)}</h2><p>${esc(lead)}</p><table cellpadding="8" style="border-collapse:collapse;width:100%;background:#fffaf1"><tr><td><b>Booking</b></td><td>${esc(b.booking_number)}</td></tr><tr><td><b>Date</b></td><td>${esc(b.event_date)}</td></tr><tr><td><b>Time</b></td><td>${esc(b.event_time)}</td></tr><tr><td><b>Payment status</b></td><td>${esc(b.payment_status)}</td></tr><tr><td><b>Amount paid</b></td><td>${esc(moneyDollars(amountPaid))}</td></tr><tr><td><b>Balance due</b></td><td>${esc(moneyDollars(balanceDue))}</td></tr></table><p style="margin-bottom:0">Questions? Call or text <a href="tel:+15165183325">${esc(sitePhone)}</a> or reply to this email.</p></div></div><p style="font-size:12px;color:#6c6258;text-align:center">${esc(companyEmail)} · <a href="${esc(websiteUrl)}">${esc(websiteUrl.replace(/^https?:\/\//,''))}</a></p></div>`
   return {
@@ -91,20 +102,34 @@ async function activeById(id: string) { if (!id) return null; const { data, erro
 async function activeByNumber(number: string) { if (!number) return null; const { data, error } = await db.from('bookings').select('*').eq('booking_number', number).maybeSingle(); if (error) throw new Error(error.message); return data as Row | null }
 async function draftById(id: string) { if (!id) return null; const { data, error } = await db.from('booking_drafts').select('*').eq('id', id).maybeSingle(); if (error) throw new Error(error.message); return data as Row | null }
 function paymentPatch(row: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
-  const currentPaid = Math.max(0, Number(row.paid_amount || row.deposit_amount || 0))
-  const currentDeposit = Math.max(0, Number(row.deposit_amount || 0))
+  const currentPaidCents = Math.max(0, Math.round(Math.max(Number(row.paid_amount || 0), Number(row.deposit_amount || 0)) * 100))
+  const currentDepositCents = Math.max(0, Math.round(Number(row.deposit_amount || 0) * 100))
+  const requiredDepositCents = Math.max(10000, Number(row.deposit_required_cents || 10000))
   const currentBalance = Math.max(0, Number(row.balance_due_cents || 0))
   const newBalance = paymentType === 'full_balance' ? 0 : Math.max(0, currentBalance - amountCents)
-  const depositPortion = paymentType === 'full_balance' ? Math.min(Number(row.deposit_required_cents || 20000), amountCents) / 100 : amountCents / 100
-  const depositAmount = Math.max(currentDeposit, depositPortion)
-  const paidAmount = currentPaid + (amountCents / 100)
+  const paidAmountCents = currentPaidCents + amountCents
+  const depositAmountCents = Math.min(requiredDepositCents, Math.max(currentDepositCents, paidAmountCents))
+  const depositDueCents = Math.max(0, requiredDepositCents - depositAmountCents)
   const full = newBalance <= 0
+  const depositCovered = depositDueCents <= 0
   return {
-    request_status:'submitted', status:full ? 'New request - paid in full' : 'New request - deposit paid', activated_at:new Date().toISOString(),
-    checkout_expires_at:null, abandoned_at:null, deposit_status:'paid', deposit_amount:depositAmount, paid_amount:paidAmount,
-    deposit_due_cents:0, balance_due_cents:newBalance, deposit_deferred:false, deposit_paid_at:row.deposit_paid_at || new Date().toISOString(),
-    stripe_checkout_session_id:session.id, stripe_payment_intent_id:String(session.payment_intent || ''), payment_preference:'stripe',
-    payment_verification_status:'verified', payment_status:full ? 'paid in full' : 'deposit received'
+    request_status:'submitted',
+    status:full ? 'New request - paid in full' : depositCovered ? 'New request - deposit paid' : 'New request - partial payment received',
+    activated_at:new Date().toISOString(),
+    checkout_expires_at:null,
+    abandoned_at:null,
+    deposit_status:depositCovered ? 'paid' : 'partially_paid',
+    deposit_amount:depositAmountCents / 100,
+    paid_amount:paidAmountCents / 100,
+    deposit_due_cents:depositDueCents,
+    balance_due_cents:newBalance,
+    deposit_deferred:!depositCovered,
+    deposit_paid_at:depositCovered ? (row.deposit_paid_at || new Date().toISOString()) : row.deposit_paid_at,
+    stripe_checkout_session_id:session.id,
+    stripe_payment_intent_id:String(session.payment_intent || ''),
+    payment_preference:'stripe',
+    payment_verification_status:'verified',
+    payment_status:full ? 'paid in full' : depositCovered ? 'deposit received' : 'partial payment received'
   }
 }
 async function promotePaidDraft(draft: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
@@ -117,6 +142,8 @@ async function promotePaidDraft(draft: Row, session: Stripe.Checkout.Session, am
   return data as Row
 }
 async function updateActive(booking: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
+  const sameVerifiedSession = String(booking.stripe_checkout_session_id || '') === session.id && String(booking.payment_verification_status || '') === 'verified'
+  if (sameVerifiedSession) return booking
   const alreadyFull = Number(booking.balance_due_cents || 0) <= 0 && String(booking.payment_verification_status || '') === 'verified'
   const alreadyDeposit = paymentType === 'deposit' && ['paid','paid_by_benefits'].includes(String(booking.deposit_status || '')) && String(booking.payment_verification_status || '') === 'verified'
   if (alreadyFull || alreadyDeposit) return booking
@@ -139,7 +166,7 @@ Deno.serve(async req => {
   const session = event.data.object as Stripe.Checkout.Session
   const meta = session.metadata || {}, paymentType = meta.payment_type || 'deposit', draftId = meta.draft_id || '', bookingId = meta.booking_id || '', bookingNumber = meta.booking_number || session.client_reference_id || '', amountCents = Number(session.amount_total || 0)
   try {
-    if (event.type === 'checkout.session.completed' && session.payment_status === 'paid' && ['deposit','full_balance'].includes(paymentType)) {
+    if (event.type === 'checkout.session.completed' && session.payment_status === 'paid' && ['deposit','full_balance','custom'].includes(paymentType)) {
       const expected = Number(meta.expected_amount_cents || 0)
       if (expected <= 0 || expected !== amountCents) return new Response('Amount mismatch', { status:400 })
       let booking: Row | null = null
@@ -158,7 +185,7 @@ Deno.serve(async req => {
     }
     if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
       const patch = { payment_verification_status:event.type === 'checkout.session.expired' ? 'session_expired' : 'payment_failed', stripe_checkout_session_id:null }
-      if (draftId) { const draftPatch: any = { ...patch }; if (paymentType === 'deposit') Object.assign(draftPatch, { deposit_status:'unpaid', deposit_deferred:true }); await db.from('booking_drafts').update(draftPatch).eq('id', draftId) }
+      if (draftId) { const draftPatch: any = { ...patch }; if (paymentType !== 'full_balance') Object.assign(draftPatch, { deposit_status:'unpaid', deposit_deferred:true }); await db.from('booking_drafts').update(draftPatch).eq('id', draftId) }
       if (bookingId) await db.from('bookings').update(patch).eq('id', bookingId)
       const active = bookingId ? await activeById(bookingId) : await activeByNumber(bookingNumber)
       await logEvent(event, session, active?.id || null, paymentType, amountCents, { draft_id:draftId || null })

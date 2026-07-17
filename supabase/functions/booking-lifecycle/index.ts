@@ -520,7 +520,7 @@ Deno.serve(async req => {
     if (action === 'admin_payment_update') {
       await requireAdmin(req)
       const amount = Math.max(0, Number(body.amountReceived || 0)), paidInFull = body.paidInFull === true
-      const depositRequired = Math.max(0, Number(booking.deposit_required_cents || 20000)) / 100
+      const depositRequired = Math.max(0, Number(booking.deposit_required_cents || 10000)) / 100
       const depositAmount = amount > 0 ? Math.min(amount, depositRequired) : Number(booking.deposit_amount || 0)
       const orderTotal = Math.max(0, Number(booking.order_total_cents || 0)) / 100
       const remainingCents = paidInFull ? 0 : Math.max(0, Math.round((orderTotal - amount) * 100))

@@ -8,7 +8,7 @@ const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const service = createClient(supabaseUrl, serviceRoleKey)
 const configuredOrigin = (Deno.env.get('PUBLIC_SITE_ORIGIN') || 'https://phoenix-hibachi.com').replace(/\/$/, '')
 const allowedOrigins = new Set([configuredOrigin, 'https://www.phoenix-hibachi.com'])
-const fields='id,booking_number,request_status,status,deposit_status,payment_status,payment_verification_status,deposit_paid_at,deposit_amount,paid_amount,balance_due_cents'
+const fields='id,booking_number,request_status,status,deposit_status,payment_status,payment_verification_status,deposit_paid_at,deposit_amount,deposit_due_cents,paid_amount,balance_due_cents'
 
 type Row=Record<string,any>
 function corsHeaders(req: Request) { const requestOrigin=req.headers.get('origin')||configuredOrigin; const origin=allowedOrigins.has(requestOrigin)?requestOrigin:configuredOrigin; return {'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'} }
@@ -43,13 +43,17 @@ Deno.serve(async (req) => {
     const verificationStatus=String(row.payment_verification_status||'')
     const paidInFull=Number(row.balance_due_cents||0)<=0&&verificationStatus==='verified'
     const depositVerified=['paid','paid_by_benefits'].includes(depositStatus)&&verificationStatus==='verified'
-    const bookingVerified=paymentType==='full_balance'?paidInFull:depositVerified
+    const bookingVerified=paymentType==='full_balance'
+      ? paidInFull
+      : paymentType==='custom'
+        ? session.payment_status==='paid' && verificationStatus==='verified'
+        : depositVerified
 
     return json(req,{
       status:session.status,paymentStatus:session.payment_status,amountTotal:Number(session.amount_total||0),currency:session.currency||'usd',
       paymentType,bookingNumber:String(row.booking_number||bookingNumber||''),requestStatus:String(row.request_status||''),bookingStatus:String(row.status||''),
       depositStatus,paymentRecordStatus:paymentStatus,paymentVerificationStatus:verificationStatus,depositPaidAt:row.deposit_paid_at||null,
-      depositAmount:Number(row.deposit_amount||0),paidAmount:Number(row.paid_amount||row.deposit_amount||0),balanceDueCents:Number(row.balance_due_cents||0),
+      depositAmount:Number(row.deposit_amount||0),depositDueCents:Number(row.deposit_due_cents||0),paidAmount:Number(row.paid_amount||row.deposit_amount||0),balanceDueCents:Number(row.balance_due_cents||0),
       bookingVerified,paidInFull,activeBooking:!!booking,livemode:session.livemode,
     })
   } catch (error) { console.error(error); return json(req,{error:error instanceof Error?error.message:'Unable to retrieve payment status'},400) }

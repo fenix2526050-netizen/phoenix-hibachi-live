@@ -13,3 +13,159 @@
 body.light-theme .phx-v224-pay-tab,body.light-theme .phx-v224-stripe-panel,body.light-theme .phx-v224-manual-panel{background:#fffaf0;color:#2a160b}.body.light-theme .phx-v224-pay-tab small{color:#604e3d}
 @media(max-width:780px){.phx-v224-payment-tabs{grid-template-columns:1fr 1fr}.phx-v224-pay-tab-primary{grid-column:1/-1}.phx-v224-manual-card{grid-template-columns:1fr;text-align:center}.phx-v224-manual-card .phx-preconfirm-qr{margin:auto}}
 @media(max-width:480px){.phx-v224-payment-tabs{grid-template-columns:1fr}.phx-v224-pay-tab-primary{grid-column:auto}.phx-v224-recommended{display:none}.phx-v224-secure-head{display:block}.phx-v224-secure-head>span{display:inline-block;margin-top:8px}}
+
+
+/* Phoenix Hibachi V2.3.3 — compact Stripe checkout and paid-state collapse. */
+.phx-v224-stripe-panel{
+  width:min(920px,100%);
+  margin-inline:auto;
+}
+.phx-v224-stripe-panel .phx-v224-card-mount{
+  width:min(780px,100%);
+  max-height:600px;
+  overflow:auto;
+  margin:14px auto 0;
+  padding:0;
+  border:1px solid rgba(246,189,70,.24);
+  border-radius:16px;
+  background:#fff;
+  scrollbar-width:thin;
+}
+.phx-v224-stripe-panel .phx-v224-card-mount[hidden]{display:none!important}
+.phx-v224-stripe-panel.phx-stripe-checkout-open .phx-v224-secure-head,
+.phx-v224-stripe-panel.phx-stripe-checkout-open .phx-v224-wallet-row,
+.phx-v224-stripe-panel.phx-stripe-checkout-open .phx-v225-fee-disclosure{
+  width:min(780px,100%);
+  margin-left:auto;
+  margin-right:auto;
+}
+.phx-v224-stripe-panel.phx-stripe-paid{
+  width:min(680px,100%);
+  padding:13px;
+}
+.phx-v224-stripe-panel.phx-stripe-paid .phx-v224-secure-head,
+.phx-v224-stripe-panel.phx-stripe-paid .phx-v224-wallet-row,
+.phx-v224-stripe-panel.phx-stripe-paid .phx-v225-fee-disclosure,
+.phx-v224-stripe-panel.phx-stripe-paid .phx-stripe-sandbox-banner,
+.phx-v224-stripe-panel.phx-stripe-paid .phx-v224-pay-button{
+  display:none!important;
+}
+.phx-v224-stripe-panel.phx-stripe-paid .phx-v224-card-mount{
+  width:100%;
+  max-height:none;
+  overflow:visible;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.phx-stripe-inline-success-compact{
+  display:grid!important;
+  grid-template-columns:52px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:14px!important;
+  min-height:0!important;
+  padding:15px 17px!important;
+  text-align:left!important;
+}
+.phx-stripe-inline-success-compact .check{
+  width:48px;
+  height:48px;
+  margin:0!important;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:rgba(75,222,133,.13);
+  border:1px solid rgba(75,222,133,.55);
+  font-size:28px!important;
+}
+.phx-stripe-inline-success-compact h3{font-size:20px!important;margin:0 0 3px!important}
+.phx-stripe-inline-success-compact p{margin:0!important;max-width:none!important;font-size:15px}
+.phx-stripe-inline-success-compact small{display:block;margin-top:4px;color:#bcd1c2;line-height:1.35}
+.phx-v224-stripe-panel.phx-stripe-paid .phx-v224-payment-message{
+  margin:8px 4px 0;
+  text-align:center;
+}
+@media(max-width:820px){
+  .phx-v224-stripe-panel .phx-v224-card-mount{max-height:640px}
+}
+@media(max-width:560px){
+  .phx-v224-stripe-panel{padding:11px}
+  .phx-v224-stripe-panel .phx-v224-card-mount{width:100%;max-height:72vh;border-radius:12px}
+  .phx-stripe-inline-success-compact{grid-template-columns:42px minmax(0,1fr)!important;padding:13px!important}
+  .phx-stripe-inline-success-compact .check{width:40px;height:40px;font-size:23px!important}
+}
+
+
+/* Phoenix Hibachi V2.3.8 — accessible card-style payment amount selector */
+.phx-stripe-amount-choice{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:12px!important;
+  margin:18px 0!important;
+}
+.phx-stripe-amount-option{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:26px 1fr!important;
+  gap:11px!important;
+  align-items:start!important;
+  min-height:112px!important;
+  padding:15px!important;
+  border:1px solid rgba(245,184,51,.30)!important;
+  border-radius:15px!important;
+  background:rgba(255,255,255,.025)!important;
+  cursor:pointer!important;
+}
+.phx-stripe-amount-option>input[type="radio"]{
+  position:absolute!important;
+  opacity:0!important;
+  width:1px!important;
+  height:1px!important;
+  pointer-events:none!important;
+}
+.phx-stripe-choice-mark{
+  width:24px!important;
+  height:24px!important;
+  border-radius:8px!important;
+  border:1px solid rgba(245,184,51,.48)!important;
+  display:grid!important;
+  place-items:center!important;
+  color:transparent!important;
+  background:rgba(0,0,0,.24)!important;
+  font-weight:900!important;
+}
+.phx-stripe-amount-option.selected{
+  border-color:#f5b833!important;
+  background:linear-gradient(180deg,rgba(245,184,51,.14),rgba(245,184,51,.055))!important;
+  box-shadow:0 0 0 1px rgba(245,184,51,.25)!important;
+}
+.phx-stripe-amount-option.selected .phx-stripe-choice-mark{
+  color:#1a1005!important;
+  background:#f5b833!important;
+  border-color:#f5b833!important;
+}
+.phx-stripe-custom-input-wrap{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  margin-top:10px!important;
+  padding:8px 10px!important;
+  border:1px solid rgba(245,184,51,.30)!important;
+  border-radius:10px!important;
+  background:#0c0906!important;
+  color:#f5c65d!important;
+}
+.phx-stripe-custom-input-wrap input{
+  width:100%!important;
+  padding:0!important;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  color:#fff!important;
+  box-shadow:none!important;
+  font:inherit!important;
+}
+@media(max-width:900px){
+  .phx-stripe-amount-choice{grid-template-columns:1fr!important}
+}

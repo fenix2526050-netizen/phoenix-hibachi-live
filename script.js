@@ -1339,7 +1339,7 @@ const PHX_DEFAULT_PRICING_V140 = {
     'Noodle / Yakisoba Tray':50
   },
   moneyRules: {
-    depositRequired: 200,
+    depositRequired: 100,
     memberCreditBuy: 1000,
     memberCreditBonus: 100,
     firstPartyCoupon: 50,
@@ -2397,7 +2397,7 @@ function assistantReply(question) {
     return;
   }
   if (q.includes('cancel') || q.includes('reschedule') || q.includes('取消') || q.includes('改期')) {
-    addAiMessage('Phoenix Hibachi uses a 72-hour cancellation policy. A $200 deposit holds an approved date. Inside 72 hours, the deposit is non-refundable and may be applied once to a manager-approved event held within 30 days, subject to availability. The final guaranteed guest count locks 42 hours before the event; fewer attendees do not reduce the balance.', 'bot');
+    addAiMessage('Phoenix Hibachi uses a 72-hour cancellation policy. A $100–$300 party-size deposit holds an approved date. Inside 72 hours, the deposit is non-refundable and may be applied once to a manager-approved event held within 30 days, subject to availability. The final guaranteed guest count locks 42 hours before the event; fewer attendees do not reduce the balance.', 'bot');
     return;
   }
   if (q.includes('complaint') || q.includes('refund') || q.includes('feedback') || q.includes('投诉') || q.includes('退钱')) {
@@ -2759,7 +2759,7 @@ function canCancelOrder(order) {
 function cancellationMessage(order) {
   return canCancelOrder(order)
     ? 'Eligible: more than 72 hours before event. Customer can request cancellation for manager review.'
-    : 'Inside 72 hours: the $200 deposit is non-refundable and may be applied once to a manager-approved event held within 30 days, subject to availability.';
+    : 'Inside 72 hours: the required party-size deposit is non-refundable and may be applied once to a manager-approved event held within 30 days, subject to availability.';
 }
 function orderPoint(order) {
   return { lat:Number(order.addressLat || 0), lon:Number(order.addressLon || 0) };
@@ -2878,12 +2878,22 @@ async function prepareBookingPaymentAccessToken(order) {
   return order;
 }
 
+function phoenixDepositRequiredForGuests(value) {
+  const guests = Math.max(10, Math.ceil(Number(value || 0)));
+  if (guests >= 31) return 300;
+  if (guests >= 21) return 200;
+  return 100;
+}
+window.phoenixDepositRequiredForGuests = phoenixDepositRequiredForGuests;
+
 function buildOrderFromForm(form) {
   const fd = new FormData(form);
   const data = Object.fromEntries(fd.entries());
   updateAddonsState();
   const addons = (bookingState.addons || []).map(item => ({...item}));
   const allergies = getCheckedValues(form, 'allergy');
+  const physicalGuestsForDeposit = Number(data.totalGuests || physicalGuestCount(bookingState) || 0);
+  const requiredDeposit = phoenixDepositRequiredForGuests(physicalGuestsForDeposit);
   const baseOrder = {
     id: generateOrderId('PHX'), createdAt: new Date().toISOString(), status: 'New request',
     name: data.name || '', phone: data.phone || '', email: data.email || '', eventType: data.eventType || '', address: fullAddressFromParts(data.address, data.city, data.state, data.zip) || data.address || '',
@@ -2896,7 +2906,7 @@ function buildOrderFromForm(form) {
     waitstaffCount: data.waitstaffRequested === 'Yes' ? Math.max(1, Number(data.waitstaffCount || 1)) : 0,
     finalGuestCountDeadlineHours: 42,
     cancellationDeadlineHours: 72,
-    depositRequired: MONEY_RULES.depositRequired,
+    depositRequired: requiredDeposit,
     balanceDueTiming: 'Chef arrival before unloading/setup/cooking',
     mediaAcknowledge: data.mediaAcknowledge === 'Yes',
     marketingConsent: data.marketingConsent === 'Yes',
@@ -2909,7 +2919,7 @@ function buildOrderFromForm(form) {
       data.additionalChefRequested === 'Yes' ? 'Additional chef requested: Yes. Fee is $150 for parties of 30 guests or fewer if approved; manager-assigned additional chef staffing is included for parties over 30.' : '',
       data.waitstaffRequested === 'Yes' ? `Waitstaff requested: ${Math.max(1, Number(data.waitstaffCount || 1))} × $100.` : '',
       'Final guaranteed guest count locks 42 hours before the event. Fewer attendees do not reduce the balance.',
-      'Deposit required: $200. Balance due when the chef arrives, before setup or cooking.',
+      `Deposit required for this party: $${requiredDeposit}. Balance due when the chef arrives, before setup or cooking.`,
       data.mediaAcknowledge === 'Yes' ? 'Event media acknowledgement: Yes.' : '',
       data.marketingConsent === 'Yes' ? 'Public marketing media consent: Yes.' : 'Public marketing media consent: No.',
       data.smsOptIn === 'Yes' ? 'Transactional SMS consent: Yes (website booking form, 2026-07-v1).' : 'Transactional SMS consent: No.'
@@ -3096,7 +3106,7 @@ function guestInvoiceHtml(order) {
       <div><b>Balance due:</b><span>${money(m.guestTotalAfterDeposit)}</span></div>
       <small>(Food/package balance and tax belong to Phoenix Hibachi. Travel fee and optional tips belong to the chef.)</small>
     </div>
-    <div class="invoice-cash-note"><b>Payment note:</b><span>Cash payment is preferred; Zelle is also accepted. A $200 deposit holds an approved date. Remaining balance is due when the chef arrives, before unloading/setup/cooking.</span></div>
+    <div class="invoice-cash-note"><b>Payment note:</b><span>Cash payment is preferred; Zelle is also accepted. A $100–$300 party-size deposit holds an approved date. Remaining balance is due when the chef arrives, before unloading/setup/cooking.</span></div>
     <div class="invoice-cash-note"><b>Guaranteed count:</b><span>The final guest count locks 42 hours before the event. Fewer attendees do not reduce the balance. Extra meals require chef/manager approval and food availability.</span></div>
     <div class="invoice-notes invoice-food-alert"><b>FOOD ALLERGIES</b><span>${printSafe(allergies)}</span></div>
     <div class="invoice-protein-detail invoice-food-alert"><b>PROTEIN SELECTIONS</b><span>${printSafe(proteinLine)}</span></div>
@@ -3260,8 +3270,20 @@ Parking: ${order.parking}
 Cancellation policy: ${cancellationMessage(order)}
 Notes: ${order.specialNotes || '-'}`;
 }
+function phoenixRefreshRequiredDepositUI(order = {}) {
+  const totalGuests = Number(order.totalGuests || order.guest_count || (Number(order.adults || 0) + Number(order.kids || 0)) || 0);
+  const required = Number(order.depositRequired || order.deposit_required_cents / 100 || phoenixDepositRequiredForGuests(totalGuests));
+  order.depositRequired = required;
+  const label = document.getElementById('phxRequiredDepositLabel');
+  if (label) label.textContent = `$${required.toFixed(0)} deposit`;
+  document.querySelectorAll('[data-phx-required-deposit]').forEach(el => { el.textContent = `$${required.toFixed(0)}`; });
+  return required;
+}
+window.phoenixRefreshRequiredDepositUI = phoenixRefreshRequiredDepositUI;
+
 function showBookingSuccess(order) {
   lastSubmittedOrder = order;
+  phoenixRefreshRequiredDepositUI(order);
   try {
     const bookingNumber = String(order?.booking_number || order?.bookingNumber || order?.id || '').trim();
     const customerEmail = String(order?.customer_email || order?.customerEmail || order?.email || '').trim().toLowerCase();
@@ -3288,7 +3310,7 @@ function showBookingSuccess(order) {
     : 'Your request is saved to the Phoenix Hibachi booking system. A manager still needs to review route timing, rain plan, allergies, travel fee, and payment before final confirmation.';
   if (successReceipt) {
     successReceipt.innerHTML = [
-      ['Order ID', order.id], ['Status lookup', isLocalFallback ? 'Local backup only on this browser. Text Phoenix Hibachi to make sure we receive it.' : 'Use the magnifying glass on the homepage to check this active order. Email/SMS updates are sent when the notification services are configured.'], ['Date / Time', `${order.eventDate} · ${order.eventTime}`], ['Guest', `${order.name} · ${order.phone}`], ['Address', order.address || 'Not entered'], ['Package', `${order.package} · ${money(m.packagePrice)}/adult`], ['Guests', `${m.adults} adults · ${m.kids} kids · ${formatGuestNumber(m.billableGuests)} adult-equivalent portions`], ['Proteins', proteinSummary(m.proteinSelections)], ['Premium protein upgrade', money(m.proteinUpcharge)], ['Food subtotal', money(m.foodSubtotal)], ['Travel fee to chef', money(m.travelFee)], ['Estimated total', money(m.guestTotalBeforeDeposit)], ['Payment status', 'Payment is optional now; manager review is still required'], ['Deposit normally required to hold an approved date', money(MONEY_RULES.depositRequired)], ['Auto Dispatch', `${order.assignedChef || 'Unassigned'} · ${order.estimatedDriveMin || '?'} min drive`], ['Cancellation', cancellationMessage(order)]
+      ['Order ID', order.id], ['Status lookup', isLocalFallback ? 'Local backup only on this browser. Text Phoenix Hibachi to make sure we receive it.' : 'Use the magnifying glass on the homepage to check this active order. Email/SMS updates are sent when the notification services are configured.'], ['Date / Time', `${order.eventDate} · ${order.eventTime}`], ['Guest', `${order.name} · ${order.phone}`], ['Address', order.address || 'Not entered'], ['Package', `${order.package} · ${money(m.packagePrice)}/adult`], ['Guests', `${m.adults} adults · ${m.kids} kids · ${formatGuestNumber(m.billableGuests)} adult-equivalent portions`], ['Proteins', proteinSummary(m.proteinSelections)], ['Premium protein upgrade', money(m.proteinUpcharge)], ['Food subtotal', money(m.foodSubtotal)], ['Travel fee to chef', money(m.travelFee)], ['Estimated total', money(m.guestTotalBeforeDeposit)], ['Payment status', 'Payment is optional now; manager review is still required'], ['Deposit normally required to hold an approved date', money(m.depositRequired || order.depositRequired || phoenixDepositRequiredForGuests(m.totalGuests || order.totalGuests))], ['Auto Dispatch', `${order.assignedChef || 'Unassigned'} · ${order.estimatedDriveMin || '?'} min drive`], ['Cancellation', cancellationMessage(order)]
     ].map(([label,value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     if (isLocalFallback) {
       const smsBody = encodeURIComponent(localFallbackSmsBody(order));
@@ -3350,7 +3372,7 @@ function customerOrderCard(order) {
   const m = calculateOrderMoney(order);
   const statusNote = statusKey.includes('prep') ? 'Your order has been accepted and prep has started.' : accepted ? 'Your request has been accepted by Phoenix Hibachi. Deposit/payment and final route confirmation may still be required.' : 'Your request is pending manager review.';
   const inlinePayment = accepted ? customerConfirmedPaymentPanel(order, m) : `<div class="phx-payment-pending-note"><b>Payment codes unlock after manager confirmation.</b><span>Do not send a deposit until Phoenix Hibachi confirms the date, amount, and route.</span></div>`;
-  return `<article class="order-card"><header><div><strong>${escapeHtml(order.id)}</strong><p>${escapeHtml(order.eventDate)} · ${escapeHtml(order.eventTime)}</p></div><span class="tag ${accepted ? 'accepted' : ''}">${escapeHtml(order.status || 'Pending')}</span></header><p><b>${escapeHtml(statusNote)}</b><br>${escapeHtml(order.package)} · ${escapeHtml(order.totalGuests)} actual guests / ${formatGuestNumber(m.billableGuests)} billable<br>Proteins: ${escapeHtml(proteinSummary(m.proteinSelections))}<br>${escapeHtml(order.address || 'No address')}<br>Estimated total: <b>${money(m.guestTotalBeforeDeposit)}</b><br>Date hold: a $200 deposit is normally required after approval unless management confirms an exception · Cash is preferred for the remaining balance · Final guest count locks 42 hours before event<br>Cancellation policy: ${escapeHtml(cancellationMessage(order))}</p>${inlinePayment}<div class="order-actions"><button type="button" data-print-guest="${escapeHtml(order.id)}">Print invoice</button><button type="button" data-download-pdf="${escapeHtml(order.id)}">Download PDF</button>${accepted ? `<button type="button" data-open-payment="${escapeHtml(order.id)}">Open full payment view</button>` : ``}<button type="button" data-customer-cancel="${escapeHtml(order.id)}">Request cancellation</button><button type="button" data-customer-reschedule="${escapeHtml(order.id)}">Request reschedule</button>${accepted ? `<button type="button" data-open-share-reward>Social coupon</button>` : ``}<a href="${searchMapUrl(order.address)}" target="_blank" rel="noreferrer">Event map</a></div></article>`;
+  return `<article class="order-card"><header><div><strong>${escapeHtml(order.id)}</strong><p>${escapeHtml(order.eventDate)} · ${escapeHtml(order.eventTime)}</p></div><span class="tag ${accepted ? 'accepted' : ''}">${escapeHtml(order.status || 'Pending')}</span></header><p><b>${escapeHtml(statusNote)}</b><br>${escapeHtml(order.package)} · ${escapeHtml(order.totalGuests)} actual guests / ${formatGuestNumber(m.billableGuests)} billable<br>Proteins: ${escapeHtml(proteinSummary(m.proteinSelections))}<br>${escapeHtml(order.address || 'No address')}<br>Estimated total: <b>${money(m.guestTotalBeforeDeposit)}</b><br>Date hold: a $100–$300 party-size deposit is normally required after approval unless management confirms an exception · Cash is preferred for the remaining balance · Final guest count locks 42 hours before event<br>Cancellation policy: ${escapeHtml(cancellationMessage(order))}</p>${inlinePayment}<div class="order-actions"><button type="button" data-print-guest="${escapeHtml(order.id)}">Print invoice</button><button type="button" data-download-pdf="${escapeHtml(order.id)}">Download PDF</button>${accepted ? `<button type="button" data-open-payment="${escapeHtml(order.id)}">Open full payment view</button>` : ``}<button type="button" data-customer-cancel="${escapeHtml(order.id)}">Request cancellation</button><button type="button" data-customer-reschedule="${escapeHtml(order.id)}">Request reschedule</button>${accepted ? `<button type="button" data-open-share-reward>Social coupon</button>` : ``}<a href="${searchMapUrl(order.address)}" target="_blank" rel="noreferrer">Event map</a></div></article>`;
 }
 function chefOrderCard(order) {
   const m = calculateOrderMoney(order);
@@ -3693,7 +3715,7 @@ function renderDashboard(role = 'Admin') {
     const feedback = [...getStoredFeedback(), ...getSocialCouponRequests().map(socialCouponToFeedback)];
     const apps = getDashboardApplications();
     if (dashboardTitle) dashboardTitle.textContent = `${role} Dashboard`;
-    if (dashboardHelp) dashboardHelp.innerHTML = `<span class="role-badge">${escapeHtml(role)}</span> ${Array.isArray(remoteOrdersCache) ? '<span class="role-badge">Supabase live</span>' : '<span class="role-badge">Local demo</span>'} ${role === 'Member' ? 'Member portal: final guest count locks 42 hours before the event. Inside 72 hours, the $200 deposit is non-refundable and may be applied once to an approved event within 30 days.' : role === 'Chef' ? 'Chef view: assigned parties, customer information, map, travel time and travel fee.' : 'Staff dashboard: orders, customer contacts, complaints, chef applications and dispatch are separated by tabs.'}`;
+    if (dashboardHelp) dashboardHelp.innerHTML = `<span class="role-badge">${escapeHtml(role)}</span> ${Array.isArray(remoteOrdersCache) ? '<span class="role-badge">Supabase live</span>' : '<span class="role-badge">Local demo</span>'} ${role === 'Member' ? 'Member portal: final guest count locks 42 hours before the event. Inside 72 hours, the required party-size deposit is non-refundable and may be applied once to an approved event within 30 days.' : role === 'Chef' ? 'Chef view: assigned parties, customer information, map, travel time and travel fee.' : 'Staff dashboard: orders, customer contacts, complaints, chef applications and dispatch are separated by tabs.'}`;
     const statNew = document.getElementById('statNew');
     const statPending = document.getElementById('statPending');
     const statFeedback = document.getElementById('statFeedback');
@@ -4771,7 +4793,7 @@ const DEFAULT_V60_CONTACTS = {
   textPhone: '5165183325',
   bookingEmail: 'booking@phoenix-hibachi.com',
   supportEmail: 'support@phoenix-hibachi.com',
-  policy: 'A $200 deposit holds an approved date. Final guest count locks 42 hours before the event. Inside 72 hours, the deposit is non-refundable and may be applied once to an approved event within 30 days.'
+  policy: 'A $100–$300 party-size deposit holds an approved date. Final guest count locks 42 hours before the event. Inside 72 hours, the deposit is non-refundable and may be applied once to an approved event within 30 days.'
 };
 function formatPhoneV60(value){
   const digits=String(value||'').replace(/\D/g,'');
@@ -9002,7 +9024,7 @@ setTimeout(() => {
       <label>Reason / internal note<textarea rows="2" data-v107-reason="${esc(id)}" placeholder="Example: chef forgot sushi roll tray, manager approved $85 credit.">${esc(meta.reason || '')}</textarea></label>
       <label>Customer visible payment note<textarea rows="2" data-v107-customer-note="${esc(id)}" placeholder="Example: Deposit received by Zelle. Balance due at event.">${esc(meta.customerNote || '')}</textarea></label>
       <div class="v107-payment-summary"><b>Current estimate:</b> ${moneyV107(m.guestTotalBeforeDeposit || 0)} · <b>Received:</b> ${moneyV107(m.depositPaid || 0)} · <b>Balance:</b> ${moneyV107(m.guestTotalAfterDeposit || 0)}</div>
-      <div class="v107-payment-actions"><button type="button" class="gold-btn-mini" data-v107-save-payment="${esc(id)}">Save payment / price</button><button type="button" data-v107-mark-deposit="${esc(id)}">Quick mark $200 deposit received</button><button type="button" data-print-guest="${esc(id)}">Print updated invoice</button></div>
+      <div class="v107-payment-actions"><button type="button" class="gold-btn-mini" data-v107-save-payment="${esc(id)}">Save payment / price</button><button type="button" data-v107-mark-deposit="${esc(id)}">Quick mark required deposit received</button><button type="button" data-print-guest="${esc(id)}">Print updated invoice</button></div>
     </section>`;
   }
 
@@ -13707,7 +13729,7 @@ setTimeout(() => {
       row.request_status = order?.requestStatus || 'pending_review';
       row.payment_preference = order?.paymentPreference || 'cash';
       row.deposit_status = Number(order?.depositPaid || order?.deposit_amount || 0) > 0 ? 'pending_manual_verification' : 'unpaid';
-      row.deposit_required_cents = Math.round(Number(order?.depositRequired || 200) * 100);
+      row.deposit_required_cents = Math.round(Number(order?.depositRequired || 100) * 100);
       row.deposit_due_cents = Math.max(0, row.deposit_required_cents - Math.round(Number(order?.depositPaid || 0) * 100));
       row.deposit_deferred = row.deposit_due_cents > 0;
       row.payment_verification_status = 'not_verified';
@@ -13997,7 +14019,7 @@ window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';
     if (lifecycleBusy) return;
     const selected = document.querySelector('input[name="paymentPreference"]:checked')?.value || 'cash';
     if (selected === 'stripe') {
-      return alert('For credit card, complete the secure $200 deposit. The booking becomes active automatically after Stripe verifies payment.');
+      return alert('For credit card, complete the secure required deposit. The booking becomes active automatically after Stripe verifies payment.');
     }
     const manualClaimed = selected === 'zelle'
       ? !!document.getElementById('zelleVerificationAcknowledge')?.checked
@@ -14032,18 +14054,20 @@ window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';
     const order = currentOrder();
     if (order) {
       const details = event?.detail || {};
-      const full = details.paymentType === 'full_balance' || details.paidInFull === true || Number(details.balanceDueCents || 0) <= 0;
+      const full = details.paymentType === 'full_balance' || details.paidInFull === true || Number(details.balanceDueCents ?? 1) <= 0;
       const paidDollars = Number(details.paidAmount || 0) || (Number(details.amountTotal || 0) / 100);
+      const depositStatus = String(details.depositStatus || '').toLowerCase();
+      const depositCovered = depositStatus === 'paid' || Number(details.depositDueCents ?? 1) <= 0;
       order.requestStatus = 'submitted';
-      order.status = full ? 'New request - paid in full' : 'New request - deposit paid';
+      order.status = full ? 'New request - paid in full' : depositCovered ? 'New request - deposit paid' : 'New request - partial payment received';
       order.activatedAt = new Date().toISOString();
       order.paymentPreference = 'stripe';
-      order.depositStatus = 'paid';
+      order.depositStatus = depositCovered ? 'paid' : 'partially_paid';
       order.paymentVerificationStatus = 'verified';
-      order.depositPaid = Number(details.depositAmount || order.depositPaid || (full ? Math.min(200, paidDollars) : paidDollars));
+      order.depositPaid = Number(details.depositAmount || order.depositPaid || Math.min(Number(order.depositRequired || 100), paidDollars));
       order.paidAmount = paidDollars;
       order.balanceDueCents = full ? 0 : Number(details.balanceDueCents ?? order.balanceDueCents ?? 0);
-      order.paymentStatus = full ? 'paid in full' : 'deposit received';
+      order.paymentStatus = full ? 'paid in full' : depositCovered ? 'deposit received' : 'partial payment received';
       try {
         const orders = getStoredOrders().filter(existing => String(existing.id) !== String(order.id));
         orders.unshift(order); saveStoredOrders(orders);
