@@ -290,4 +290,30 @@
       handlePayment(paymentButton, paymentButton.hasAttribute('data-v107-mark-deposit'));
     }
   }, true);
+
+  try {
+    if (!window.__PHX_V240_LOADER__ && !document.querySelector('script[src="src/phoenix-v240-travel-fee-notifications.js"]')) {
+      window.__PHX_V240_LOADER__ = true;
+      const script = document.createElement('script');
+      script.src = 'src/phoenix-v240-travel-fee-notifications.js';
+      script.defer = true;
+      script.dataset.phoenixPatch = 'v240-travel-fee-notifications';
+      (document.currentScript?.parentNode || document.body || document.documentElement).appendChild(script);
+    }
+  } catch (error) {
+    console.warn('Phoenix v240 patch loader skipped:', error);
+  }
+
+  try {
+    if (!window.__PHX_V241_LOADER__ && !document.querySelector('script[src="src/phoenix-v241-order-modification.js"]')) {
+      window.__PHX_V241_LOADER__ = true;
+      const script = document.createElement('script');
+      script.src = 'src/phoenix-v241-order-modification.js';
+      script.defer = true;
+      script.dataset.phoenixPatch = 'v241-order-modification';
+      (document.currentScript?.parentNode || document.body || document.documentElement).appendChild(script);
+    }
+  } catch (error) {
+    console.warn('Phoenix v241 patch loader skipped:', error);
+  }
 })();

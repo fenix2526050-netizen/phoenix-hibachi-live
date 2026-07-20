@@ -3,7 +3,9 @@
     "dev": "vite --host 0.0.0.0",
     "start": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test:v240": "node scripts/verify-phoenix-v240.js",
+    "test:v241": "node scripts/verify-phoenix-v241.js"
   },
   "dependencies": {
     "vite": "latest"
