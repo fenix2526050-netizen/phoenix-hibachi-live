@@ -19,10 +19,76 @@ function lower(v: unknown) { return text(v).toLowerCase() }
 function digits(v: unknown) { return text(v).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') }
 function phone(v: unknown) { const d = digits(v); return d.length === 10 ? `+1${d}` : '' }
 function esc(v: unknown) { return text(v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] || c)) }
+function linkHtml(label: unknown, href: string) {
+  const shown = text(label)
+  return shown && href ? `<a href="${esc(href)}" style="color:#0645ad;text-decoration:underline;font-weight:700">${esc(shown)}</a>` : esc(shown)
+}
+function mapHref(v: unknown) {
+  const address = text(v)
+  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : ''
+}
+function phoneHref(v: unknown) {
+  const normalized = phone(v)
+  return normalized ? `tel:${normalized}` : ''
+}
+function mailHref(v: unknown) {
+  const email = lower(v)
+  return email ? `mailto:${email}` : ''
+}
+function detailValueHtml(label: unknown, value: unknown) {
+  const key = lower(label)
+  if (key === 'address' || key === 'full address' || key === 'event address') return linkHtml(value, mapHref(value))
+  if (key === 'phone') return linkHtml(value, phoneHref(value))
+  if (key === 'email') return linkHtml(value, mailHref(value))
+  return esc(value)
+}
 function cents(v: unknown) { return Math.max(0, Math.round(Number(v || 0))) }
 function moneyCents(v: unknown) { return `$${(cents(v) / 100).toFixed(2)}` }
 function moneyDollars(v: unknown) { return `$${Math.max(0, Number(v || 0)).toFixed(2)}` }
 function smsOptIn(b: Row) { return b.sms_opt_in === true || lower(b.sms_opt_in) === 'true' }
+function displayText(v: unknown) {
+  if (Array.isArray(v)) return v.map(item => typeof item === 'string' ? item : text((item as Row)?.name || (item as Row)?.title || JSON.stringify(item))).filter(Boolean).join(', ')
+  if (v && typeof v === 'object') {
+    return Object.entries(v as Record<string, unknown>)
+      .map(([key, value]) => `${key}: ${text(value)}`)
+      .filter(part => !part.endsWith(': '))
+      .join(', ')
+  }
+  return text(v)
+}
+function noteValue(b: Row, label: string) {
+  const safe = text(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const notes = [b.service_notes, b.admin_notes, b.customer_notes, b.special_requests].map(text).filter(Boolean).join('\n')
+  const match = notes.match(new RegExp(`(?:^|\\n)${safe}:\\s*([^\\n]+)`, 'i'))
+  return match ? match[1].trim() : ''
+}
+function moneyField(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue
+    const num = Number(String(value).replace(/[$,]/g, ''))
+    if (Number.isFinite(num)) return Math.max(0, num)
+  }
+  return 0
+}
+function centsField(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue
+    const num = Number(String(value).replace(/[$,]/g, ''))
+    if (Number.isFinite(num)) return Math.max(0, num / 100)
+  }
+  return 0
+}
+function njTollFee(b: Row) {
+  return moneyField(b.nj_toll_fee, b.njTollFee, b.toll_fee, b.tollFee, noteValue(b, 'NJ Toll Fee'), noteValue(b, 'New Jersey Toll Fee'))
+}
+function travelFee(b: Row) { return moneyField(b.travel_fee, b.travelFee) }
+function salesTax(b: Row) { return moneyField(b.sales_tax, centsField(b.sales_tax_cents)) }
+function paidAmount(b: Row, fallback = 0) { return moneyField(b.paid_amount, b.deposit_amount, b.amount_paid, fallback) }
+function balanceDueDollars(b: Row) { return centsField(b.balance_due_cents) || moneyField(b.balance_due, b.balanceDue) }
+function finalTotalDollars(b: Row, paid = 0, balance = 0) {
+  return moneyField(b.final_total, b.finalTotal, centsField(b.order_total_cents), b.guest_total_before_deposit) || Math.max(0, paid + balance)
+}
+function notesSummary(b: Row) { return text(b.service_notes || b.customer_notes || b.special_requests || b.admin_notes).slice(0, 700) }
 function notificationType(paymentType: string, b: Row): EventType { return paymentType === 'full_balance' || Number(b.balance_due_cents || 0) <= 0 ? 'paid_in_full' : 'deposit_paid' }
 
 function makePayload(b: Row, eventType: EventType, amountCents: number, sessionId: string) {
@@ -48,6 +114,48 @@ function makePayload(b: Row, eventType: EventType, amountCents: number, sessionI
       : `Phoenix Hibachi: Deposit received for ${b.booking_number}. Paid ${moneyCents(amountCents)}; balance ${moneyDollars(balanceDue)}. ${sitePhone}. Reply STOP to opt out.`
   const emailText = `${title}\n\n${lead}\n\nBooking: ${text(b.booking_number)}\nDate: ${text(b.event_date)}\nTime: ${text(b.event_time)}\nPayment status: ${text(b.payment_status)}\nAmount paid: ${moneyDollars(amountPaid)}\nBalance due: ${moneyDollars(balanceDue)}\n\nQuestions? Call or text ${sitePhone}.\n${websiteUrl}`
   const emailHtml = `<div style="font-family:Arial,sans-serif;color:#21160b;line-height:1.55;max-width:620px;margin:auto"><div style="border:1px solid #d69a28;border-radius:16px;overflow:hidden"><div style="background:#170e05;color:#ffd36b;padding:20px 24px"><strong style="font-size:21px">Phoenix Hibachi</strong><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase">Private Backyard Catering</div></div><div style="padding:24px"><h2 style="color:#9a5d08;margin-top:0">${esc(title)}</h2><p>${esc(lead)}</p><table cellpadding="8" style="border-collapse:collapse;width:100%;background:#fffaf1"><tr><td><b>Booking</b></td><td>${esc(b.booking_number)}</td></tr><tr><td><b>Date</b></td><td>${esc(b.event_date)}</td></tr><tr><td><b>Time</b></td><td>${esc(b.event_time)}</td></tr><tr><td><b>Payment status</b></td><td>${esc(b.payment_status)}</td></tr><tr><td><b>Amount paid</b></td><td>${esc(moneyDollars(amountPaid))}</td></tr><tr><td><b>Balance due</b></td><td>${esc(moneyDollars(balanceDue))}</td></tr></table><p style="margin-bottom:0">Questions? Call or text <a href="tel:+15165183325">${esc(sitePhone)}</a> or reply to this email.</p></div></div><p style="font-size:12px;color:#6c6258;text-align:center">${esc(companyEmail)} · <a href="${esc(websiteUrl)}">${esc(websiteUrl.replace(/^https?:\/\//,''))}</a></p></div>`
+  const address = text(b.address || b.event_address)
+  const adults = Number(b.adults || 0)
+  const kids = Number(b.kids || 0)
+  const guestCount = Number(b.guest_count || adults + kids || 0)
+  const packageName = text(b.package_name || b.package || '')
+  const addOns = displayText(b.add_ons || b.addons)
+  const proteins = displayText(b.protein_summary || b.protein_selections)
+  const allergies = displayText(b.allergies || b.allergy_notes || b.allergyNotes)
+  const notes = notesSummary(b)
+  const travel = travelFee(b)
+  const toll = njTollFee(b)
+  const tax = salesTax(b)
+  const paid = paidAmount(b, amountPaid)
+  const finalTotal = finalTotalDollars(b, paid, balanceDue)
+  const feeLines = [`Travel Fee ${moneyDollars(travel)}`]
+  if (toll > 0) feeLines.push(`NJ Toll Fee ${moneyDollars(toll)}`)
+  feeLines.push(`Final Total ${moneyDollars(finalTotal)}`, `Balance Due ${moneyDollars(balanceDue)}`)
+  const detailedSmsContent = `Phoenix Hibachi ${text(b.booking_number)} ${title}. ${text(b.customer_name)} ${text(b.event_date)} ${text(b.event_time)}. Address: ${address || '-'}. ${feeLines.join('; ')}. ${sitePhone}. Reply STOP to opt out.`
+  const detailRows = [
+    ['Booking', b.booking_number],
+    ['Customer', b.customer_name],
+    ['Phone', b.customer_phone],
+    ['Email', b.customer_email],
+    ['Date', b.event_date],
+    ['Time', b.event_time],
+    ['Address', address],
+    ['Guests', `${adults} adults / ${kids} kids${guestCount ? ` / ${guestCount} total` : ''}`],
+    ['Package', packageName],
+    ['Add-ons', addOns],
+    ['Protein selections', proteins],
+    ['Allergies', allergies],
+    ['Travel Fee', moneyDollars(travel)],
+    ...(toll > 0 ? [['NJ Toll Fee', moneyDollars(toll)] as [string, unknown]] : []),
+    ['Sales Tax', moneyDollars(tax)],
+    ['Final Total', moneyDollars(finalTotal)],
+    ['Paid', moneyDollars(paid)],
+    ['Balance Due', moneyDollars(balanceDue)],
+    ['Payment status', b.payment_status],
+    ['Notes', notes]
+  ].filter(([, value]) => text(value))
+  const detailedEmailTextContent = `${title}\n\n${lead}\n\n${detailRows.map(([label, value]) => `${label}: ${text(value)}`).join('\n')}\n\nQuestions? Call or text ${sitePhone}.\n${websiteUrl}`
+  const detailedEmailHtmlContent = `<div style="font-family:Arial,sans-serif;color:#21160b;line-height:1.55;max-width:720px;margin:auto"><div style="border:1px solid #d69a28;border-radius:16px;overflow:hidden"><div style="background:#170e05;color:#ffd36b;padding:20px 24px"><strong style="font-size:21px">Phoenix Hibachi</strong><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase">Private Backyard Catering</div></div><div style="padding:24px"><h2 style="color:#9a5d08;margin-top:0">${esc(title)}</h2><p>${esc(lead)}</p><table cellpadding="8" style="border-collapse:collapse;width:100%;background:#fffaf1">${detailRows.map(([label, value]) => `<tr><td style="border-bottom:1px solid #eadbc0"><b>${esc(label)}</b></td><td style="border-bottom:1px solid #eadbc0">${detailValueHtml(label, value)}</td></tr>`).join('')}</table><p style="margin-bottom:0">Questions? Call or text <a href="${esc(phoneHref(sitePhone) || 'tel:+15165183325')}" style="color:#0645ad;text-decoration:underline;font-weight:700">${esc(sitePhone)}</a> or reply to this email.</p></div></div><p style="font-size:12px;color:#6c6258;text-align:center"><a href="${esc(mailHref(companyEmail))}" style="color:#0645ad;text-decoration:underline">${esc(companyEmail)}</a> &middot; <a href="${esc(websiteUrl)}" style="color:#0645ad;text-decoration:underline">${esc(websiteUrl.replace(/^https?:\/\//,''))}</a></p></div>`
   return {
     event_type:eventType,
     notification_type:eventType,
@@ -57,16 +165,33 @@ function makePayload(b: Row, eventType: EventType, amountCents: number, sessionI
     customer_email:lower(b.customer_email),
     event_date:text(b.event_date),
     event_time:text(b.event_time),
+    event_address:address,
+    full_address:address,
+    map_url:mapHref(address),
+    adults,
+    kids,
+    guest_count:guestCount,
+    package_name:packageName,
+    add_ons:addOns,
+    protein_summary:proteins,
+    allergies,
+    notes,
+    travel_fee:Number(travel.toFixed(2)),
+    nj_toll_fee:Number(toll.toFixed(2)),
+    sales_tax:Number(tax.toFixed(2)),
+    final_total:Number(finalTotal.toFixed(2)),
     payment_status:text(b.payment_status),
     deposit_status:text(b.deposit_status),
-    amount_paid:Number(amountPaid.toFixed(2)),
+    amount_paid:Number(paid.toFixed(2)),
+    paid:Number(paid.toFixed(2)),
     balance_due:Number(balanceDue.toFixed(2)),
     currency:'USD',
     sms_opt_in:smsOptIn(b),
-    sms_content:sms,
+    sms_content:detailedSmsContent,
+    internal_sms_content:detailedSmsContent,
     email_subject:subject,
-    email_html:emailHtml,
-    email_text:emailText,
+    email_html:detailedEmailHtmlContent,
+    email_text:detailedEmailTextContent,
     source:'stripe_webhook',
     stripe_session_id:sessionId,
     occurred_at:new Date().toISOString(),

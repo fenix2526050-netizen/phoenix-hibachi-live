@@ -13,7 +13,7 @@ const websiteUrl = Deno.env.get('PUBLIC_SITE_ORIGIN') || 'https://phoenix-hibach
 const logoUrl = (Deno.env.get('SITE_LOGO_URL') || '').trim()
 
 type Row = Record<string, any>
-type EventType = 'booking_request_received' | 'booking_confirmed' | 'deposit_paid' | 'paid_in_full' | 'booking_rescheduled' | 'booking_cancelled' | 'event_reminder_72h'
+type EventType = 'booking_request_received' | 'booking_confirmed' | 'deposit_paid' | 'paid_in_full' | 'booking_rescheduled' | 'booking_cancelled' | 'booking_modified' | 'event_reminder_72h'
 
 function cors(req: Request) {
   const requested = req.headers.get('origin') || configuredOrigin
@@ -37,11 +37,71 @@ function normalizeNumber(v: unknown) {
   return raw.toUpperCase().match(/PHX-\d{6}-[A-Z0-9]{4,12}/)?.[0] || raw.toUpperCase()
 }
 function esc(v: unknown) { return text(v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] || c)) }
+function linkHtml(label: unknown, href: string) {
+  const shown = text(label)
+  return shown && href ? `<a href="${esc(href)}" style="color:#0645ad;text-decoration:underline;font-weight:700">${esc(shown)}</a>` : esc(shown)
+}
+function mapHref(v: unknown) {
+  const address = text(v)
+  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : ''
+}
+function phoneHref(v: unknown) {
+  const normalized = normalizePhone(v)
+  return normalized ? `tel:${normalized}` : ''
+}
+function mailHref(v: unknown) {
+  const email = lower(v)
+  return email ? `mailto:${email}` : ''
+}
+function linkedAddress(v: unknown) { return linkHtml(v, mapHref(v)) }
+function linkedPhone(v: unknown) { return linkHtml(v, phoneHref(v)) }
+function linkedEmail(v: unknown) { return linkHtml(v, mailHref(v)) }
 function cents(v: unknown) { return Math.max(0, Math.round(Number(v || 0))) }
 function dollars(v: unknown) { return Math.max(0, Number(v || 0)) }
 function moneyFromCents(v: unknown) { return `$${(cents(v) / 100).toFixed(2)}` }
 function moneyFromDollars(v: unknown) { return `$${dollars(v).toFixed(2)}` }
 function isSmsOptedIn(b: Row) { return b.sms_opt_in === true || lower(b.sms_opt_in) === 'true' }
+function noteValue(b: Row, label: string) {
+  const safe = text(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const notes = [b.service_notes, b.admin_notes, b.customer_notes, b.special_requests].map(text).filter(Boolean).join('\n')
+  const match = notes.match(new RegExp(`(?:^|\\n)${safe}:\\s*([^\\n]+)`, 'i'))
+  return match ? match[1].trim() : ''
+}
+function moneyField(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue
+    const num = Number(String(value).replace(/[$,]/g, ''))
+    if (Number.isFinite(num)) return Math.max(0, num)
+  }
+  return 0
+}
+function centsField(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue
+    const num = Number(String(value).replace(/[$,]/g, ''))
+    if (Number.isFinite(num)) return Math.max(0, num / 100)
+  }
+  return 0
+}
+function njTollFee(b: Row) {
+  return moneyField(b.nj_toll_fee, b.njTollFee, b.toll_fee, b.tollFee, noteValue(b, 'NJ Toll Fee'), noteValue(b, 'New Jersey Toll Fee'))
+}
+function travelFee(b: Row) { return moneyField(b.travel_fee, b.travelFee) }
+function salesTax(b: Row) { return moneyField(b.sales_tax, centsField(b.sales_tax_cents)) }
+function balanceDueDollars(b: Row) {
+  const centsBalance = centsField(b.balance_due_cents)
+  if (centsBalance) return centsBalance
+  return moneyField(b.balance_due, b.balanceDue)
+}
+function finalTotalDollars(b: Row, amountPaid = 0, balanceDue = 0) {
+  const direct = moneyField(b.final_total, b.finalTotal, centsField(b.order_total_cents), b.guest_total_before_deposit)
+  return direct || Math.max(0, amountPaid + balanceDue)
+}
+function addOnsText(b: Row) { return displayText(b.add_ons || b.addons) }
+function allergiesText(b: Row) { return displayText(b.allergies || b.allergy_notes || b.allergyNotes) }
+function noteSummary(b: Row) {
+  return text(b.service_notes || b.customer_notes || b.special_requests || b.admin_notes).slice(0, 700)
+}
 function activeBooking(b: Row) {
   const state = `${lower(b.request_status)} ${lower(b.status)}`
   if (/draft|abandon|expired|cancel|deleted|removed|complete/.test(state)) return false
@@ -102,6 +162,134 @@ async function requireAdmin(req: Request) {
   const role = await adminRole(req)
   if (!['admin','manager','customer_service','customer service'].includes(role)) throw new Error('Admin or manager login is required.')
 }
+function upsertNote(notes: unknown, label: string, value: unknown) {
+  const cleanLabel = text(label)
+  const cleanValue = text(value)
+  if (!cleanLabel || !cleanValue) return text(notes)
+  const base = text(notes)
+  const safe = cleanLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const line = `${cleanLabel}: ${cleanValue}`
+  const rx = new RegExp(`(^|\\n)${safe}:\\s*[^\\n]*`, 'i')
+  return rx.test(base) ? base.replace(rx, `$1${line}`) : [base, line].filter(Boolean).join('\n')
+}
+function appendNote(notes: unknown, label: string, value: unknown) {
+  const cleanValue = text(value)
+  return cleanValue ? [text(notes), `${label}: ${cleanValue}`].filter(Boolean).join('\n') : text(notes)
+}
+function datePart(v: unknown) {
+  const raw = text(v)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10)
+}
+function timePart(v: unknown) {
+  const raw = text(v).split(/\s*[-–]\s*/)[0].replace(/\bat\b/i, '').trim()
+  if (!raw) return ''
+  const m = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i)
+  if (!m) return raw
+  let h = Number(m[1])
+  const minute = m[2] || '00'
+  const ap = (m[3] || '').toUpperCase()
+  if (ap === 'PM' && h < 12) h += 12
+  if (ap === 'AM' && h === 12) h = 0
+  return `${String(h).padStart(2, '0')}:${minute}:00`
+}
+function eventStartMs(b: Row) {
+  const d = datePart(b.event_date)
+  if (!d) return null
+  const rawTime = text(b.event_time || '16:00:00')
+  const t = timePart(rawTime) || '16:00:00'
+  const parsed = new Date(`${d}T${t}`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
+}
+function customerCanModify(b: Row) {
+  const start = eventStartMs(b)
+  if (!start) return true
+  return (start - Date.now()) > 48 * 60 * 60 * 1000
+}
+function verifyCustomerForModify(b: Row, body: Row) {
+  const verify = text(body.verificationContact || body.customerEmail || body.email || body.customerPhone || body.phone)
+  if (!verify) return false
+  if (verify.includes('@')) return lower(verify) === lower(b.customer_email)
+  const supplied = digits(verify)
+  return supplied && supplied === digits(b.customer_phone)
+}
+function splitLines(v: unknown) {
+  if (Array.isArray(v)) return v.map(text).filter(Boolean)
+  return text(v).split(/\n+/).map(item => item.trim()).filter(Boolean)
+}
+function removeMissingColumn(payload: Record<string, any>, message: unknown) {
+  const msg = text(message)
+  const match = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" .* does not exist/i)
+  const column = match?.[1]
+  if (!column || !(column in payload)) return null
+  const next = { ...payload }
+  delete next[column]
+  return next
+}
+async function updateBookingCompat(id: string, patch: Record<string, any>) {
+  let payload = { ...patch }
+  let result = await service.from('bookings').update(payload).eq('id', id).select('*').single()
+  for (let attempt = 0; result.error && attempt < 20; attempt += 1) {
+    const retry = removeMissingColumn(payload, result.error.message)
+    if (!retry) break
+    payload = retry
+    result = await service.from('bookings').update(payload).eq('id', id).select('*').single()
+  }
+  if (result.error) throw new Error(result.error.message)
+  return result.data as Row
+}
+function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin') {
+  const raw = (body.patch && typeof body.patch === 'object') ? body.patch : body
+  const patch: Record<string, any> = {}
+  const changes: string[] = []
+  const setText = (column: string, value: unknown, label: string) => {
+    const clean = text(value)
+    if (clean) { patch[column] = clean; changes.push(label) }
+  }
+  const setNumber = (column: string, value: unknown, label: string) => {
+    if (value === undefined || value === null || value === '') return
+    const clean = Math.max(0, Number(value || 0))
+    if (Number.isFinite(clean)) { patch[column] = clean; changes.push(label) }
+  }
+  const eventDate = datePart(raw.eventDate || raw.event_date)
+  if (eventDate) { patch.event_date = eventDate; changes.push('Event date') }
+  const eventTime = timePart(raw.eventTime || raw.event_time)
+  if (eventTime) { patch.event_time = eventTime; changes.push('Event time') }
+  setText('package_name', raw.packageName || raw.package_name || raw.package, 'Package')
+  setText('address', raw.address || raw.event_address, 'Address')
+  setNumber('adults', raw.adults, 'Adults')
+  setNumber('kids', raw.kids, 'Children')
+  const adults = patch.adults ?? Number(booking.adults || 0)
+  const kids = patch.kids ?? Number(booking.kids || 0)
+  if (raw.guest_count !== undefined || raw.totalGuests !== undefined || patch.adults !== undefined || patch.kids !== undefined) {
+    patch.guest_count = Math.max(0, Number(raw.guest_count ?? raw.totalGuests ?? (Number(adults || 0) + Number(kids || 0))))
+    changes.push('Guest count')
+  }
+  if (raw.addOns !== undefined || raw.addons !== undefined || raw.add_ons !== undefined) {
+    patch.add_ons = splitLines(raw.addOns ?? raw.addons ?? raw.add_ons)
+    changes.push('Add-ons')
+  }
+  if (raw.allergyNotes !== undefined || raw.allergy_notes !== undefined) {
+    patch.allergy_notes = text(raw.allergyNotes ?? raw.allergy_notes) || null
+    changes.push('Allergies')
+  }
+  if (actor === 'admin') setNumber('travel_fee', raw.travelFee ?? raw.travel_fee, 'Travel Fee')
+  setNumber('final_total', raw.finalTotal ?? raw.final_total, 'Final Total')
+  setNumber('balance_due', raw.balanceDue ?? raw.balance_due, 'Balance Due')
+  if (patch.final_total !== undefined) patch.order_total_cents = Math.round(Number(patch.final_total || 0) * 100)
+  if (patch.balance_due !== undefined) patch.balance_due_cents = Math.round(Number(patch.balance_due || 0) * 100)
+  const source = actor === 'admin' ? 'Admin dashboard' : 'Customer portal'
+  let notes = text(booking.admin_notes)
+  notes = upsertNote(notes, actor === 'admin' ? 'Admin modified at' : 'Customer modified at', new Date().toISOString())
+  notes = upsertNote(notes, 'Last order modification source', source)
+  const proteinSummary = text(raw.proteinSummary || raw.protein_summary)
+  if (proteinSummary) { notes = upsertNote(notes, 'Protein summary', proteinSummary); changes.push('Protein selections') }
+  const changeNote = text(raw.changeNote || raw.modificationNote || raw.customerNote || raw.adminNote)
+  if (changeNote) notes = appendNote(notes, actor === 'admin' ? 'Admin modification note' : 'Customer modification note', changeNote)
+  patch.admin_notes = notes
+  return { patch, changes:Array.from(new Set(changes)).filter(Boolean), source }
+}
 
 function copyFor(eventType: EventType, b: Row, extra: Record<string, any> = {}) {
   const ref = text(b.booking_number)
@@ -144,6 +332,17 @@ function copyFor(eventType: EventType, b: Row, extra: Record<string, any> = {}) 
       lead:`Booking ${ref} has been cancelled. ${reason}`,
       nextStep:'Questions about this cancellation? Reply to this email or contact our team directly.',
       sms:`Phoenix Hibachi: ${ref} was cancelled. ${reason} Questions? ${sitePhone}. Reply STOP to opt out.`
+    }
+    case 'booking_modified': {
+      const source = text(extra.source || 'order modification')
+      const changed = Array.isArray(extra.changes) && extra.changes.length ? ` Updated: ${extra.changes.join(', ')}.` : ''
+      return {
+        subject:`Phoenix Hibachi order updated 鈥?${ref}`,
+        title:'Your Phoenix Hibachi order was updated',
+        lead:`Booking ${ref} was updated from ${source}.${changed}`,
+        nextStep:'Please review the updated order details below. If anything looks incorrect, contact Phoenix Hibachi right away.',
+        sms:`Phoenix Hibachi: ${ref} was updated for ${when}.${changed} Balance ${balance}. Questions? ${sitePhone}. Reply STOP to opt out.`
+      }
     }
     case 'event_reminder_72h': return {
       subject:`Phoenix Hibachi 72-hour reminder – ${ref}`,
@@ -213,14 +412,15 @@ function guestSummary(b: Row) {
   if (parts.length) return `${parts.join(' + ')}${total ? ` (${total} total)` : ''}`
   return total ? `${total} guest${total === 1 ? '' : 's'}` : ''
 }
-function detailRow(label: string, value: unknown, options: { strong?: boolean, border?: boolean } = {}) {
-  const shown = displayText(value)
+function detailRow(label: string, value: unknown, options: { strong?: boolean, border?: boolean, html?: boolean } = {}) {
+  const shown = options.html ? text(value) : displayText(value)
   if (!shown) return ''
   const weight = options.strong ? '700' : '400'
   const border = options.border === false ? '' : 'border-bottom:1px solid #eee7dc;'
+  const valueHtml = options.html ? shown : esc(shown)
   return `<tr>
     <td style="padding:11px 10px;${border}color:#6d6258;font-size:13px;vertical-align:top;width:38%">${esc(label)}</td>
-    <td style="padding:11px 10px;${border}color:#21160b;font-size:14px;font-weight:${weight};vertical-align:top">${esc(shown)}</td>
+    <td style="padding:11px 10px;${border}color:#21160b;font-size:14px;font-weight:${weight};vertical-align:top">${valueHtml}</td>
   </tr>`
 }
 function buildEmailText(eventType: EventType, b: Row, c: ReturnType<typeof copyFor>, amountPaid: number, balanceDue: number) {
@@ -281,7 +481,7 @@ function buildEmailHtml(eventType: EventType, b: Row, c: ReturnType<typeof copyF
     detailRow('Booking number', bookingNumber, { strong:true }),
     detailRow('Event date', formattedDate, { strong:true }),
     detailRow('Event time', eventTime, { strong:true }),
-    detailRow('Event address', address),
+    detailRow('Event address', linkedAddress(address), { html:true }),
     detailRow('Guests', guests),
     detailRow('Package', packageName),
     detailRow('Menu selections', proteinSummary),
@@ -376,12 +576,150 @@ function buildEmailHtml(eventType: EventType, b: Row, c: ReturnType<typeof copyF
 </body>
 </html>`
 }
+function detailedSms(eventType: EventType, b: Row, c: ReturnType<typeof copyFor>, amountPaid: number, balanceDue: number) {
+  const address = text(b.address || b.event_address)
+  const toll = njTollFee(b)
+  const parts: string[] = [
+    `Phoenix Hibachi: ${text(b.booking_number)} ${eventType.replace(/_/g, ' ')}.`
+  ]
+  if (address) parts.push(`Address: ${address}.`)
+  parts.push(`Travel Fee: ${moneyFromDollars(travelFee(b))}.`)
+  if (toll > 0) parts.push(`NJ Toll Fee: ${moneyFromDollars(toll)}.`)
+  parts.push(`Final Total: ${moneyFromDollars(finalTotalDollars(b, amountPaid, balanceDue))}.`)
+  parts.push(`Balance Due: ${moneyFromDollars(balanceDue)}.`)
+  parts.push(`${c.nextStep} ${sitePhone}. Reply STOP to opt out.`)
+  return parts.join(' ')
+}
+function detailedEmailText(eventType: EventType, b: Row, c: ReturnType<typeof copyFor>, amountPaid: number, balanceDue: number) {
+  const toll = njTollFee(b)
+  const rows = [
+    c.title,
+    '',
+    `Hi ${text(b.customer_name) || 'there'},`,
+    '',
+    c.lead,
+    '',
+    `Booking number: ${text(b.booking_number)}`,
+    `Customer name: ${text(b.customer_name)}`,
+    `Phone: ${text(b.customer_phone)}`,
+    `Email: ${text(b.customer_email)}`,
+    `Event date: ${formatEventDate(b.event_date)}`,
+    `Event time: ${text(b.event_time)}`,
+    `Full address: ${text(b.address || b.event_address)}`,
+    `Guests: ${guestSummary(b)}`,
+    `Package: ${text(b.package_name || b.package)}`,
+    `Add-ons: ${addOnsText(b) || '-'}`,
+    `Protein selections: ${displayText(b.protein_summary || b.protein_selections) || '-'}`,
+    `Allergies: ${allergiesText(b) || '-'}`,
+    `Travel Fee: ${moneyFromDollars(travelFee(b))}`,
+    toll > 0 ? `NJ Toll Fee: ${moneyFromDollars(toll)}` : '',
+    `Sales Tax: ${moneyFromDollars(salesTax(b))}`,
+    `Final Total: ${moneyFromDollars(finalTotalDollars(b, amountPaid, balanceDue))}`,
+    `Paid: ${moneyFromDollars(amountPaid)}`,
+    `Balance Due: ${moneyFromDollars(balanceDue)}`,
+    `Payment status: ${text(b.payment_status) || 'Pending'}`,
+    `Deposit status: ${text(b.deposit_status) || '-'}`,
+    `Payment method: ${formatPaymentMethod(b.payment_preference || b.payment_method) || '-'}`,
+    `Notes: ${noteSummary(b) || '-'}`,
+    '',
+    c.nextStep,
+    '',
+    `Questions or changes? Call or text ${sitePhone}, or reply to this email.`,
+    websiteUrl,
+  ].filter(line => line !== '')
+  return rows.join('\n')
+}
+function detailedEmailHtml(eventType: EventType, b: Row, c: ReturnType<typeof copyFor>, amountPaid: number, balanceDue: number) {
+  const toll = njTollFee(b)
+  const paymentStatus = text(b.payment_status) || 'Pending'
+  const rows = [
+    detailRow('Booking number', text(b.booking_number), { strong:true }),
+    detailRow('Customer name', text(b.customer_name)),
+    detailRow('Phone', linkedPhone(b.customer_phone), { html:true }),
+    detailRow('Email', linkedEmail(b.customer_email), { html:true }),
+    detailRow('Event date', formatEventDate(b.event_date), { strong:true }),
+    detailRow('Event time', text(b.event_time), { strong:true }),
+    detailRow('Full address', linkedAddress(b.address || b.event_address), { strong:true, html:true }),
+    detailRow('Guests', guestSummary(b)),
+    detailRow('Package', text(b.package_name || b.package)),
+    detailRow('Add-ons', addOnsText(b)),
+    detailRow('Protein selections', displayText(b.protein_summary || b.protein_selections)),
+    detailRow('Allergies', allergiesText(b)),
+    detailRow('Travel Fee', moneyFromDollars(travelFee(b))),
+    toll > 0 ? detailRow('NJ Toll Fee', moneyFromDollars(toll), { strong:true }) : '',
+    detailRow('Sales Tax', moneyFromDollars(salesTax(b))),
+    detailRow('Final Total', moneyFromDollars(finalTotalDollars(b, amountPaid, balanceDue)), { strong:true }),
+    detailRow('Paid', moneyFromDollars(amountPaid)),
+    detailRow('Balance Due', moneyFromDollars(balanceDue), { strong:true }),
+    detailRow('Payment status', paymentStatus),
+    detailRow('Deposit status', text(b.deposit_status)),
+    detailRow('Payment method', formatPaymentMethod(b.payment_preference || b.payment_method)),
+    detailRow('Notes', noteSummary(b)),
+  ].join('')
+  const preheader = `${c.title}. Booking ${text(b.booking_number)}.`
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(c.subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f1ec;font-family:Arial,Helvetica,sans-serif;color:#21160b">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f4f1ec">
+    <tr>
+      <td align="center" style="padding:24px 12px">
+        <table role="presentation" width="680" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:680px;background:#ffffff;border:1px solid #e2d5c3;border-radius:18px;overflow:hidden">
+          <tr>
+            <td align="center" style="background:#170e05;padding:28px 24px 24px">
+              <div style="display:inline-block;border:1px solid #d8a541;border-radius:999px;padding:8px 14px;color:#ffd36b;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Phoenix Hibachi</div>
+              <div style="margin-top:12px;color:#ffd36b;font-size:26px;font-weight:700;letter-spacing:.02em">Phoenix Hibachi</div>
+              <div style="margin-top:6px;color:#ffffff;font-size:12px;letter-spacing:.12em;text-transform:uppercase">Japanese Steakhouse at Your Backyard</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 28px 10px">
+              <div style="display:inline-block;background:#8a5a12;color:#ffffff;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${esc(eventType.replace(/_/g, ' '))}</div>
+              <h1 style="margin:18px 0 8px;color:#21160b;font-size:27px;line-height:1.25">${esc(c.title)}</h1>
+              <p style="margin:0;color:#3f352c;font-size:15px;line-height:1.7">${esc(c.lead)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px 8px">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#fffaf3;border:1px solid #eee0cc;border-radius:12px;overflow:hidden">
+                ${rows}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px 26px">
+              <div style="background:#fff4da;border-left:4px solid #d69a28;border-radius:8px;padding:15px 16px;color:#4a3b28;font-size:14px;line-height:1.65">${esc(c.nextStep)}</div>
+              <p style="margin:20px 0 0;text-align:center;color:#6d6258;font-size:13px;line-height:1.6">Questions or changes? Call or text <a href="tel:+15165183325" style="color:#9a5d08;font-weight:700;text-decoration:none">${esc(sitePhone)}</a> or reply directly to this email.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#f2ece4;padding:18px 20px;color:#71665c;font-size:11px;line-height:1.6">
+              <strong style="color:#40362d">Phoenix Hibachi</strong><br>
+              <a href="mailto:${esc(companyEmail)}" style="color:#8a5a12;text-decoration:none">${esc(companyEmail)}</a>
+              &nbsp;|&nbsp;
+              <a href="${esc(websiteUrl)}" style="color:#8a5a12;text-decoration:none">${esc(websiteUrl.replace(/^https?:\/\//,''))}</a><br>
+              This automated email was sent regarding booking ${esc(text(b.booking_number))}.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
 function notificationPayload(eventType: EventType, b: Row, extra: Record<string, any> = {}) {
   const c = copyFor(eventType, b, extra)
   const amountPaid = Number(extra.amountPaid ?? b.paid_amount ?? b.deposit_amount ?? 0)
-  const balanceDue = Number(b.balance_due_cents || 0) / 100
-  const emailText = buildEmailText(eventType, b, c, amountPaid, balanceDue)
-  const emailHtml = buildEmailHtml(eventType, b, c, amountPaid, balanceDue)
+  const balanceDue = balanceDueDollars(b)
+  const emailText = detailedEmailText(eventType, b, c, amountPaid, balanceDue)
+  const emailHtml = detailedEmailHtml(eventType, b, c, amountPaid, balanceDue)
+  const toll = njTollFee(b)
   return {
     event_type:eventType,
     notification_type:eventType,
@@ -392,20 +730,31 @@ function notificationPayload(eventType: EventType, b: Row, extra: Record<string,
     event_date:text(b.event_date),
     event_time:text(b.event_time),
     event_address:text(b.address || b.event_address),
+    full_address:text(b.address || b.event_address),
+    map_url:mapHref(b.address || b.event_address),
     adults:Number(b.adults || 0),
     kids:Number(b.kids || 0),
     guest_count:Number(b.guest_count || Number(b.adults || 0) + Number(b.kids || 0)),
     package_name:text(b.package_name || b.package),
+    add_ons:addOnsText(b),
     protein_summary:displayText(b.protein_summary || b.protein_selections),
+    allergies:allergiesText(b),
     payment_method:formatPaymentMethod(b.payment_preference || b.payment_method),
     special_requests:text(b.service_notes || b.special_requests || b.customer_notes),
+    notes:noteSummary(b),
+    travel_fee:Number(travelFee(b).toFixed(2)),
+    nj_toll_fee:Number(toll.toFixed(2)),
+    sales_tax:Number(salesTax(b).toFixed(2)),
+    final_total:Number(finalTotalDollars(b, amountPaid, balanceDue).toFixed(2)),
     payment_status:text(b.payment_status),
     deposit_status:text(b.deposit_status),
     amount_paid:Number(amountPaid.toFixed(2)),
+    paid:Number(amountPaid.toFixed(2)),
     balance_due:Number(balanceDue.toFixed(2)),
     currency:'USD',
     sms_opt_in:isSmsOptedIn(b),
-    sms_content:c.sms,
+    sms_content:detailedSms(eventType, b, c, amountPaid, balanceDue),
+    internal_sms_content:detailedSms(eventType, b, c, amountPaid, balanceDue),
     email_subject:c.subject,
     email_html:emailHtml,
     email_text:emailText,
@@ -416,6 +765,7 @@ function notificationPayload(eventType: EventType, b: Row, extra: Record<string,
 function dedupeKey(eventType: EventType, b: Row, extra: Record<string, any>) {
   let suffix = 'once'
   if (eventType === 'booking_rescheduled') suffix = `${text(b.event_date)}:${text(b.event_time)}`
+  if (eventType === 'booking_modified') suffix = `${text(extra.modifiedAt || '')}:${text(extra.source || '')}:${text((extra.changes || []).join ? extra.changes.join(',') : extra.changes || '')}`
   if (eventType === 'deposit_paid') suffix = `${text(extra.providerReference || '')}:${text(extra.amountCents || b.paid_amount || b.deposit_amount)}:${text(b.balance_due_cents)}`
   if (eventType === 'event_reminder_72h') suffix = text(b.event_date)
   return `${b.id}:${eventType}:make:${suffix}`
@@ -492,6 +842,22 @@ Deno.serve(async req => {
     }
 
     const booking = await getActive(number); if (!booking) return json(req, { ok:false, error:'Active booking was not found.' }, 404)
+    if (action === 'customer_modify_order') {
+      if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
+      if (!customerCanModify(booking)) return json(req, { ok:false, locked:true, error:'This order is within 48 hours of the event and is locked. Please call Phoenix Hibachi support to ask whether a change is still possible.' }, 423)
+      const built = modificationPatch(body, booking, 'customer')
+      const patch = { ...built.patch, request_status:'modified', status:/cancel|complete/i.test(text(booking.status)) ? booking.status : 'Customer updated - manager review' }
+      const data = await updateBookingCompat(booking.id, patch)
+      const notification = await dispatchMake(data as Row, 'booking_modified', { source:'Customer portal', changes:built.changes, modifiedAt:new Date().toISOString() })
+      return json(req, { ok:true, booking:publicOrder(data as Row), notification })
+    }
+    if (action === 'admin_modify_order') {
+      await requireAdmin(req)
+      const built = modificationPatch(body, booking, 'admin')
+      const data = await updateBookingCompat(booking.id, built.patch)
+      const notification = await dispatchMake(data as Row, 'booking_modified', { source:'Admin dashboard', changes:built.changes, modifiedAt:new Date().toISOString() })
+      return json(req, { ok:true, booking:publicOrder(data as Row), notification })
+    }
     if (action === 'admin_confirm') {
       await requireAdmin(req)
       const { data, error } = await service.from('bookings').update({ request_status:'confirmed', status:'Confirmed', activated_at:booking.activated_at || new Date().toISOString() }).eq('id', booking.id).select('*').single()
