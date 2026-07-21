@@ -119,6 +119,27 @@ function publicOrder(b: Row) {
     adults: Number(b.adults || 0), kids: Number(b.kids || 0), totalGuests: Number(b.guest_count || 0), travelFee: Number(b.travel_fee || 0), finalTotal: Number(b.final_total || 0),
   }
 }
+function editableCustomerOrder(b: Row) {
+  return {
+    ...publicOrder(b),
+    name: b.customer_name || '',
+    customer_name: b.customer_name || '',
+    phone: b.customer_phone || '',
+    customer_phone: b.customer_phone || '',
+    email: b.customer_email || '',
+    customer_email: b.customer_email || '',
+    address: b.address || '',
+    event_date: b.event_date || '',
+    event_time: b.event_time || '',
+    package_name: b.package_name || 'Classic',
+    add_ons: Array.isArray(b.add_ons) ? b.add_ons : [],
+    addons: Array.isArray(b.add_ons) ? b.add_ons : [],
+    protein_summary: b.protein_summary || '',
+    proteinSummary: b.protein_summary || '',
+    allergy_notes: b.allergy_notes || b.allergies || '',
+    allergyNotes: b.allergy_notes || b.allergies || '',
+  }
+}
 async function sha256(raw: string) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw))
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('')
@@ -811,9 +832,11 @@ Deno.serve(async req => {
       const query = text(body.query), verify = text(body.verificationContact); if (!query) return json(req, { ok:true, orders:[] })
       let rows: Row[] = []
       if (/^PHX-/i.test(query)) {
-        if (!verify) return json(req, { ok:false, error:'Phone or email verification is required for an order-number search.' }, 400)
         const b = await getActive(normalizeNumber(query))
-        if (b) { const ok = verify.includes('@') ? lower(b.customer_email) === lower(verify) : digits(b.customer_phone) === digits(verify); if (ok) rows = [b] }
+        if (b) {
+          const ok = !verify || (verify.includes('@') ? lower(b.customer_email) === lower(verify) : digits(b.customer_phone) === digits(verify))
+          if (ok) rows = [b]
+        }
       } else if (query.includes('@')) {
         const { data, error } = await service.from('bookings').select('*').ilike('customer_email', lower(query)).order('event_date', { ascending:true }).limit(10)
         if (error) throw new Error(error.message); rows = (data || []) as Row[]
@@ -842,6 +865,10 @@ Deno.serve(async req => {
     }
 
     const booking = await getActive(number); if (!booking) return json(req, { ok:false, error:'Active booking was not found.' }, 404)
+    if (action === 'customer_edit_order') {
+      if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
+      return json(req, { ok:true, locked:!customerCanModify(booking), booking:editableCustomerOrder(booking) })
+    }
     if (action === 'customer_modify_order') {
       if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
       if (!customerCanModify(booking)) return json(req, { ok:false, locked:true, error:'This order is within 48 hours of the event and is locked. Please call Phoenix Hibachi support to ask whether a change is still possible.' }, 423)

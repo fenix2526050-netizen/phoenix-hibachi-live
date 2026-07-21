@@ -7,6 +7,7 @@
 
   const EDIT_WINDOW_HOURS = 48;
   const PATCH_VERSION = 'V241';
+  const lookupOrders = new Map();
 
   const text = value => String(value ?? '').trim();
   const lower = value => text(value).toLowerCase();
@@ -111,15 +112,28 @@
       const id = idOf(order);
       if (id) map.set(id.toLowerCase(), order);
     };
+    lookupOrders.forEach(add);
+    try { Object.values(window.__PHX_LOOKUP_ORDER_CACHE__ || {}).forEach(order => add({ ...order, __v241PublicLookup:true })); } catch {}
     try { (window.getDashboardOrders?.() || getDashboardOrders?.() || []).forEach(add); } catch {}
     try { (window.getStoredOrders?.() || getStoredOrders?.() || []).forEach(add); } catch {}
     try { if (Array.isArray(remoteOrdersCache)) remoteOrdersCache.forEach(add); } catch {}
     return map;
   }
+  function rememberLookupOrder(order = {}) {
+    const id = idOf(order);
+    if (!id) return order;
+    const enriched = { ...order, __v241PublicLookup:true };
+    lookupOrders.set(id.toLowerCase(), enriched);
+    window.__PHX_LOOKUP_ORDER_CACHE__ = window.__PHX_LOOKUP_ORDER_CACHE__ || {};
+    window.__PHX_LOOKUP_ORDER_CACHE__[id] = enriched;
+    return enriched;
+  }
   function orderForCard(card, orders = collectOrders()) {
     const raw = card.getAttribute('data-v120-order-card') ||
       card.getAttribute('data-v102-order-card') ||
       card.getAttribute('data-v101-order-card') ||
+      card.getAttribute('data-v241-lookup-card') ||
+      card.querySelector('[data-print-lookup]')?.getAttribute('data-print-lookup') ||
       card.querySelector('[data-print-guest]')?.getAttribute('data-print-guest') ||
       card.querySelector('[data-download-pdf]')?.getAttribute('data-download-pdf') ||
       card.querySelector('strong')?.textContent ||
@@ -136,14 +150,33 @@
     const raw = lower(role).replace(/[_-]+/g, ' ');
     return raw.includes('admin') || raw.includes('manager') || raw.includes('customer service');
   }
+  function hasStaffControls(card) {
+    if (!card) return false;
+    if (card.querySelector([
+      '[data-v101-confirm]',
+      '[data-v102-confirm]',
+      '[data-confirm-order]',
+      '[data-v101-open-chef]',
+      '[data-v102-open-chef]',
+      '[data-run-auto]',
+      '[data-delete-order]',
+      '[data-v107-payment-open]',
+      '[data-v120-action="payment"]',
+      '[data-v120-save-payment]',
+      '[data-v107-save-payment]'
+    ].join(','))) return true;
+    const label = lower(card.querySelector('.order-actions, .order-actions-v101, .v102-order-tools')?.textContent || '');
+    return /confirm order|accept order|assign chef|payment\s*\/\s*price|delete order/.test(label);
+  }
   function isMemberCard(card) {
     const role = lower(currentRole());
-    return card.classList.contains('member-order-card-v96') ||
+    return card.classList.contains('lookup-card') ||
+      card.classList.contains('member-order-card-v96') ||
       card.classList.contains('member-order-card-v101') ||
       card.closest('[data-dashboard-page="orders"]') && /member|customer/.test(role) && !isStaffRole(role);
   }
   function actionsFor(card) {
-    return card.querySelector('.order-actions, .order-actions-v101, .v102-order-tools, .v107-payment-actions, .phx-v120-stop-actions');
+    return card.querySelector('.order-actions, .order-actions-v101, .v102-order-tools, .v107-payment-actions, .phx-v120-stop-actions, .lookup-actions-v103');
   }
 
   function styleOnce() {
@@ -175,7 +208,7 @@
   function injectButtons() {
     styleOnce();
     const orders = collectOrders();
-    document.querySelectorAll('#orderList article.order-card, #calendarSummaryList article.order-card, [data-v120-order-card], [data-v102-order-card], [data-v101-order-card]').forEach(card => {
+    document.querySelectorAll('#orderList article.order-card, #calendarSummaryList article.order-card, [data-v120-order-card], [data-v102-order-card], [data-v101-order-card], .lookup-card').forEach(card => {
       if (!card || card.querySelector('[data-v241-edit-order], .phx-v241-lock-note')) return;
       const order = orderForCard(card, orders);
       if (!order) return;
@@ -183,7 +216,7 @@
       if (!actions) return;
       const id = esc(idOf(order));
       const member = isMemberCard(card);
-      const staff = !member && isStaffRole();
+      const staff = !member && (isStaffRole() || hasStaffControls(card));
       if (member) {
         const open = customerCanModify(order);
         const note = document.createElement('div');
@@ -212,6 +245,7 @@
       <input type="hidden" name="bookingNumber">
       <input type="hidden" name="mode">
       <div class="phx-v241-edit-grid">
+        <label class="wide" data-v241-verify-wrap>Verification phone or email<input name="verificationContact" placeholder="Phone or email used on the booking"></label>
         <label>Event date<input type="date" name="eventDate"></label>
         <label>Event time<input name="eventTime" placeholder="6:00 PM"></label>
         <label>Package<select name="packageName"><option>Classic</option><option>Premium</option><option>Signature</option></select></label>
@@ -259,36 +293,88 @@
     } catch { return text(order.proteinSummary || order.protein_summary); }
   }
 
-  function openEditor(order, mode) {
+  function cleanVerificationContact(value) {
+    const raw = text(value);
+    return raw && !raw.includes('*') ? raw : '';
+  }
+  function lookupContactValue() {
+    const query = cleanVerificationContact(document.getElementById('orderLookupInput')?.value);
+    const contact = cleanVerificationContact(document.getElementById('orderLookupEmail')?.value);
+    return contact || (/^PHX-/i.test(query) ? '' : query);
+  }
+  async function invokeLifecycle(action, body = {}) {
+    const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
+    const cfg = window.PHOENIX_SUPABASE_CONFIG || window.PHX_SUPABASE_CONFIG || {};
+    const fn = cfg.bookingLifecycleFunction || cfg.lookupBookingFunction || 'booking-lifecycle';
+    if (!client?.functions?.invoke) throw new Error('Booking service is not available.');
+    const { data, error } = await client.functions.invoke(fn, { body:{ action, ...body } });
+    if (error) throw new Error(error.message || 'Booking service rejected the request.');
+    if (data?.ok === false) throw new Error(data.error || 'Booking service rejected the request.');
+    return data || {};
+  }
+  async function loadEditableCustomerOrder(order = {}, verificationContact = '') {
+    const orderId = idOf(order);
+    if (!orderId) throw new Error('Order number is missing.');
+    const verify = cleanVerificationContact(verificationContact);
+    if (!verify) throw new Error('Phone or email verification is required to modify this order.');
+    const data = await invokeLifecycle('customer_edit_order', { bookingNumber:orderId, verificationContact:verify });
+    const fullOrder = { ...(data.booking || order), __v241VerificationContact:verify, __v241PublicLookup:false, __v241Locked:data.locked === true };
+    lookupOrders.set(orderId.toLowerCase(), fullOrder);
+    return fullOrder;
+  }
+
+  async function openEditor(order, mode) {
     const customerMode = mode === 'customer';
     if (customerMode && !customerCanModify(order)) {
       alert(`This order is within ${EDIT_WINDOW_HOURS} hours of the event and is now locked. Please call ${supportPhone()} to ask whether a change is still possible.`);
       return;
     }
+    let editableOrder = order;
+    if (customerMode && order.__v241PublicLookup) {
+      let verify = lookupContactValue();
+      if (!verify) {
+        verify = cleanVerificationContact(window.prompt?.('Please enter the phone or email used on this booking before modifying the order.') || '');
+      }
+      try {
+        editableOrder = await loadEditableCustomerOrder(order, verify);
+        if (editableOrder.__v241Locked || !customerCanModify(editableOrder)) {
+          alert(`This order is within ${EDIT_WINDOW_HOURS} hours of the event and is now locked. Please call ${supportPhone()} to ask whether a change is still possible.`);
+          return;
+        }
+      } catch (error) {
+        alert(`${error?.message || 'Could not verify this order.'} Please call ${supportPhone()} for help.`);
+        return;
+      }
+    }
     const dialog = modal();
     const form = dialog.querySelector('form');
-    form.dataset.v241Order = JSON.stringify({ id:idOf(order) });
-    form.elements.bookingNumber.value = idOf(order);
+    const verificationContact = cleanVerificationContact(editableOrder.__v241VerificationContact || lookupContactValue() || editableOrder.email || editableOrder.customer_email || editableOrder.phone || editableOrder.customer_phone);
+    form.dataset.v241Order = JSON.stringify({ id:idOf(editableOrder) });
+    form.elements.bookingNumber.value = idOf(editableOrder);
     form.elements.mode.value = mode;
-    form.elements.eventDate.value = dateForInput(order);
-    form.elements.eventTime.value = text(order.event_time || order.eventTime || '');
-    form.elements.packageName.value = text(order.package || order.package_name || 'Classic');
-    form.elements.adults.value = int(order.adults || order.adultCount || 0);
-    form.elements.kids.value = int(order.kids || order.childCount || 0);
-    form.elements.address.value = text(order.address || order.event_address || '');
-    form.elements.addons.value = addonsText(order);
-    form.elements.proteinSummary.value = proteinText(order);
-    form.elements.allergyNotes.value = text(order.allergyNotes || order.allergy_notes || (Array.isArray(order.allergies) ? order.allergies.join(', ') : order.allergies || ''));
+    form.elements.verificationContact.value = verificationContact;
+    form.elements.eventDate.value = dateForInput(editableOrder);
+    form.elements.eventTime.value = text(editableOrder.event_time || editableOrder.eventTime || '');
+    form.elements.packageName.value = text(editableOrder.package || editableOrder.package_name || 'Classic');
+    form.elements.adults.value = int(editableOrder.adults || editableOrder.adultCount || 0);
+    form.elements.kids.value = int(editableOrder.kids || editableOrder.childCount || 0);
+    form.elements.address.value = text(editableOrder.address || editableOrder.event_address || '');
+    form.elements.addons.value = addonsText(editableOrder);
+    form.elements.proteinSummary.value = proteinText(editableOrder);
+    form.elements.allergyNotes.value = text(editableOrder.allergyNotes || editableOrder.allergy_notes || (Array.isArray(editableOrder.allergies) ? editableOrder.allergies.join(', ') : editableOrder.allergies || ''));
     form.elements.changeNote.value = '';
-    form.elements.travelFee.value = num(order.travelFee ?? order.travel_fee, 0).toFixed(2);
+    form.elements.travelFee.value = num(editableOrder.travelFee ?? editableOrder.travel_fee, 0).toFixed(2);
     const help = dialog.querySelector('[data-v241-help]');
     const travelWrap = dialog.querySelector('[data-v241-travel-wrap]');
+    const verifyWrap = dialog.querySelector('[data-v241-verify-wrap]');
     if (customerMode) {
-      help.textContent = `${formatWindow(order)} Travel fee and final total may still require manager review after changes.`;
+      help.textContent = `${formatWindow(editableOrder)} Travel fee and final total may still require manager review after changes.`;
       travelWrap.hidden = true;
+      verifyWrap.hidden = false;
     } else {
       help.textContent = 'Admin override: staff can modify this order at any time. Changes may send a booking modified notification.';
       travelWrap.hidden = false;
+      verifyWrap.hidden = true;
     }
     setStatus('');
     try { dialog.showModal(); } catch { dialog.setAttribute('open', ''); }
@@ -296,6 +382,7 @@
 
   function patchFromForm(form, order, mode) {
     const fd = new FormData(form);
+    const verificationContact = cleanVerificationContact(fd.get('verificationContact'));
     const eventDate = dbDate(fd.get('eventDate'));
     const eventTime = text(fd.get('eventTime'));
     const packageName = text(fd.get('packageName')) || 'Classic';
@@ -368,6 +455,7 @@
       dbPatch,
       localPatch:{ ...localPatch, finalTotal, final_total:finalTotal, balanceDue:balance, balance_due:balance, specialNotes:notes, admin_notes:notes, status:dbPatch.status || order.status },
       changeNote,
+      verificationContact,
       finalTotal,
       balance
     };
@@ -395,7 +483,7 @@
     if (result?.error) throw new Error(result.error.message);
     return result?.data || null;
   }
-  async function lifecycleUpdate(orderId, mode, patch, order) {
+  async function lifecycleUpdate(orderId, mode, patch, order, verificationContactValue = '') {
     if (mode === 'admin' && typeof window.phoenixAdminLifecycleInvokeV2382 === 'function') {
       return window.phoenixAdminLifecycleInvokeV2382('admin_modify_order', { bookingNumber:orderId, patch });
     }
@@ -403,7 +491,7 @@
     const cfg = window.PHOENIX_SUPABASE_CONFIG || window.PHX_SUPABASE_CONFIG || {};
     const fn = cfg.bookingLifecycleFunction || cfg.lookupBookingFunction || 'booking-lifecycle';
     if (!client?.functions?.invoke) throw new Error('Booking service is not available.');
-    const verificationContact = text(order.email || order.customer_email || order.phone || order.customer_phone);
+    const verificationContact = cleanVerificationContact(verificationContactValue || order.__v241VerificationContact || order.email || order.customer_email || order.phone || order.customer_phone);
     const { data, error } = await client.functions.invoke(fn, {
       body: { action:'customer_modify_order', bookingNumber:orderId, verificationContact, patch }
     });
@@ -439,7 +527,7 @@
       const built = patchFromForm(form, order, mode);
       let remoteOk = false;
       try {
-        await lifecycleUpdate(orderId, mode, built.dbPatch, order);
+        await lifecycleUpdate(orderId, mode, built.dbPatch, order, built.verificationContact);
         remoteOk = true;
       } catch (serviceError) {
         if (mode === 'admin') {
@@ -469,7 +557,7 @@
     }
   }
 
-  document.addEventListener('click', event => {
+  document.addEventListener('click', async event => {
     const locked = event.target?.closest?.('[data-v241-locked-order]');
     if (locked) {
       event.preventDefault();
@@ -483,8 +571,24 @@
     const orderId = text(button.getAttribute('data-v241-edit-order'));
     const order = collectOrders().get(orderId.toLowerCase());
     if (!order) { alert('Order was not found. Refresh and try again.'); return; }
-    openEditor(order, text(button.getAttribute('data-v241-mode')) || (isStaffRole() ? 'admin' : 'customer'));
+    await openEditor(order, text(button.getAttribute('data-v241-mode')) || (isStaffRole() ? 'admin' : 'customer'));
   }, true);
+
+  try {
+    const previousLookupHtml = window.orderLookupResultHtml || orderLookupResultHtml;
+    if (typeof previousLookupHtml === 'function' && !window.__PHX_V241_LOOKUP_HTML_WRAP__) {
+      window.__PHX_V241_LOOKUP_HTML_WRAP__ = true;
+      window.orderLookupResultHtml = function(order = {}) {
+        const tracked = rememberLookupOrder(order);
+        const id = esc(idOf(tracked));
+        const html = String(previousLookupHtml.call(this, tracked));
+        return id && !html.includes('data-v241-lookup-card')
+          ? html.replace('<div class="lookup-card', `<div data-v241-lookup-card="${id}" class="lookup-card`)
+          : html;
+      };
+      orderLookupResultHtml = window.orderLookupResultHtml;
+    }
+  } catch {}
 
   try {
     const previousRender = window.renderDashboard || renderDashboard;

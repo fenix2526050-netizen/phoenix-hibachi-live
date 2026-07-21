@@ -1352,7 +1352,12 @@ const PHX_DEFAULT_PRICING_V140 = {
     minimumBillableGuests: 0,
     minimumFoodOrder: 550,
     estimatedFoodCostRate: 35,
-    defaultTravelFee: 0,
+    defaultTravelFee: 50,
+    travelFeeBase: 50,
+    travelFeeIncludedMiles: 20,
+    travelFeePerExtraMile: 2,
+    njTollFee: 30,
+    travelFeeCustomQuoteMiles: 100,
     salesTaxRate: 8.875
   }
 };
@@ -14139,9 +14144,8 @@ window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';
     event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
     const query=clean(lookupInputV234?.value); const contact=clean(lookupContactV234?.value);
     if (!query) return;
-    if (/^PHX-/i.test(query) && !contact) {
-      lookupResultV234.innerHTML='<div class="empty-state">Enter the booking phone or email to verify an order-number search.</div>'; return;
-    }
+    // Order-number lookup may show the public, masked order card without verification.
+    // Any customer edit still requires phone/email verification before saving.
     lookupResultV234.innerHTML='<div class="empty-state">Searching active upcoming bookings...</div>';
     let orders=activeLocalMatches(query,contact);
     if (!orders.length) {
