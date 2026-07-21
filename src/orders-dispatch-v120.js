@@ -251,6 +251,7 @@
       <button type="button" data-v120-action="chef" data-v120-order-id="${id}">Assign chef</button>
       <button type="button" data-v120-action="print" data-v120-order-id="${id}">Print</button><button type="button" class="v235-cancel-order" data-v120-action="cancel" data-v120-order-id="${id}">Cancel order</button>
       <button type="button" class="v107-payment-button" data-v120-action="payment" data-v120-order-id="${id}">Payment / price</button>
+      <button type="button" data-v241-edit-order="${id}" data-v241-mode="admin">Modify order</button>
     </div>`;
   }
   function orderToolsPanel(order){
