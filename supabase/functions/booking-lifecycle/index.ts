@@ -371,7 +371,7 @@ function copyFor(eventType: EventType, b: Row, extra: Record<string, any> = {}) 
       const source = text(extra.source || 'order modification')
       const changed = Array.isArray(extra.changes) && extra.changes.length ? ` Updated: ${extra.changes.join(', ')}.` : ''
       return {
-        subject:`Phoenix Hibachi order updated 鈥?${ref}`,
+        subject:`Phoenix Hibachi order updated - ${ref}`,
         title:'Your Phoenix Hibachi order was updated',
         lead:`Booking ${ref} was updated from ${source}.${changed}`,
         nextStep:'Please review the updated order details below. If anything looks incorrect, contact Phoenix Hibachi right away.',
@@ -610,19 +610,170 @@ function buildEmailHtml(eventType: EventType, b: Row, c: ReturnType<typeof copyF
 </body>
 </html>`
 }
+function smsSafe(v: unknown) {
+  return text(v)
+    .replace(/[–—]/g, '-')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .normalize('NFKD')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+function smsClip(v: unknown, max = 60) {
+  const shown = smsSafe(v)
+  if (shown.length <= max) return shown
+  return `${shown.slice(0, Math.max(0, max - 3)).trimEnd()}...`
+}
+function smsMoney(v: unknown) {
+  return new Intl.NumberFormat('en-US', { style:'currency', currency:'USD' }).format(dollars(v))
+}
+function smsPhone() {
+  const d = digits(sitePhone)
+  return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : smsSafe(sitePhone)
+}
+function formatSmsDate(v: unknown) {
+  const raw = text(v)
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return smsClip(raw, 22)
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12))
+  return new Intl.DateTimeFormat('en-US', {
+    weekday:'short', year:'numeric', month:'short', day:'numeric', timeZone:'UTC'
+  }).format(date)
+}
+function smsWhen(b: Row) {
+  return smsClip([formatSmsDate(b.event_date), smsSafe(b.event_time)].filter(Boolean).join(' at '), 48)
+}
+function smsLocation(b: Row) {
+  const address = smsSafe(b.address || b.event_address)
+  if (!address) return ''
+  const parts = address.split(',').map(part => part.trim()).filter(Boolean)
+  const location = parts.length >= 2 ? parts.slice(-2).join(', ') : address
+  return smsClip(location, 38)
+}
+function smsGuests(b: Row) {
+  const total = Math.max(0, Number(b.guest_count || Number(b.adults || 0) + Number(b.kids || 0)))
+  return total ? String(total) : smsClip(guestSummary(b), 20)
+}
+function fitCustomerSms(lines: string[]) {
+  const footer = [`Questions: ${smsPhone()}`, 'Reply STOP to opt out.']
+  let body = lines.map(smsSafe).filter(Boolean)
+  const render = () => [...body, ...footer].join('\n')
+  if (render().length <= 280) return render()
+
+  for (const prefix of ['Location:', 'Guests:', 'Travel fee:', 'NJ toll:']) {
+    const index = body.findIndex(line => line.startsWith(prefix))
+    if (index >= 0) body.splice(index, 1)
+    if (render().length <= 280) return render()
+  }
+
+  const editable = body.findIndex(line => /^(Updated|Reason|Status):/.test(line))
+  if (editable >= 0) body[editable] = smsClip(body[editable], 48)
+  if (render().length <= 280) return render()
+
+  while (body.length > 4 && render().length > 280) body.splice(body.length - 1, 1)
+  if (render().length <= 280) return render()
+
+  const footerText = footer.join('\n')
+  const maxBodyLength = Math.max(1, 280 - footerText.length - 1)
+  const clippedBody = body.join('\n').slice(0, maxBodyLength).trimEnd()
+  return `${clippedBody}\n${footerText}`
+}
 function detailedSms(eventType: EventType, b: Row, c: ReturnType<typeof copyFor>, amountPaid: number, balanceDue: number) {
-  const address = text(b.address || b.event_address)
+  const ref = smsSafe(b.booking_number)
+  const when = smsWhen(b)
+  const location = smsLocation(b)
+  const guests = smsGuests(b)
+  const total = smsMoney(finalTotalDollars(b, amountPaid, balanceDue))
+  const balance = smsMoney(balanceDue)
+  const travel = smsMoney(travelFee(b))
   const toll = njTollFee(b)
-  const parts: string[] = [
-    `Phoenix Hibachi: ${text(b.booking_number)} ${eventType.replace(/_/g, ' ')}.`
-  ]
-  if (address) parts.push(`Address: ${address}.`)
-  parts.push(`Travel Fee: ${moneyFromDollars(travelFee(b))}.`)
-  if (toll > 0) parts.push(`NJ Toll Fee: ${moneyFromDollars(toll)}.`)
-  parts.push(`Final Total: ${moneyFromDollars(finalTotalDollars(b, amountPaid, balanceDue))}.`)
-  parts.push(`Balance Due: ${moneyFromDollars(balanceDue)}.`)
-  parts.push(`${c.nextStep} ${sitePhone}. Reply STOP to opt out.`)
-  return parts.join(' ')
+
+  switch (eventType) {
+    case 'booking_confirmed':
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'BOOKING CONFIRMED',
+        `Order: ${ref}`,
+        when ? `Event: ${when}` : '',
+        guests ? `Guests: ${guests}` : '',
+        location ? `Location: ${location}` : '',
+        `Balance: ${balance}`,
+        'Your date and time are reserved.',
+      ])
+    case 'deposit_paid':
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'DEPOSIT RECEIVED',
+        `Order: ${ref}`,
+        `Paid: ${smsMoney(amountPaid)}`,
+        `Balance: ${balance}`,
+        when ? `Event: ${when}` : '',
+        'Your payment has been applied.',
+      ])
+    case 'paid_in_full':
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'PAID IN FULL',
+        `Order: ${ref}`,
+        when ? `Event: ${when}` : '',
+        'Balance: $0.00',
+        'Thank you. Your payment is complete.',
+      ])
+    case 'booking_rescheduled':
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'SCHEDULE UPDATED',
+        `Order: ${ref}`,
+        when ? `New event: ${when}` : '',
+        location ? `Location: ${location}` : '',
+        'Please review the updated date and time.',
+      ])
+    case 'booking_cancelled':
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'BOOKING CANCELLED',
+        `Order: ${ref}`,
+        `Reason: ${smsClip(c.lead.replace(`Booking ${ref} has been cancelled.`, ''), 72)}`,
+        'Contact us with any questions.',
+      ])
+    case 'booking_modified': {
+      const changed = smsClip((c.lead.match(/Updated:\s*(.+)$/)?.[1] || '').replace(/\.$/, ''), 58)
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'ORDER UPDATED',
+        `Order: ${ref}`,
+        when ? `Event: ${when}` : '',
+        changed ? `Updated: ${changed}` : '',
+        `Total: ${total}`,
+        `Balance: ${balance}`,
+        'Please review your updated email.',
+      ])
+    }
+    case 'event_reminder_72h':
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        '72-HOUR REMINDER',
+        `Order: ${ref}`,
+        when ? `Event: ${when}` : '',
+        guests ? `Guests: ${guests}` : '',
+        location ? `Location: ${location}` : '',
+        'Please confirm access, parking, weather backup, and final guest count.',
+      ])
+    default:
+      return fitCustomerSms([
+        'Phoenix Hibachi',
+        'REQUEST RECEIVED',
+        `Order: ${ref}`,
+        when ? `Event: ${when}` : '',
+        guests ? `Guests: ${guests}` : '',
+        location ? `Location: ${location}` : '',
+        `Travel fee: ${travel}`,
+        toll > 0 ? `NJ toll: ${smsMoney(toll)}` : '',
+        `Estimated total: ${total}`,
+        'Status: Pending review - not confirmed yet.',
+      ])
+  }
 }
 function detailedEmailText(eventType: EventType, b: Row, c: ReturnType<typeof copyFor>, amountPaid: number, balanceDue: number) {
   const toll = njTollFee(b)
@@ -649,7 +800,7 @@ function detailedEmailText(eventType: EventType, b: Row, c: ReturnType<typeof co
     toll > 0 ? `NJ Toll Fee: ${moneyFromDollars(toll)}` : '',
     `Sales Tax: ${moneyFromDollars(salesTax(b))}`,
     `Final Total: ${moneyFromDollars(finalTotalDollars(b, amountPaid, balanceDue))}`,
-    `Paid: ${moneyFromDollars(amountPaid)}`,
+    `Paid: ${smsMoney(amountPaid)}`,
     `Balance Due: ${moneyFromDollars(balanceDue)}`,
     `Payment status: ${text(b.payment_status) || 'Pending'}`,
     `Deposit status: ${text(b.deposit_status) || '-'}`,

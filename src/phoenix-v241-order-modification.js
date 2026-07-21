@@ -245,9 +245,11 @@
       .phx-v241-edit-status{min-height:22px;color:#ffd778;font-weight:800;font-size:.88rem}
       .phx-v241-edit-actions{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:linear-gradient(180deg,rgba(16,11,7,.78),#100b07 38%);border-top:1px solid rgba(255,215,121,.18);padding-top:12px;margin-top:0;z-index:2}
       .phx-v241-customer-locked{opacity:.65;cursor:not-allowed}
-      #orderLookupModal{max-width:min(96vw,760px);max-height:92vh;overflow:hidden;padding:0}
-      #orderLookupModal .order-lookup-card{width:min(760px,calc(100vw - 24px));max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
-      #orderLookupModal .order-lookup-result{overflow:auto;max-height:calc(90vh - 280px);padding-right:4px;scrollbar-gutter:stable}
+      #orderLookupModal{width:min(96vw,760px);max-width:min(96vw,760px);max-height:92dvh;overflow:auto;padding:0}
+      #orderLookupModal .order-lookup-card{width:100%;max-height:92dvh;overflow:auto;display:flex;flex-direction:column;box-sizing:border-box}
+      #orderLookupModal .order-lookup-card label{flex:0 0 auto}
+      #orderLookupModal .order-lookup-card .modal-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(180deg,rgba(16,11,7,.72),#100b07 42%);padding-top:10px}
+      #orderLookupModal .order-lookup-result{overflow:auto;min-height:88px;max-height:min(38dvh,360px);padding-right:4px;scrollbar-gutter:stable}
       #orderLookupModal .lookup-card{max-height:none}
       .lookup-card-v103 .lookup-actions-v103 [data-open-payment]{background:linear-gradient(135deg,#ffd77a,#d99a16);color:#170c03;border:0}
       #paymentModal.open .phx-payment-card{max-height:90vh;overflow:auto}
@@ -262,7 +264,7 @@
       .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
       .phx-v241-payment-note b{color:#ffd778}
       .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92vh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal .order-lookup-card{width:calc(100vw - 18px);padding:18px 14px}#orderLookupModal .order-lookup-result{max-height:calc(90vh - 255px)}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
+      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px);max-width:calc(100vw - 14px);max-height:94dvh}#orderLookupModal .order-lookup-card{width:100%;max-height:94dvh;padding:16px 13px;overflow:auto}#orderLookupModal .order-lookup-result{min-height:74px;max-height:34dvh}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
     `;
     document.head.appendChild(style);
   }
@@ -434,7 +436,7 @@
     const kids = int(form?.elements?.kids?.value, 0);
     const billableGuests = Math.max(0, adults + kids * 0.5);
     const required = Math.ceil(billableGuests * 2);
-    return { adults, kids, billableGuests, required, maxEach:Math.ceil(billableGuests) };
+    return { adults, kids, billableGuests, required, maxTotal:required };
   }
   function renderProteinQuantityList(container, form, currentText) {
     if (!container || !form) return;
@@ -443,7 +445,7 @@
     container.innerHTML = PROTEIN_CHOICES_V241.map(choice => {
       const value = int(current[choice.name], 0);
       const note = choice.premium ? '+$5 per portion' : 'included protein';
-      return `<label><span>${esc(choice.label)}<small>${esc(note)}</small></span><input type="number" min="0" max="${rule.maxEach}" step="1" value="${value}" data-v241-protein-input="${esc(choice.name)}" aria-label="${esc(choice.label)} quantity"></label>`;
+      return `<label><span>${esc(choice.label)}<small>${esc(note)}</small></span><input type="number" min="0" max="${rule.maxTotal}" step="1" value="${value}" data-v241-protein-input="${esc(choice.name)}" aria-label="${esc(choice.label)} quantity"></label>`;
     }).join('');
   }
   function renderAddonQuantityList(container, form, currentText) {
@@ -455,10 +457,27 @@
     }).join('');
   }
 
+  function clampProteinTotal(form, changedInput) {
+    const rule = proteinRuleForForm(form);
+    const inputs = Array.from(form?.querySelectorAll?.('[data-v241-protein-input]') || []);
+    if (!changedInput || !inputs.length || rule.required <= 0) return;
+    inputs.forEach(input => {
+      input.max = String(rule.maxTotal);
+      if (int(input.value, 0) < 0) input.value = '0';
+    });
+    const othersTotal = inputs
+      .filter(input => input !== changedInput)
+      .reduce((sum, input) => sum + int(input.value, 0), 0);
+    const allowedForCurrent = Math.max(0, rule.required - othersTotal);
+    const current = int(changedInput.value, 0);
+    if (current > allowedForCurrent) changedInput.value = String(allowedForCurrent);
+  }
+
   function setupCustomerChoices(dialog, form) {
     renderProteinQuantityList(dialog.querySelector('[data-v241-protein-choices]'), form, form.elements.proteinSummary.value);
     renderAddonQuantityList(dialog.querySelector('[data-v241-addon-choices]'), form, form.elements.addons.value);
-    const sync = () => {
+    const sync = event => {
+      if (event?.target?.matches?.('[data-v241-protein-input]')) clampProteinTotal(form, event.target);
       const proteins = selectedProteinsFromForm(form);
       const addons = selectedAddonsFromForm(form);
       form.elements.proteinSummary.value = proteinSummaryFromSelections(proteins);
@@ -538,7 +557,7 @@
 
   function proteinRuleMessage(form) {
     const rule = proteinRuleForForm(form);
-    return `${formatGuestNumberSafe(rule.billableGuests)} adult-equivalent guests x 2 = ${rule.required} protein portions required. Each protein quantity may not exceed ${rule.maxEach}.`;
+    return `${formatGuestNumberSafe(rule.billableGuests)} adult-equivalent guests x 2 = ${rule.required} total protein portions required across all selections.`;
   }
   function formatGuestNumberSafe(value) {
     try { return typeof formatGuestNumber === 'function' ? formatGuestNumber(value) : (Number.isInteger(Number(value)) ? String(Number(value)) : Number(value).toFixed(1).replace(/\.0$/, '')); }
@@ -548,10 +567,9 @@
     const rule = proteinRuleForForm(form);
     const selections = selectedProteinsFromForm(form);
     const total = Object.values(selections).reduce((sum, qty) => sum + int(qty, 0), 0);
-    const over = Object.entries(selections).find(([, qty]) => int(qty, 0) > rule.maxEach);
     if (rule.required <= 0) return 'Please enter the guest count before saving changes.';
-    if (over) return `${over[0]} quantity cannot exceed ${rule.maxEach}.`;
-    if (total !== rule.required) return `Protein quantity must equal ${rule.required}. Current selected total is ${total}. ${proteinRuleMessage(form)}`;
+    if (total > rule.required) return `Protein quantity cannot exceed ${rule.required} total portions. Current selected total is ${total}. ${proteinRuleMessage(form)}`;
+    if (total !== rule.required) return `Protein quantity must equal ${rule.required} total portions. Current selected total is ${total}. ${proteinRuleMessage(form)}`;
     return '';
   }
   function centsAsDollars(value) {

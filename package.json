@@ -5,7 +5,8 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test:v240": "node scripts/verify-phoenix-v240.js",
-    "test:v241": "node scripts/verify-phoenix-v241.js"
+    "test:v241": "node scripts/verify-phoenix-v241.js",
+    "test:sms:v243": "node scripts/test-sms-v243.mjs"
   },
   "dependencies": {
     "vite": "latest"
