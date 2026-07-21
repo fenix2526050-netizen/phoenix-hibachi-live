@@ -141,10 +141,21 @@ function editableCustomerOrder(b: Row) {
     balanceDue: balanceDueDollars(b),
     final_total: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)),
     finalTotal: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)),
-    add_ons: Array.isArray(b.add_ons) ? b.add_ons : [],
-    addons: Array.isArray(b.add_ons) ? b.add_ons : [],
+    add_ons: b.add_ons || b.addons || [],
+    addons: b.add_ons || b.addons || [],
+    side_orders: b.side_orders || b.sideOrders || null,
+    sideOrders: b.side_orders || b.sideOrders || null,
+    protein_selections: b.protein_selections || b.proteinSelections || null,
+    proteinSelections: b.protein_selections || b.proteinSelections || null,
+    proteins: b.protein_selections || b.proteinSelections || null,
     protein_summary: b.protein_summary || '',
     proteinSummary: b.protein_summary || '',
+    menu_summary: b.menu_summary || '',
+    admin_notes: b.admin_notes || '',
+    service_notes: b.service_notes || '',
+    customer_notes: b.customer_notes || '',
+    special_requests: b.special_requests || '',
+    specialNotes: b.admin_notes || b.service_notes || b.customer_notes || b.special_requests || '',
     allergy_notes: b.allergy_notes || b.allergies || '',
     allergyNotes: b.allergy_notes || b.allergies || '',
   }
@@ -300,6 +311,11 @@ function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin')
     patch.add_ons = splitLines(raw.addOns ?? raw.addons ?? raw.add_ons)
     changes.push('Add-ons')
   }
+  if (raw.proteinSelections !== undefined || raw.protein_selections !== undefined || raw.proteins !== undefined) {
+    const selections = raw.proteinSelections ?? raw.protein_selections ?? raw.proteins
+    patch.protein_selections = selections && typeof selections === 'object' ? selections : null
+    changes.push('Protein selections')
+  }
   if (raw.allergyNotes !== undefined || raw.allergy_notes !== undefined) {
     patch.allergy_notes = text(raw.allergyNotes ?? raw.allergy_notes) || null
     changes.push('Allergies')
@@ -316,7 +332,7 @@ function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin')
   notes = upsertNote(notes, actor === 'admin' ? 'Admin modified at' : 'Customer modified at', new Date().toISOString())
   notes = upsertNote(notes, 'Last order modification source', source)
   const proteinSummary = text(raw.proteinSummary || raw.protein_summary)
-  if (proteinSummary) { notes = upsertNote(notes, 'Protein summary', proteinSummary); changes.push('Protein selections') }
+  if (proteinSummary) { patch.protein_summary = proteinSummary; notes = upsertNote(notes, 'Protein summary', proteinSummary); changes.push('Protein selections') }
   const changeNote = text(raw.changeNote || raw.modificationNote || raw.customerNote || raw.adminNote)
   if (changeNote) notes = appendNote(notes, actor === 'admin' ? 'Admin modification note' : 'Customer modification note', changeNote)
   const paymentAdjustmentNote = text(raw.paymentAdjustmentNote || raw.payment_adjustment_note || raw.noRefundNote || raw.no_refund_note)

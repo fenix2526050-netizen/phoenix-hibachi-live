@@ -6,7 +6,7 @@
   window.__PHX_V241_ORDER_MODIFICATION__ = true;
 
   const EDIT_WINDOW_HOURS = 48;
-  const PATCH_VERSION = 'V241';
+  const PATCH_VERSION = 'V247';
   const lookupOrders = new Map();
 
   const text = value => String(value ?? '').trim();
@@ -247,11 +247,11 @@
       .phx-v241-edit-status{min-height:22px;color:#ffd778;font-weight:800;font-size:.88rem}
       .phx-v241-edit-actions{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:linear-gradient(180deg,rgba(16,11,7,.78),#100b07 38%);border-top:1px solid rgba(255,215,121,.18);padding-top:12px;margin-top:0;z-index:2}
       .phx-v241-customer-locked{opacity:.65;cursor:not-allowed}
-      #orderLookupModal{width:min(96vw,760px);max-width:min(96vw,760px);height:auto;max-height:92dvh;overflow:auto;padding:0}
-      #orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:92dvh;overflow:auto;display:flex;flex-direction:column;box-sizing:border-box}
+      #orderLookupModal{width:min(96vw,820px);max-width:min(96vw,820px);height:auto;max-height:92dvh;overflow:auto;padding:0;scrollbar-gutter:stable}
+      #orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:none;overflow:visible;display:flex;flex-direction:column;box-sizing:border-box}
       #orderLookupModal .order-lookup-card label{flex:0 0 auto}
-      #orderLookupModal .order-lookup-card .modal-actions{order:30;position:sticky;bottom:0;z-index:2;background:linear-gradient(180deg,rgba(16,11,7,.72),#100b07 42%);padding-top:10px}
-      #orderLookupModal .order-lookup-result{order:20;overflow:auto;min-height:88px;max-height:min(38dvh,360px);padding-right:4px;scrollbar-gutter:stable}
+      #orderLookupModal .order-lookup-card .modal-actions{order:20;z-index:2;padding-top:10px}
+      #orderLookupModal .order-lookup-result{order:30;overflow:visible;min-height:88px;max-height:none;padding-right:0}
       #orderLookupModal .lookup-card{max-height:none}
       .lookup-card-v103 .lookup-actions-v103 [data-open-payment]{background:linear-gradient(135deg,#ffd77a,#d99a16);color:#170c03;border:0}
       #paymentModal.open .phx-payment-card{max-height:90vh;overflow:auto}
@@ -266,7 +266,7 @@
       .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
       .phx-v241-payment-note b{color:#ffd778}
       .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px);max-width:calc(100vw - 14px);max-height:88dvh;margin:auto}#orderLookupModal .order-lookup-card{width:100%;max-height:88dvh;padding:16px 13px;overflow:auto}#orderLookupModal .order-lookup-result{min-height:72px;max-height:26dvh;margin-top:10px}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
+      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px);max-width:calc(100vw - 14px);height:auto;max-height:92dvh;margin:auto;overflow:auto}#orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:none;padding:16px 13px;overflow:visible;gap:10px}#orderLookupModal .order-lookup-card h2{font-size:clamp(1.9rem,8vw,2.8rem);line-height:1.08;margin:.15rem 0 .35rem;letter-spacing:0}#orderLookupModal .order-lookup-card .modal-help{font-size:.95rem;line-height:1.45;margin:.1rem 0 .4rem}#orderLookupModal .order-lookup-card label{font-size:.9rem;gap:6px}#orderLookupModal .order-lookup-result{min-height:96px;max-height:none;overflow:visible;margin-top:4px}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px;padding:12px 14px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
     `;
     document.head.appendChild(style);
   }
@@ -391,20 +391,129 @@
     `;
   }
 
-  function parseQtyMap(value = '') {
+  const FALLBACK_PACKAGE_PROTEIN_PORTIONS_V241 = { Classic:2, Premium:3, Signature:4 };
+
+  function tryJsonValue(value) {
+    if (typeof value !== 'string') return value;
+    const raw = text(value);
+    if (!/^[\[{]/.test(raw)) return value;
+    try { return JSON.parse(raw); } catch { return value; }
+  }
+  function normalizedChoiceName(value) {
+    return lower(value)
+      .replace(/&/g, 'and')
+      .replace(/\s*\([^)]*\)\s*/g, ' ')
+      .replace(/\b(upgrade|included protein|portion|portions|pcs|pieces|tray|trays|serves about \d+)\b/g, ' ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+  function canonicalQtyName(rawName) {
+    const raw = text(rawName).replace(/\s*\([^)]*\)\s*$/, '');
+    const norm = normalizedChoiceName(raw);
+    const aliases = {
+      chicken:'Chicken',
+      steak:'Steak',
+      'ny strip':'Steak',
+      'ny strip steak':'Steak',
+      shrimp:'Shrimp',
+      salmon:'Salmon',
+      tofu:'Tofu',
+      filet:'Filet Mignon',
+      'filet mignon':'Filet Mignon',
+      scallop:'Scallop',
+      scallops:'Scallop',
+      lobster:'Lobster',
+      'lobster tail':'Lobster',
+      'extra fried rice':'Extra Fried Rice Tray',
+      'fried rice':'Extra Fried Rice Tray',
+      'extra fried rice tray':'Extra Fried Rice Tray',
+      'noodle yakisoba':'Noodle / Yakisoba Tray',
+      'noodle yakisoba tray':'Noodle / Yakisoba Tray',
+      noodles:'Noodle / Yakisoba Tray',
+      yakisoba:'Noodle / Yakisoba Tray',
+      'hibachi vegetables':'Hibachi Vegetables',
+      vegetables:'Hibachi Vegetables',
+      'hibachi tofu':'Hibachi Tofu',
+      'extra gyoza':'Extra Gyoza Tray',
+      'extra gyoza tray':'Extra Gyoza Tray',
+      gyoza:'Extra Gyoza Tray',
+      'extra edamame':'Extra Edamame Tray',
+      'extra edamame tray':'Extra Edamame Tray',
+      edamame:'Extra Edamame Tray',
+      'sushi starter':'Sushi Starter',
+      'party roll platter':'Party Roll Platter',
+      'deluxe sushi platter':'Deluxe Sushi Platter',
+      'phoenix party punch':'Phoenix Party Punch',
+      'japanese ramune soda':'Japanese Ramune Soda',
+      ramune:'Japanese Ramune Soda',
+      mochi:'Mochi Ice Cream',
+      'mochi ice cream':'Mochi Ice Cream'
+    };
+    if (aliases[norm]) return aliases[norm];
+    const protein = PROTEIN_CHOICES_V241.find(item => normalizedChoiceName(item.name) === norm || normalizedChoiceName(item.label) === norm);
+    const addon = ADDON_CHOICES_V241.find(item => normalizedChoiceName(item.name) === norm);
+    return protein?.name || addon?.name || raw;
+  }
+  function addQtyToMap(map, rawName, qty, options = {}) {
+    const name = canonicalQtyName(rawName);
+    const cleanName = text(name);
+    const amount = int(qty, NaN);
+    if (!cleanName || !Number.isFinite(amount) || amount <= 0) return;
+    map[cleanName] = int(map[cleanName], 0) + amount;
+  }
+  function parseQtyMap(value = '', options = {}) {
     const map = {};
-    text(value).replace(/^Protein selections:\s*/i, '').split(/[,;\n]+/).forEach(part => {
-      const clean = text(part);
-      if (!clean) return;
-      const m = clean.match(/^(.+?)[^\d]+(\d+)$/i);
-      if (!m) return;
-      const rawName = text(m[1]).replace(/\s*\([^)]*\)\s*$/, '');
-      const qty = int(m[2], 0);
-      const protein = PROTEIN_CHOICES_V241.find(item => lower(item.name) === lower(rawName) || lower(item.label).replace(/\s+upgrade$/, '') === lower(rawName));
-      const addon = ADDON_CHOICES_V241.find(item => lower(item.name) === lower(rawName));
-      const name = protein?.name || addon?.name || rawName;
-      if (qty > 0) map[name] = qty;
-    });
+    const parsed = tryJsonValue(value);
+    if (Array.isArray(parsed)) {
+      parsed.forEach(item => {
+        if (typeof item === 'string') {
+          const nested = parseQtyMap(item, options);
+          Object.entries(nested).forEach(([name, qty]) => addQtyToMap(map, name, qty));
+          if (options.defaultKnown && !Object.keys(nested).length) {
+            const name = canonicalQtyName(item);
+            if (ADDON_CHOICES_V241.some(choice => choice.name === name)) addQtyToMap(map, name, 1);
+          }
+          return;
+        }
+        if (!item || typeof item !== 'object') return;
+        const name = item.name || item.label || item.item || item.title || item.protein || item.addon;
+        const qty = item.qty ?? item.quantity ?? item.count ?? item.portions ?? item.value ?? 1;
+        addQtyToMap(map, name, qty, options);
+      });
+      return map;
+    }
+    if (parsed && typeof parsed === 'object') {
+      Object.entries(parsed).forEach(([name, rawQty]) => {
+        if (rawQty && typeof rawQty === 'object') {
+          addQtyToMap(map, rawQty.name || rawQty.label || name, rawQty.qty ?? rawQty.quantity ?? rawQty.count ?? rawQty.portions ?? 1, options);
+        } else {
+          addQtyToMap(map, name, rawQty, options);
+        }
+      });
+      return map;
+    }
+    text(parsed)
+      .replace(/^Protein selections:\s*/i, '')
+      .replace(/^Menu selections:\s*/i, '')
+      .replace(/^Add-ons?:\s*/i, '')
+      .split(/[,;\n]+/)
+      .forEach(part => {
+        const clean = text(part).replace(/\$\d+(?:\.\d{2})?/g, '').replace(/\s*\([^)]*\)\s*/g, ' ');
+        if (!clean || /^none|not selected/i.test(clean)) return;
+        const m = clean.match(/^(.+?)\s*(?:x|×|\u00d7|\u8133|:|-)\s*(\d+)\b/i) ||
+          clean.match(/^(.+?)\s+(\d+)\s*(?:pcs|pieces|portions|trays?)?\b/i) ||
+          clean.match(/^(\d+)\s*(?:x|×|\u00d7)?\s*(.+)$/i);
+        if (m) {
+          const rawName = /^\d/.test(clean) ? m[2] : m[1];
+          const qty = /^\d/.test(clean) ? m[1] : m[2];
+          addQtyToMap(map, rawName, qty, options);
+          return;
+        }
+        if (options.defaultKnown) {
+          const name = canonicalQtyName(clean);
+          if (ADDON_CHOICES_V241.some(choice => choice.name === name)) addQtyToMap(map, name, 1, options);
+        }
+      });
     return map;
   }
   function selectedProteinsFromForm(form) {
@@ -434,12 +543,31 @@
   function addonSummaryFromItems(items = []) {
     return items.filter(item => Number(item.qty) > 0).map(item => `${item.name} x ${item.qty}`).join('\n');
   }
+  function activePricingV241() {
+    try { return window.PHX_GET_PRICING_V140?.() || {}; } catch { return {}; }
+  }
+  function packageProteinPortionsV241() {
+    const pricing = activePricingV241();
+    return { ...FALLBACK_PACKAGE_PROTEIN_PORTIONS_V241, ...(pricing.packageProteinPortions || {}) };
+  }
+  function normalizedPackageName(value) {
+    const raw = text(value) || 'Classic';
+    const found = Object.keys(packageProteinPortionsV241()).find(name => lower(name) === lower(raw) || lower(raw).includes(lower(name)));
+    return found || raw;
+  }
+  function proteinPortionsForPackageV241(packageName) {
+    const packageNameClean = normalizedPackageName(packageName);
+    const portions = packageProteinPortionsV241();
+    return Math.max(1, num(portions[packageNameClean], FALLBACK_PACKAGE_PROTEIN_PORTIONS_V241[packageNameClean] || 2));
+  }
   function proteinRuleForForm(form) {
+    const packageName = normalizedPackageName(form?.elements?.packageName?.value || 'Classic');
     const adults = int(form?.elements?.adults?.value, 0);
     const kids = int(form?.elements?.kids?.value, 0);
     const billableGuests = Math.max(0, adults + kids * 0.5);
-    const required = Math.ceil(billableGuests * 2);
-    return { adults, kids, billableGuests, required, maxTotal:required };
+    const portionsPerGuest = proteinPortionsForPackageV241(packageName);
+    const required = Math.ceil(billableGuests * portionsPerGuest);
+    return { packageName, portionsPerGuest, adults, kids, billableGuests, required, maxTotal:required };
   }
   function renderProteinQuantityList(container, form, currentText) {
     if (!container || !form) return;
@@ -453,7 +581,7 @@
   }
   function renderAddonQuantityList(container, form, currentText) {
     if (!container || !form) return;
-    const current = parseQtyMap(currentText || form.elements.addons.value);
+    const current = parseQtyMap(currentText || form.elements.addons.value, { defaultKnown:true });
     container.innerHTML = ADDON_CHOICES_V241.map(item => {
       const value = int(current[item.name], 0);
       return `<label><span>${esc(item.name)}<small>${money(item.price)} · ${esc(item.note || 'add-on')}</small></span><input type="number" min="0" step="1" value="${value}" data-v241-addon-input="${esc(item.name)}" data-v241-addon-price="${esc(item.price)}" aria-label="${esc(item.name)} quantity"></label>`;
@@ -467,7 +595,7 @@
     const indicator = form?.querySelector?.('[data-v241-protein-total]');
     if (!indicator) return;
     indicator.classList.toggle('warn', total !== rule.required);
-    indicator.innerHTML = `<span>Total selected</span><b>${total} / ${rule.required} portions</b>`;
+    indicator.innerHTML = `<span>${esc(rule.packageName)} protein total</span><b>${total} / ${rule.required} portions</b>`;
   }
   function normalizeProteinTotal(form, changedInput = null) {
     const rule = proteinRuleForForm(form);
@@ -560,6 +688,7 @@
       addons:pricedAddons,
       add_ons:pricedAddons,
       proteinSelections,
+      protein_selections:proteinSelections,
       proteinSummary:proteinSummaryFromSelections(proteinSelections),
       protein_summary:proteinSummaryFromSelections(proteinSelections),
       allergyNotes:form.elements.allergyNotes.value,
@@ -574,7 +703,7 @@
     try {
       if (typeof calculateOrderMoney === 'function') return { draft, money:calculateOrderMoney(draft) || {} };
     } catch {}
-    const packagePrices = { Classic:55, Premium:65, Signature:110 };
+    const packagePrices = { Classic:55, Premium:65, Signature:110, ...(activePricingV241().packages || {}) };
     const packagePrice = packagePrices[draft.package] || 55;
     const kidFoodPrice = draft.package === 'Classic' ? 28 : Math.ceil(packagePrice / 2);
     const rawFood = draft.adults * packagePrice + draft.kids * kidFoodPrice + selectedAddonsFromForm(form).reduce((sum, item) => sum + item.price, 0);
@@ -587,7 +716,7 @@
 
   function proteinRuleMessage(form) {
     const rule = proteinRuleForForm(form);
-    return `${formatGuestNumberSafe(rule.billableGuests)} adult-equivalent guests x 2 = ${rule.required} total protein portions required across all selections.`;
+    return `${rule.packageName} includes ${rule.portionsPerGuest} protein portions per adult-equivalent guest. ${formatGuestNumberSafe(rule.billableGuests)} x ${rule.portionsPerGuest} = ${rule.required} total protein portions required across all selections.`;
   }
   function formatGuestNumberSafe(value) {
     try { return typeof formatGuestNumber === 'function' ? formatGuestNumber(value) : (Number.isInteger(Number(value)) ? String(Number(value)) : Number(value).toFixed(1).replace(/\.0$/, '')); }
@@ -785,6 +914,35 @@
       el.style.color = isError ? '#ff9b9b' : '#ffd778';
     }
   }
+  function noteValueFromOrder(order = {}, label = '') {
+    const safe = text(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const notes = [
+      order.admin_notes,
+      order.specialNotes,
+      order.service_notes,
+      order.customer_notes,
+      order.special_requests,
+      order.notes,
+      order.menu_summary
+    ].map(text).filter(Boolean).join('\n');
+    const match = notes.match(new RegExp(`(?:^|\\n)${safe}:\\s*([^\\n]+)`, 'i'));
+    return match ? match[1].trim() : '';
+  }
+  function firstQtyMapFromSources(sources = [], options = {}) {
+    for (const source of sources) {
+      const map = parseQtyMap(source, options);
+      if (Object.keys(map).length) return map;
+    }
+    return {};
+  }
+  function addonItemsFromMap(map = {}) {
+    return Object.entries(map).filter(([, qty]) => int(qty, 0) > 0).map(([name, qty]) => {
+      const cleanName = canonicalQtyName(name);
+      const choice = ADDON_CHOICES_V241.find(item => item.name === cleanName);
+      const unitPrice = num(choice?.price, 0);
+      return { name:choice?.name || cleanName, qty:int(qty, 0), unitPrice, price:unitPrice * int(qty, 0) };
+    });
+  }
   function addonsText(order = {}) {
     const items = Array.isArray(order.addons) ? order.addons : (Array.isArray(order.add_ons) ? order.add_ons : []);
     return items.map(item => typeof item === 'string' ? item : `${item.name || 'Add-on'}${item.qty ? ` × ${item.qty}` : ''}${item.price ? ` (${money(item.price)})` : ''}`).join('\n');
@@ -793,6 +951,37 @@
     try {
       return text(order.proteinSummary || order.protein_summary || (typeof proteinSummary === 'function' ? proteinSummary(order.proteinSelections || {}) : ''));
     } catch { return text(order.proteinSummary || order.protein_summary); }
+  }
+
+  // V246: read real order menu data from structured fields, text fields, and legacy notes.
+  function addonsTextV246(order = {}) {
+    const map = firstQtyMapFromSources([
+      order.addons,
+      order.add_ons,
+      order.addOns,
+      order.side_orders,
+      order.sideOrders,
+      order.addon_summary,
+      noteValueFromOrder(order, 'Add-ons'),
+      noteValueFromOrder(order, 'Side orders')
+    ], { defaultKnown:true });
+    if (Object.keys(map).length) return addonSummaryFromItems(addonItemsFromMap(map));
+    return text(order.addons || order.add_ons || '');
+  }
+  function proteinTextV246(order = {}) {
+    const map = firstQtyMapFromSources([
+      order.proteinSelections,
+      order.protein_selections,
+      order.proteins,
+      order.proteinSummary,
+      order.protein_summary,
+      noteValueFromOrder(order, 'Protein summary'),
+      noteValueFromOrder(order, 'Protein selections'),
+      noteValueFromOrder(order, 'Menu selections'),
+      order.menu_summary
+    ]);
+    if (Object.keys(map).length) return proteinSummaryFromSelections(map);
+    return text(order.proteinSummary || order.protein_summary || '');
   }
 
   function cleanVerificationContact(value) {
@@ -999,8 +1188,8 @@
     form.elements.adults.value = int(editableOrder.adults || editableOrder.adultCount || 0);
     form.elements.kids.value = int(editableOrder.kids || editableOrder.childCount || 0);
     form.elements.address.value = text(editableOrder.address || editableOrder.event_address || '');
-    form.elements.addons.value = addonsText(editableOrder);
-    form.elements.proteinSummary.value = proteinText(editableOrder);
+    form.elements.addons.value = addonsTextV246(editableOrder);
+    form.elements.proteinSummary.value = proteinTextV246(editableOrder);
     form.elements.allergyNotes.value = text(editableOrder.allergyNotes || editableOrder.allergy_notes || (Array.isArray(editableOrder.allergies) ? editableOrder.allergies.join(', ') : editableOrder.allergies || ''));
     form.elements.changeNote.value = '';
     form.elements.travelFee.value = num(editableOrder.travelFee ?? editableOrder.travel_fee, 0).toFixed(2);
@@ -1054,6 +1243,7 @@
       add_ons:addOns,
       addons:addOns,
       proteinSelections:proteinSelectionsValue,
+      protein_selections:proteinSelectionsValue,
       proteinSummary:proteinSummaryValue,
       protein_summary:proteinSummaryValue,
       allergyNotes,
@@ -1086,6 +1276,7 @@
       kids,
       guest_count:totalGuests,
       add_ons:addOns,
+      protein_selections:proteinSelectionsValue,
       proteinSummary:proteinSummaryValue,
       protein_summary:proteinSummaryValue,
       allergy_notes:allergyNotes || null,
