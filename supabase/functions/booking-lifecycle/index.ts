@@ -113,10 +113,12 @@ function publicOrder(b: Row) {
     id: b.booking_number, booking_number: b.booking_number, eventDate: b.event_date, eventTime: b.event_time,
     status: b.status, requestStatus: b.request_status, paymentStatus: b.payment_status, depositStatus: b.deposit_status,
     depositPaid: Number(b.deposit_amount || 0), depositDueCents: Number(b.deposit_due_cents || 0), balanceDueCents: Number(b.balance_due_cents || 0),
+    paidAmount: Number(b.paid_amount || b.deposit_amount || 0), paid_amount: Number(b.paid_amount || b.deposit_amount || 0),
+    balanceDue: balanceDueDollars(b), balance_due: balanceDueDollars(b),
     name: b.customer_name ? `${text(b.customer_name).slice(0, 1)}***` : 'Guest', phone: b.customer_phone ? `***${digits(b.customer_phone).slice(-4)}` : '',
     email: b.customer_email ? text(b.customer_email).replace(/^(.).+(@.+)$/, '$1***$2') : '',
     address: b.address ? text(b.address).split(',').slice(-2).join(',').trim() : '', package: b.package_name || 'Classic',
-    adults: Number(b.adults || 0), kids: Number(b.kids || 0), totalGuests: Number(b.guest_count || 0), travelFee: Number(b.travel_fee || 0), finalTotal: Number(b.final_total || 0),
+    adults: Number(b.adults || 0), kids: Number(b.kids || 0), totalGuests: Number(b.guest_count || 0), travelFee: Number(b.travel_fee || 0), finalTotal: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)), final_total: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)), order_total_cents: Number(b.order_total_cents || 0),
   }
 }
 function editableCustomerOrder(b: Row) {
@@ -132,6 +134,13 @@ function editableCustomerOrder(b: Row) {
     event_date: b.event_date || '',
     event_time: b.event_time || '',
     package_name: b.package_name || 'Classic',
+    payment_status: b.payment_status || '',
+    paid_amount: Number(b.paid_amount || b.deposit_amount || 0),
+    paidAmount: Number(b.paid_amount || b.deposit_amount || 0),
+    balance_due: balanceDueDollars(b),
+    balanceDue: balanceDueDollars(b),
+    final_total: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)),
+    finalTotal: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)),
     add_ons: Array.isArray(b.add_ons) ? b.add_ons : [],
     addons: Array.isArray(b.add_ons) ? b.add_ons : [],
     protein_summary: b.protein_summary || '',
@@ -298,6 +307,8 @@ function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin')
   if (actor === 'admin') setNumber('travel_fee', raw.travelFee ?? raw.travel_fee, 'Travel Fee')
   setNumber('final_total', raw.finalTotal ?? raw.final_total, 'Final Total')
   setNumber('balance_due', raw.balanceDue ?? raw.balance_due, 'Balance Due')
+  setNumber('paid_amount', raw.paidAmount ?? raw.paid_amount ?? raw.amount_paid, 'Paid amount')
+  setText('payment_status', raw.paymentStatus || raw.payment_status, 'Payment status')
   if (patch.final_total !== undefined) patch.order_total_cents = Math.round(Number(patch.final_total || 0) * 100)
   if (patch.balance_due !== undefined) patch.balance_due_cents = Math.round(Number(patch.balance_due || 0) * 100)
   const source = actor === 'admin' ? 'Admin dashboard' : 'Customer portal'
@@ -308,6 +319,8 @@ function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin')
   if (proteinSummary) { notes = upsertNote(notes, 'Protein summary', proteinSummary); changes.push('Protein selections') }
   const changeNote = text(raw.changeNote || raw.modificationNote || raw.customerNote || raw.adminNote)
   if (changeNote) notes = appendNote(notes, actor === 'admin' ? 'Admin modification note' : 'Customer modification note', changeNote)
+  const paymentAdjustmentNote = text(raw.paymentAdjustmentNote || raw.payment_adjustment_note || raw.noRefundNote || raw.no_refund_note)
+  if (paymentAdjustmentNote) { notes = appendNote(notes, 'Payment modification rule', paymentAdjustmentNote); changes.push('Payment adjustment rule') }
   patch.admin_notes = notes
   return { patch, changes:Array.from(new Set(changes)).filter(Boolean), source }
 }

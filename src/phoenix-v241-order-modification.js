@@ -313,7 +313,7 @@
         <label class="wide" data-v241-verify-wrap>Verification phone or email<input name="verificationContact" placeholder="Phone or email used on the booking"></label>
         <label data-v241-basic-field>Event date<input type="date" name="eventDate"></label>
         <label data-v241-basic-field>Event time<input name="eventTime" placeholder="6:00 PM"></label>
-        <label>Package<select name="packageName"><option>Classic</option><option>Premium</option><option>Signature</option></select></label>
+        <label>Package / price<select name="packageName"><option value="Classic">Classic - $55/adult</option><option value="Premium">Premium - $65/adult</option><option value="Signature">Signature - $110/adult</option></select></label>
         <label>Adults<input type="number" min="0" step="1" name="adults"></label>
         <label>Children<input type="number" min="0" step="1" name="kids"></label>
         <label data-v241-travel-wrap>Travel Fee ($)<input type="number" min="0" step="0.01" name="travelFee"></label>
@@ -392,7 +392,7 @@
     text(value).replace(/^Protein selections:\s*/i, '').split(/[,;\n]+/).forEach(part => {
       const clean = text(part);
       if (!clean) return;
-      const m = clean.match(/^(.+?)\s*(?:[脳x×]\s*|\s+)(\d+)$/i);
+      const m = clean.match(/^(.+?)[^\d]+(\d+)$/i);
       if (!m) return;
       const rawName = text(m[1]).replace(/\s*\([^)]*\)\s*$/, '');
       const qty = int(m[2], 0);
@@ -471,7 +471,7 @@
 
   function bindPricePreviewEvents(dialog, form, customerMode) {
     const rerenderProteins = () => {
-      if (customerMode) setupCustomerChoices(dialog, form);
+      setupCustomerChoices(dialog, form);
       updatePricePreview(form);
     };
     ['packageName', 'adults', 'kids', 'travelFee'].forEach(name => {
@@ -491,12 +491,8 @@
     const adults = int(form.elements.adults.value, 0);
     const kids = int(form.elements.kids.value, 0);
     const totalGuests = adults + kids;
-    const proteinSelections = mode === 'customer'
-      ? selectedProteinsFromForm(form)
-      : parseQtyMap(form.elements.proteinSummary.value);
-    const pricedAddons = mode === 'customer'
-      ? selectedAddonsFromForm(form)
-      : text(form.elements.addons.value).split(/\n+/).map(line => line.trim()).filter(Boolean);
+    const proteinSelections = selectedProteinsFromForm(form);
+    const pricedAddons = selectedAddonsFromForm(form);
     const travelFee = mode === 'admin' ? num(form.elements.travelFee.value, 0) : num(order.travelFee ?? order.travel_fee, 0);
     return {
       ...order,
@@ -558,18 +554,108 @@
     if (total !== rule.required) return `Protein quantity must equal ${rule.required}. Current selected total is ${total}. ${proteinRuleMessage(form)}`;
     return '';
   }
+  function centsAsDollars(value) {
+    if (value === undefined || value === null || value === '') return 0;
+    const parsed = num(value, NaN);
+    return Number.isFinite(parsed) ? Math.max(0, parsed / 100) : 0;
+  }
+  function firstPositiveMoney(...values) {
+    for (const value of values) {
+      const parsed = num(value, NaN);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return 0;
+  }
+  function balanceDueForOrder(order = {}) {
+    return firstPositiveMoney(
+      order.balanceDue,
+      order.balance_due,
+      centsAsDollars(order.balance_due_cents),
+      centsAsDollars(order.balanceDueCents)
+    );
+  }
+  function hasBalanceDueField(order = {}) {
+    return ['balanceDue', 'balance_due', 'balance_due_cents', 'balanceDueCents'].some(key => order[key] !== undefined && order[key] !== null && order[key] !== '');
+  }
+  function previousFinalTotalForOrder(order = {}) {
+    const direct = firstPositiveMoney(
+      order.finalTotal,
+      order.final_total,
+      order.guestTotalBeforeDeposit,
+      order.guest_total_before_deposit,
+      centsAsDollars(order.order_total_cents),
+      centsAsDollars(order.total_cents)
+    );
+    if (direct) return direct;
+    const paid = firstPositiveMoney(order.paidAmount, order.paid_amount, order.amount_paid, order.paid, order.depositPaid, order.deposit_amount);
+    const balance = balanceDueForOrder(order);
+    return paid || balance ? paid + balance : 0;
+  }
+  function statusSaysPaidInFull(order = {}) {
+    const status = lower([
+      order.paymentStatus,
+      order.payment_status,
+      order.depositStatus,
+      order.deposit_status,
+      order.payment_verification_status
+    ].join(' '));
+    return /paid\s*in\s*full|fully\s*paid|paid[_\s-]*full|balance\s*paid/.test(status);
+  }
+  function amountPaidForOrder(order = {}, fallbackFinalTotal = previousFinalTotalForOrder(order)) {
+    let paid = Math.max(
+      firstPositiveMoney(order.paidAmount, order.paid_amount, order.amount_paid, order.paid, order.paymentReceived, order.payment_received),
+      centsAsDollars(order.paid_amount_cents),
+      centsAsDollars(order.amount_paid_cents),
+      firstPositiveMoney(order.depositPaid, order.deposit_amount, order.depositAmount),
+      centsAsDollars(order.deposit_amount_cents)
+    );
+    const balance = balanceDueForOrder(order);
+    const fullByBalance = hasBalanceDueField(order) && fallbackFinalTotal > 0 && balance <= 0 && paid > 0;
+    if ((statusSaysPaidInFull(order) || fullByBalance) && fallbackFinalTotal > 0) paid = Math.max(paid, fallbackFinalTotal);
+    return Math.max(0, paid);
+  }
+  function paymentPolicyForModification(order = {}, finalTotal = 0) {
+    const previousFinalTotal = previousFinalTotalForOrder(order);
+    const paid = amountPaidForOrder(order, previousFinalTotal);
+    const balance = Math.max(0, num(finalTotal, 0) - paid);
+    const noRefundCredit = Math.max(0, paid - num(finalTotal, 0));
+    const wasPaidInFull = paid > 0 && (statusSaysPaidInFull(order) || (previousFinalTotal > 0 && paid >= previousFinalTotal - 0.01));
+    const additionalDue = balance > 0 ? balance : 0;
+    return { previousFinalTotal, paid, balance, noRefundCredit, wasPaidInFull, additionalDue };
+  }
+  function paymentStatusAfterModification(order = {}, policy = {}) {
+    if (policy.balance > 0 && policy.paid > 0 && policy.wasPaidInFull) return 'additional balance due';
+    if (policy.balance > 0 && policy.paid > 0) return 'partial payment - balance due';
+    if (policy.balance > 0) return text(order.payment_status || order.paymentStatus || 'unpaid');
+    if (policy.paid > 0) return 'paid in full';
+    return text(order.payment_status || order.paymentStatus || 'unpaid');
+  }
+  function paymentAdjustmentNote(policy = {}, finalTotal = 0) {
+    if (policy.noRefundCredit > 0.004) {
+      return `No refund after order modification: paid ${money(policy.paid)}; updated total ${money(finalTotal)}; balance remains $0.00. Guest-count or item reductions do not create refunds.`;
+    }
+    if (policy.additionalDue > 0.004 && policy.paid > 0) {
+      return `Additional balance due after order modification: ${money(policy.additionalDue)}. Previously paid ${money(policy.paid)} remains applied.`;
+    }
+    return '';
+  }
+
   function updatePricePreview(form, order = collectOrders().get(text(form?.elements?.bookingNumber?.value).toLowerCase()) || {}) {
     const box = document.querySelector('#phxOrderModifyModalV241 [data-v241-price-preview]');
     if (!box || !form) return;
     const { money:m } = estimateOrderFromForm(form, order, text(form.elements.mode.value || 'customer'));
     const rule = proteinRuleForForm(form);
     const proteinTotal = Object.values(selectedProteinsFromForm(form)).reduce((sum, qty) => sum + int(qty, 0), 0);
-    const paid = num(order.paidAmount ?? order.paid_amount ?? order.depositPaid ?? order.deposit_amount, 0);
     const finalTotal = num(m.guestTotalBeforeDeposit ?? m.total ?? m.grandTotal, 0);
-    const balance = Math.max(0, finalTotal - paid);
+    const policy = paymentPolicyForModification(order, finalTotal);
     const minimumLine = num(m.minimumOrderAdjustment, 0) > 0
       ? `<div class="warn"><span>Minimum order adjustment</span><b>${money(m.minimumOrderAdjustment)} to meet ${money(m.minimumFoodTotal || 550)}</b></div>`
       : `<div><span>Minimum order</span><b>Met</b></div>`;
+    const paymentRuleLine = policy.noRefundCredit > 0.004
+      ? `<div class="warn"><span>No-refund rule</span><b>Paid ${money(policy.paid)} stays applied; reductions do not create refunds.</b></div>`
+      : (policy.additionalDue > 0.004 && policy.paid > 0
+        ? `<div class="warn"><span>Additional amount due</span><b>${money(policy.additionalDue)} after previous payment</b></div>`
+        : '');
     box.innerHTML = `
       <h3>Updated price preview</h3>
       <div><span>Protein rule</span><b>${proteinTotal}/${rule.required} portions</b></div>
@@ -579,7 +665,9 @@
       <div><span>Travel fee</span><b>${money(m.travelFee || 0)}</b></div>
       <div><span>Sales tax</span><b>${money(m.salesTax || 0)}</b></div>
       <div><span>Estimated final total</span><b>${money(finalTotal)}</b></div>
-      <div><span>Balance after paid/deposit</span><b>${money(balance)}</b></div>
+      <div><span>Already paid</span><b>${money(policy.paid)}</b></div>
+      <div><span>Balance after paid/deposit</span><b>${money(policy.balance)}</b></div>
+      ${paymentRuleLine}
     `;
   }
 
@@ -587,13 +675,13 @@
     const summary = dialog.querySelector('[data-v241-customer-summary]');
     const choices = dialog.querySelector('[data-v241-customer-choices]');
     if (summary) {
-      summary.hidden = !customerMode;
-      summary.innerHTML = customerMode ? customerSummaryHtml(order) : '';
+      summary.hidden = false;
+      summary.innerHTML = customerSummaryHtml(order);
     }
-    if (choices) choices.hidden = !customerMode;
+    if (choices) choices.hidden = false;
     dialog.querySelectorAll('[data-v241-basic-field]').forEach(label => { label.hidden = customerMode; });
-    dialog.querySelectorAll('[data-v241-menu-text]').forEach(label => { label.hidden = customerMode; });
-    if (customerMode) setupCustomerChoices(dialog, dialog.querySelector('form'));
+    dialog.querySelectorAll('[data-v241-menu-text]').forEach(label => { label.hidden = true; });
+    setupCustomerChoices(dialog, dialog.querySelector('form'));
   }
 
   function paymentDialog() {
@@ -702,6 +790,9 @@
       paymentStatus:row.payment_status || '',
       depositStatus:row.deposit_status || '',
       depositPaid:num(row.deposit_amount || row.depositPaid, 0),
+      paidAmount:num(row.paid_amount || row.amount_paid || row.deposit_amount || row.depositPaid, 0),
+      paid_amount:num(row.paid_amount || row.amount_paid || row.deposit_amount || row.depositPaid, 0),
+      balance_due:num(row.balance_due || row.balanceDue, 0),
       balanceDueCents:num(row.balance_due_cents || row.balanceDueCents, 0),
       name:row.customer_name ? `${text(row.customer_name).slice(0, 1)}***` : 'Guest',
       phone:phoneDigits ? `***${phoneDigits.slice(-4)}` : '',
@@ -713,6 +804,8 @@
       totalGuests:int(row.guest_count || row.totalGuests, 0),
       travelFee:num(row.travel_fee || row.travelFee, 0),
       finalTotal:num(row.final_total || row.finalTotal, 0),
+      final_total:num(row.final_total || row.finalTotal, 0),
+      order_total_cents:num(row.order_total_cents || row.orderTotalCents, 0),
       __v241PublicLookup:true
     });
   }
@@ -721,7 +814,7 @@
     if (!orderId || !/^PHX-/i.test(orderId)) return null;
     const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
     if (!client) return null;
-    const fields = 'booking_number,event_date,event_time,status,request_status,payment_status,deposit_status,deposit_amount,balance_due_cents,customer_name,customer_phone,customer_email,address,package_name,adults,kids,guest_count,travel_fee,final_total';
+    const fields = 'booking_number,event_date,event_time,status,request_status,payment_status,deposit_status,deposit_amount,paid_amount,balance_due,balance_due_cents,customer_name,customer_phone,customer_email,address,package_name,adults,kids,guest_count,travel_fee,final_total,order_total_cents';
     const { data, error } = await client.from('bookings').select(fields).eq('booking_number', orderId).order('created_at', { ascending:false }).limit(1).maybeSingle();
     if (error || !data) return null;
     return maskedPublicOrderFromRow(data);
@@ -891,12 +984,10 @@
     const adults = int(fd.get('adults'), 0);
     const kids = int(fd.get('kids'), 0);
     const address = text(fd.get('address'));
-    const proteinSelectionsValue = mode === 'customer' ? selectedProteinsFromForm(form) : parseQtyMap(fd.get('proteinSummary'));
+    const proteinSelectionsValue = selectedProteinsFromForm(form);
     const proteinSummaryValue = proteinSummaryFromSelections(proteinSelectionsValue) || text(fd.get('proteinSummary'));
-    const pricedAddOns = mode === 'customer'
-      ? selectedAddonsFromForm(form)
-      : text(fd.get('addons')).split(/\n+/).map(line => line.trim()).filter(Boolean);
-    const addOns = mode === 'customer' ? addonSummaryFromItems(pricedAddOns).split(/\n+/).filter(Boolean) : pricedAddOns;
+    const pricedAddOns = selectedAddonsFromForm(form);
+    const addOns = addonSummaryFromItems(pricedAddOns).split(/\n+/).filter(Boolean);
     const allergyNotes = text(fd.get('allergyNotes'));
     const changeNote = text(fd.get('changeNote'));
     const totalGuests = adults + kids;
@@ -927,8 +1018,11 @@
     const updated = { ...order, ...localPatch, addons:pricedAddOns, add_ons:pricedAddOns, proteinSelections:proteinSelectionsValue };
     const m = (() => { try { return typeof calculateOrderMoney === 'function' ? calculateOrderMoney(updated) : {}; } catch { return {}; } })();
     const finalTotal = num(m.guestTotalBeforeDeposit ?? updated.finalTotal ?? updated.final_total, 0);
-    const paid = num(updated.paidAmount ?? updated.paid_amount ?? updated.depositPaid ?? updated.deposit_amount, 0);
-    const balance = Math.max(0, finalTotal - paid);
+    const paymentPolicy = paymentPolicyForModification(order, finalTotal);
+    const paid = paymentPolicy.paid;
+    const balance = paymentPolicy.balance;
+    const paymentStatus = paymentStatusAfterModification(order, paymentPolicy);
+    const paymentNote = paymentAdjustmentNote(paymentPolicy, finalTotal);
     const actor = mode === 'admin' ? 'Admin dashboard' : 'Customer portal';
     const now = new Date().toISOString();
     let notes = orderNotes(order);
@@ -937,6 +1031,7 @@
     if (proteinSummaryValue) notes = upsertNote(notes, 'Protein summary', proteinSummaryValue);
     if (allergyNotes) notes = upsertNote(notes, 'Allergy / dietary notes', allergyNotes);
     if (changeNote) notes = addHistory(notes, `${mode === 'admin' ? 'Admin' : 'Customer'} modification note`, changeNote);
+    if (paymentNote) notes = addHistory(notes, 'Payment modification rule', paymentNote);
     const dbPatch = {
       package_name:packageName,
       adults,
@@ -950,7 +1045,11 @@
       final_total:finalTotal,
       order_total_cents:Math.round(finalTotal * 100),
       balance_due:balance,
-      balance_due_cents:Math.round(balance * 100)
+      balance_due_cents:Math.round(balance * 100),
+      paid_amount:paid,
+      payment_status:paymentStatus,
+      paymentAdjustmentNote:paymentNote,
+      changeNote
     };
     if (mode === 'admin') {
       dbPatch.event_date = eventDate;
@@ -964,11 +1063,15 @@
     }
     return {
       dbPatch,
-      localPatch:{ ...localPatch, finalTotal, final_total:finalTotal, balanceDue:balance, balance_due:balance, specialNotes:notes, admin_notes:notes, status:dbPatch.status || order.status },
+      localPatch:{ ...localPatch, finalTotal, final_total:finalTotal, paidAmount:paid, paid_amount:paid, balanceDue:balance, balance_due:balance, paymentStatus, payment_status:paymentStatus, specialNotes:notes, admin_notes:notes, status:dbPatch.status || order.status },
       changeNote,
       verificationContact,
       finalTotal,
-      balance
+      balance,
+      paid,
+      paymentNote,
+      noRefundCredit:paymentPolicy.noRefundCredit,
+      additionalDue:paymentPolicy.additionalDue
     };
   }
 
@@ -1031,13 +1134,11 @@
       setStatus(`This order is locked within ${EDIT_WINDOW_HOURS} hours. Please call ${supportPhone()}.`, true);
       return;
     }
-    if (mode === 'customer') {
-      const proteinError = validateProteinQuantities(form);
-      if (proteinError) {
-        setStatus(proteinError, true);
-        updatePricePreview(form, order);
-        return;
-      }
+    const proteinError = validateProteinQuantities(form);
+    if (proteinError) {
+      setStatus(proteinError, true);
+      updatePricePreview(form, order);
+      return;
     }
     const submit = form.querySelector('button[type="submit"]');
     if (submit) submit.disabled = true;
@@ -1062,7 +1163,10 @@
       const notificationLine = mode === 'customer'
         ? (notified ? 'Phoenix has been notified for review.' : `Saved, but automatic SMS/email confirmation was not reported. Please call ${supportPhone()} if the change is urgent.`)
         : (notified ? 'Booking modified notification was queued.' : 'Saved. Notification delivery depends on Make/SMS configuration.');
-      setStatus(remoteOk ? `Saved. New total ${money(built.finalTotal)}; balance ${money(built.balance)}. ${notificationLine}` : 'Saved locally only.');
+      const paymentLine = built.noRefundCredit > 0.004
+        ? 'No refund is created by this reduction; paid funds stay applied to the booking.'
+        : (built.additionalDue > 0.004 && built.paid > 0 ? `Additional unpaid balance is ${money(built.additionalDue)}.` : '');
+      setStatus(remoteOk ? `Saved. New total ${money(built.finalTotal)}; balance ${money(built.balance)}. ${paymentLine} ${notificationLine}`.replace(/\s+/g, ' ').trim() : 'Saved locally only.');
       setTimeout(() => {
         closeModal();
         try {
