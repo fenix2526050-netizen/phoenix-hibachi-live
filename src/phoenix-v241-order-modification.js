@@ -219,9 +219,20 @@
       .phx-v241-edit-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
       .phx-v241-edit-head h2{margin:.1rem 0 .25rem;font-family:Georgia,serif}
       .phx-v241-edit-close{border:0;background:transparent;color:inherit;font-size:30px;line-height:1;cursor:pointer}
+      .phx-v241-edit-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;border:1px solid rgba(255,215,121,.22);background:rgba(255,215,121,.07);border-radius:14px;padding:11px}
+      .phx-v241-edit-summary .wide{grid-column:1/-1}
+      .phx-v241-edit-summary span{display:block;color:#cdbb9b;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:950}
+      .phx-v241-edit-summary strong{display:block;color:#fff7ea;font-size:.94rem;line-height:1.35;word-break:break-word}
+      .phx-v241-choice-section{grid-column:1/-1;display:grid;gap:9px;border:1px solid rgba(255,215,121,.18);background:rgba(255,255,255,.035);border-radius:14px;padding:12px}
+      .phx-v241-choice-section h3{margin:0;color:#ffd778;font-size:.95rem}
+      .phx-v241-choice-section p{margin:0;color:#d7c8ad;font-size:.84rem;line-height:1.45}
+      .phx-v241-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+      .phx-v241-choice-grid label{display:flex;align-items:center;gap:7px;border:1px solid rgba(255,215,121,.22);border-radius:999px;padding:8px 10px;background:rgba(0,0,0,.22);font-size:.82rem;font-weight:850;cursor:pointer}
+      .phx-v241-choice-grid input{width:auto;margin:0;accent-color:#f5b83f}
       .phx-v241-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;overflow:auto;max-height:calc(min(92vh,880px) - 190px);padding-right:6px;scrollbar-gutter:stable}
       .phx-v241-edit-grid label{display:grid;gap:6px;font-weight:800;font-size:.86rem}
       .phx-v241-edit-grid .wide{grid-column:1/-1}
+      .phx-v241-edit-grid [hidden]{display:none!important}
       .phx-v241-edit-grid input,.phx-v241-edit-grid select,.phx-v241-edit-grid textarea{width:100%;box-sizing:border-box;border:1px solid rgba(255,215,121,.28);border-radius:10px;background:#050302;color:inherit;padding:10px 11px;font:inherit}
       .phx-v241-edit-grid textarea{min-height:58px;max-height:92px;resize:vertical}
       .phx-v241-edit-status{min-height:22px;color:#ffd778;font-weight:800;font-size:.88rem}
@@ -238,10 +249,13 @@
       #paymentModal .phx-payment-option img{max-height:230px}
       #paymentModal .phx-payment-icon-card{min-height:112px;border:1px solid rgba(255,215,121,.28);border-radius:14px;background:linear-gradient(135deg,rgba(255,215,121,.14),rgba(255,255,255,.035));display:grid;place-items:center;color:#ffd778;font-weight:950;letter-spacing:.18em}
       #paymentModal .phx-payment-inline-btn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font:inherit}
+      #phxPaymentTopDialogV241{width:min(96vw,980px);max-height:94vh;border:0;background:transparent;padding:0;color:#fff7ea;z-index:2147483600}
+      #phxPaymentTopDialogV241::backdrop{background:rgba(0,0,0,.82);backdrop-filter:blur(5px)}
+      #phxPaymentTopDialogV241 .phx-payment-card{width:min(960px,calc(100vw - 24px));max-height:92vh;overflow:auto;margin:0 auto;border:1px solid rgba(255,215,121,.42);box-shadow:0 30px 95px rgba(0,0,0,.72)}
       .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
       .phx-v241-payment-note b{color:#ffd778}
       .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-      @media(max-width:720px){.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92vh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal .order-lookup-card{width:calc(100vw - 18px);padding:18px 14px}#orderLookupModal .order-lookup-result{max-height:calc(90vh - 255px)}#paymentModal .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img{max-height:210px}}
+      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92vh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal .order-lookup-card{width:calc(100vw - 18px);padding:18px 14px}#orderLookupModal .order-lookup-result{max-height:calc(90vh - 255px)}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
     `;
     document.head.appendChild(style);
   }
@@ -288,14 +302,21 @@
       <input type="hidden" name="bookingNumber">
       <input type="hidden" name="mode">
       <div class="phx-v241-edit-grid">
+        <div class="phx-v241-edit-summary" data-v241-customer-summary hidden></div>
         <label class="wide" data-v241-verify-wrap>Verification phone or email<input name="verificationContact" placeholder="Phone or email used on the booking"></label>
-        <label>Event date<input type="date" name="eventDate"></label>
-        <label>Event time<input name="eventTime" placeholder="6:00 PM"></label>
+        <label data-v241-basic-field>Event date<input type="date" name="eventDate"></label>
+        <label data-v241-basic-field>Event time<input name="eventTime" placeholder="6:00 PM"></label>
         <label>Package<select name="packageName"><option>Classic</option><option>Premium</option><option>Signature</option></select></label>
         <label>Adults<input type="number" min="0" step="1" name="adults"></label>
         <label>Children<input type="number" min="0" step="1" name="kids"></label>
         <label data-v241-travel-wrap>Travel Fee ($)<input type="number" min="0" step="0.01" name="travelFee"></label>
-        <label class="wide">Event address<input name="address" placeholder="Full event address"></label>
+        <label class="wide" data-v241-basic-field>Event address<input name="address" placeholder="Full event address"></label>
+        <div class="phx-v241-choice-section" data-v241-customer-choices hidden>
+          <h3>Choose menu changes</h3>
+          <p>Select the package, proteins, side orders, and allergy notes you want Phoenix to review. Your event date, time, address, name, phone, and email stay on the order.</p>
+          <div><strong>Protein choices</strong><div class="phx-v241-choice-grid" data-v241-protein-choices></div></div>
+          <div><strong>Add-ons / side orders</strong><div class="phx-v241-choice-grid" data-v241-addon-choices></div></div>
+        </div>
         <label class="wide">Add-ons / side orders<textarea name="addons" rows="3" placeholder="One item per line"></textarea></label>
         <label class="wide">Protein selections<textarea name="proteinSummary" rows="3" placeholder="Chicken 4, Steak 4, Shrimp 2..."></textarea></label>
         <label class="wide">Allergies / dietary notes<textarea name="allergyNotes" rows="3"></textarea></label>
@@ -315,6 +336,109 @@
     });
     return dialog;
   }
+
+  const PROTEIN_CHOICES_V241 = [
+    'Chicken', 'Steak', 'Shrimp', 'Salmon', 'Tofu',
+    'Filet Mignon upgrade', 'Scallops upgrade', 'Lobster Tail upgrade'
+  ];
+  const ADDON_CHOICES_V241 = [
+    'Extra Fried Rice Tray', 'Noodle / Yakisoba Tray', 'Hibachi Vegetables',
+    'Hibachi Tofu', 'Extra Gyoza Tray', 'Extra Edamame Tray',
+    'Sushi Starter', 'Party Roll Platter', 'Deluxe Sushi Platter',
+    'Phoenix Party Punch', 'Japanese Ramune Soda', 'Mochi Ice Cream'
+  ];
+
+  function customerSummaryHtml(order = {}) {
+    const id = idOf(order);
+    const date = text(order.event_date || order.eventDate || order.date || '');
+    const time = text(order.event_time || order.eventTime || '');
+    const name = text(order.name || order.customer_name || 'Guest');
+    const phone = text(order.phone || order.customer_phone || '');
+    const email = text(order.email || order.customer_email || '');
+    const address = text(order.address || order.event_address || '');
+    return `
+      <div><span>Booking</span><strong>${esc(id)}</strong></div>
+      <div><span>Guest</span><strong>${esc(name)}</strong></div>
+      <div><span>Date / Time</span><strong>${esc([date, time].filter(Boolean).join(' · ') || 'Current order time')}</strong></div>
+      <div><span>Contact</span><strong>${esc([phone, email].filter(Boolean).join(' · ') || 'On file')}</strong></div>
+      <div class="wide"><span>Event address</span><strong>${esc(address || 'Address on file')}</strong></div>
+    `;
+  }
+
+  function renderChoiceList(container, choices, textarea, currentText) {
+    if (!container || !textarea) return;
+    const current = lower(currentText || textarea.value);
+    container.innerHTML = choices.map(choice => {
+      const normalized = lower(choice).replace(/\s+upgrade$/, '');
+      const checked = current.includes(normalized) || current.includes(lower(choice));
+      return `<label><input type="checkbox" value="${esc(choice)}" ${checked ? 'checked' : ''}> ${esc(choice)}</label>`;
+    }).join('');
+    const sync = () => {
+      const selected = [...container.querySelectorAll('input:checked')].map(input => text(input.value));
+      textarea.value = selected.join(', ');
+    };
+    container.querySelectorAll('input').forEach(input => input.addEventListener('change', sync));
+  }
+
+  function setupCustomerChoices(dialog, form) {
+    renderChoiceList(dialog.querySelector('[data-v241-protein-choices]'), PROTEIN_CHOICES_V241, form.elements.proteinSummary, form.elements.proteinSummary.value);
+    renderChoiceList(dialog.querySelector('[data-v241-addon-choices]'), ADDON_CHOICES_V241, form.elements.addons, form.elements.addons.value);
+  }
+
+  function setCustomerBasicMode(dialog, customerMode, order) {
+    const summary = dialog.querySelector('[data-v241-customer-summary]');
+    const choices = dialog.querySelector('[data-v241-customer-choices]');
+    if (summary) {
+      summary.hidden = !customerMode;
+      summary.innerHTML = customerMode ? customerSummaryHtml(order) : '';
+    }
+    if (choices) choices.hidden = !customerMode;
+    dialog.querySelectorAll('[data-v241-basic-field]').forEach(label => { label.hidden = customerMode; });
+    if (customerMode) setupCustomerChoices(dialog, dialog.querySelector('form'));
+  }
+
+  function paymentDialog() {
+    let dialog = document.getElementById('phxPaymentTopDialogV241');
+    if (dialog) return dialog;
+    dialog = document.createElement('dialog');
+    dialog.id = 'phxPaymentTopDialogV241';
+    document.body.appendChild(dialog);
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog || event.target?.closest?.('[data-close-payment]')) closePaymentDialog();
+    });
+    dialog.addEventListener('cancel', event => { event.preventDefault(); closePaymentDialog(); });
+    return dialog;
+  }
+
+  function openPaymentDialog(orderId) {
+    setPaymentOrderContext(orderId);
+    const base = document.getElementById('paymentModal');
+    const card = base?.querySelector?.('.phx-payment-card') || document.querySelector('#phxPaymentTopDialogV241 .phx-payment-card');
+    if (!card) {
+      alert('Payment options are loading. Please try again.');
+      return;
+    }
+    const dialog = paymentDialog();
+    dialog.appendChild(card);
+    base?.classList?.remove('open');
+    base?.setAttribute?.('aria-hidden', 'true');
+    const ref = card.querySelector('#paymentOrderReference');
+    const id = normalizedBookingNumber(orderId);
+    if (ref) ref.textContent = id ? `Booking ${id}` : 'Select a confirmed order from your dashboard.';
+    try { dialog.showModal(); } catch { dialog.setAttribute('open', ''); }
+    setTimeout(() => {
+      try { dialog.scrollTop = 0; card.scrollTop = 0; card.querySelector('[data-close-payment]')?.focus?.(); } catch {}
+    }, 20);
+  }
+
+  function closePaymentDialog() {
+    const dialog = document.getElementById('phxPaymentTopDialogV241');
+    const base = document.getElementById('paymentModal');
+    const card = dialog?.querySelector?.('.phx-payment-card');
+    if (card && base) base.appendChild(card);
+    try { dialog?.close(); } catch { dialog?.removeAttribute('open'); }
+  }
+
   function closeModal() {
     const dialog = document.getElementById('phxOrderModifyModalV241');
     try { dialog?.close(); } catch { dialog?.removeAttribute('open'); }
@@ -540,13 +664,14 @@
     form.elements.allergyNotes.value = text(editableOrder.allergyNotes || editableOrder.allergy_notes || (Array.isArray(editableOrder.allergies) ? editableOrder.allergies.join(', ') : editableOrder.allergies || ''));
     form.elements.changeNote.value = '';
     form.elements.travelFee.value = num(editableOrder.travelFee ?? editableOrder.travel_fee, 0).toFixed(2);
+    setCustomerBasicMode(dialog, customerMode, editableOrder);
     const help = dialog.querySelector('[data-v241-help]');
     const travelWrap = dialog.querySelector('[data-v241-travel-wrap]');
     const verifyWrap = dialog.querySelector('[data-v241-verify-wrap]');
     if (customerMode) {
       help.textContent = `${formatWindow(editableOrder)} Travel fee and final total may still require manager review after changes.`;
       travelWrap.hidden = true;
-      verifyWrap.hidden = false;
+      verifyWrap.hidden = true;
     } else {
       help.textContent = 'Admin override: staff can modify this order at any time. Changes may send a booking modified notification.';
       travelWrap.hidden = false;
@@ -742,6 +867,8 @@
     const cardPay = event.target?.closest?.('[data-v241-card-payment]');
     if (cardPay) {
       event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
       const button = document.getElementById('payStripeDepositBtn');
       if (button && !button.disabled && button.offsetParent) {
         button.click();
@@ -752,7 +879,10 @@
     }
     const pay = event.target?.closest?.('[data-open-payment]');
     if (pay) {
-      setPaymentOrderContext(pay.getAttribute('data-open-payment') || pay.getAttribute('data-v241-payment-order') || '');
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      openPaymentDialog(pay.getAttribute('data-open-payment') || pay.getAttribute('data-v241-payment-order') || '');
       return;
     }
     const locked = event.target?.closest?.('[data-v241-locked-order]');

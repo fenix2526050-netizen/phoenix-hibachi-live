@@ -46,8 +46,12 @@ check('V241 keeps public lookup result scrollable', includes(v241, '#orderLookup
 check('V241 adds payment button to public/customer cards', includes(v241, 'Pay deposit / balance') && includes(v241, 'data-open-payment'));
 check('V241 public payment button sets order payment context', includes(v241, 'setPaymentOrderContext') && includes(v241, 'lastSubmittedOrder'));
 check('V241 payment modal supports card/cash option handling', includes(index, 'phx-card-option') && includes(index, 'phx-cash-option') && includes(v241, 'data-v241-card-payment'));
+check('V241 opens payment options as top-layer dialog', includes(v241, 'phxPaymentTopDialogV241') && includes(v241, 'openPaymentDialog') && includes(v241, 'dialog.showModal()'));
+check('V241 payment click stops legacy underlay handlers', includes(v241, 'stopImmediatePropagation') && includes(v241, 'openPaymentDialog(pay.getAttribute'));
 check('V241 locked customer edit shows disabled Modify locked button', includes(v241, 'Modify locked') && includes(v241, 'disabled'));
 check('V241 opens order modification modal', includes(v241, 'phxOrderModifyModalV241'));
+check('V241 customer modify shows order summary instead of base-info reentry', includes(v241, 'data-v241-customer-summary') && includes(v241, 'setCustomerBasicMode') && includes(v241, 'data-v241-basic-field'));
+check('V241 customer modify offers menu choice checkboxes', includes(v241, 'PROTEIN_CHOICES_V241') && includes(v241, 'ADDON_CHOICES_V241') && includes(v241, 'data-v241-protein-choices') && includes(v241, 'data-v241-addon-choices'));
 check('V241 calls customer_modify_order', includes(v241, "action:'customer_modify_order'"));
 check('V241 calls admin_modify_order', includes(v241, "'admin_modify_order'"));
 check('V241 keeps customer Travel Fee hidden', includes(v241, 'travelWrap.hidden = true'));
