@@ -6,7 +6,7 @@
   window.__PHX_V241_ORDER_MODIFICATION__ = true;
 
   const EDIT_WINDOW_HOURS = 48;
-  const PATCH_VERSION = 'V247';
+  const PATCH_VERSION = 'V248';
   const lookupOrders = new Map();
 
   const text = value => String(value ?? '').trim();
@@ -206,8 +206,8 @@
   }
 
   function styleOnce() {
-    if (document.getElementById('phx-v241-order-mod-style')) return;
-    const style = document.createElement('style');
+    const existingStyle = document.getElementById('phx-v241-order-mod-style');
+    const style = existingStyle || document.createElement('style');
     style.id = 'phx-v241-order-mod-style';
     style.textContent = `
       .phx-v241-lock-note{border:1px solid rgba(214,154,40,.25);background:rgba(214,154,40,.08);border-radius:10px;padding:8px 10px;margin:8px 0;color:inherit;font-size:.84rem;line-height:1.45}
@@ -247,12 +247,12 @@
       .phx-v241-edit-status{min-height:22px;color:#ffd778;font-weight:800;font-size:.88rem}
       .phx-v241-edit-actions{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:linear-gradient(180deg,rgba(16,11,7,.78),#100b07 38%);border-top:1px solid rgba(255,215,121,.18);padding-top:12px;margin-top:0;z-index:2}
       .phx-v241-customer-locked{opacity:.65;cursor:not-allowed}
-      #orderLookupModal{width:min(96vw,820px);max-width:min(96vw,820px);height:auto;max-height:92dvh;overflow:auto;padding:0;scrollbar-gutter:stable}
-      #orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:none;overflow:visible;display:flex;flex-direction:column;box-sizing:border-box}
+      #orderLookupModal{width:min(96vw,920px)!important;max-width:min(96vw,920px)!important;height:auto!important;max-height:92dvh!important;overflow-y:auto!important;overflow-x:hidden!important;padding:0!important;scrollbar-gutter:stable}
+      #orderLookupModal .order-lookup-card{width:100%!important;height:auto!important;min-height:auto!important;max-height:none!important;overflow:visible!important;display:flex;flex-direction:column;box-sizing:border-box}
       #orderLookupModal .order-lookup-card label{flex:0 0 auto}
-      #orderLookupModal .order-lookup-card .modal-actions{order:20;z-index:2;padding-top:10px}
-      #orderLookupModal .order-lookup-result{order:30;overflow:visible;min-height:88px;max-height:none;padding-right:0}
-      #orderLookupModal .lookup-card{max-height:none}
+      #orderLookupModal .order-lookup-card .modal-actions{order:20;position:static!important;bottom:auto!important;z-index:2;padding-top:10px}
+      #orderLookupModal .order-lookup-result{order:30;overflow:visible!important;min-height:88px;max-height:none!important;height:auto!important;padding-right:0!important;scrollbar-gutter:auto}
+      #orderLookupModal .lookup-card{max-height:none!important;overflow:visible!important}
       .lookup-card-v103 .lookup-actions-v103 [data-open-payment]{background:linear-gradient(135deg,#ffd77a,#d99a16);color:#170c03;border:0}
       #paymentModal.open .phx-payment-card{max-height:90vh;overflow:auto}
       #paymentModal .phx-payment-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -266,13 +266,47 @@
       .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
       .phx-v241-payment-note b{color:#ffd778}
       .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px);max-width:calc(100vw - 14px);height:auto;max-height:92dvh;margin:auto;overflow:auto}#orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:none;padding:16px 13px;overflow:visible;gap:10px}#orderLookupModal .order-lookup-card h2{font-size:clamp(1.9rem,8vw,2.8rem);line-height:1.08;margin:.15rem 0 .35rem;letter-spacing:0}#orderLookupModal .order-lookup-card .modal-help{font-size:.95rem;line-height:1.45;margin:.1rem 0 .4rem}#orderLookupModal .order-lookup-card label{font-size:.9rem;gap:6px}#orderLookupModal .order-lookup-result{min-height:96px;max-height:none;overflow:visible;margin-top:4px}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px;padding:12px 14px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
+      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px)!important;max-width:calc(100vw - 14px)!important;height:auto!important;max-height:92dvh!important;margin:auto!important;overflow-y:auto!important;overflow-x:hidden!important}#orderLookupModal .order-lookup-card{width:100%!important;height:auto!important;max-height:none!important;padding:16px 13px;overflow:visible!important;gap:10px}#orderLookupModal .order-lookup-card h2{font-size:clamp(1.9rem,8vw,2.8rem);line-height:1.08;margin:.15rem 0 .35rem;letter-spacing:0}#orderLookupModal .order-lookup-card .modal-help{font-size:.95rem;line-height:1.45;margin:.1rem 0 .4rem}#orderLookupModal .order-lookup-card label{font-size:.9rem;gap:6px}#orderLookupModal .order-lookup-result{min-height:96px;max-height:none!important;overflow:visible!important;margin-top:4px}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px;padding:12px 14px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
     `;
-    document.head.appendChild(style);
+    if (!existingStyle) document.head.appendChild(style);
+  }
+
+  function forceOrderLookupWholeWindow() {
+    const modalEl = document.getElementById('orderLookupModal');
+    const card = modalEl?.querySelector?.('.order-lookup-card');
+    const result = modalEl?.querySelector?.('.order-lookup-result');
+    const actions = modalEl?.querySelector?.('.modal-actions');
+    if (!modalEl || !card) return;
+    Object.assign(modalEl.style, {
+      width:'min(96vw, 920px)',
+      maxWidth:'min(96vw, 920px)',
+      height:'auto',
+      maxHeight:'92dvh',
+      overflowY:'auto',
+      overflowX:'hidden',
+      padding:'0'
+    });
+    Object.assign(card.style, {
+      width:'100%',
+      height:'auto',
+      maxHeight:'none',
+      overflow:'visible'
+    });
+    if (result) Object.assign(result.style, {
+      height:'auto',
+      maxHeight:'none',
+      overflow:'visible',
+      paddingRight:'0'
+    });
+    if (actions) Object.assign(actions.style, {
+      position:'static',
+      bottom:'auto'
+    });
   }
 
   function injectButtons() {
     styleOnce();
+    forceOrderLookupWholeWindow();
     const orders = collectOrders();
     document.querySelectorAll('#orderList article.order-card, #calendarSummaryList article.order-card, [data-v120-order-card], [data-v102-order-card], [data-v101-order-card], .lookup-card').forEach(card => {
       if (!card || card.querySelector('[data-v241-edit-order], .phx-v241-lock-note')) return;
@@ -498,7 +532,10 @@
       .replace(/^Add-ons?:\s*/i, '')
       .split(/[,;\n]+/)
       .forEach(part => {
-        const clean = text(part).replace(/\$\d+(?:\.\d{2})?/g, '').replace(/\s*\([^)]*\)\s*/g, ' ');
+        const clean = text(part)
+          .replace(/^(?:protein selections?|protein summary|menu selections?|proteins?|add-ons?|side orders?):\s*/i, '')
+          .replace(/\$\d+(?:\.\d{2})?/g, '')
+          .replace(/\s*\([^)]*\)\s*/g, ' ');
         if (!clean || /^none|not selected/i.test(clean)) return;
         const m = clean.match(/^(.+?)\s*(?:x|×|\u00d7|\u8133|:|-)\s*(\d+)\b/i) ||
           clean.match(/^(.+?)\s+(\d+)\s*(?:pcs|pieces|portions|trays?)?\b/i) ||
@@ -936,12 +973,19 @@
     return {};
   }
   function addonItemsFromMap(map = {}) {
-    return Object.entries(map).filter(([, qty]) => int(qty, 0) > 0).map(([name, qty]) => {
+    return Object.entries(map).filter(([name, qty]) => int(qty, 0) > 0 && ADDON_CHOICES_V241.some(item => item.name === canonicalQtyName(name))).map(([name, qty]) => {
       const cleanName = canonicalQtyName(name);
       const choice = ADDON_CHOICES_V241.find(item => item.name === cleanName);
       const unitPrice = num(choice?.price, 0);
       return { name:choice?.name || cleanName, qty:int(qty, 0), unitPrice, price:unitPrice * int(qty, 0) };
     });
+  }
+  function proteinSelectionsFromMap(map = {}) {
+    return Object.entries(map).reduce((acc, [name, qty]) => {
+      const cleanName = canonicalQtyName(name);
+      if (PROTEIN_CHOICES_V241.some(item => item.name === cleanName) && int(qty, 0) > 0) acc[cleanName] = int(qty, 0);
+      return acc;
+    }, {});
   }
   function addonsText(order = {}) {
     const items = Array.isArray(order.addons) ? order.addons : (Array.isArray(order.add_ons) ? order.add_ons : []);
@@ -962,8 +1006,13 @@
       order.side_orders,
       order.sideOrders,
       order.addon_summary,
+      order.menuSelections,
+      order.menu_selections,
       noteValueFromOrder(order, 'Add-ons'),
-      noteValueFromOrder(order, 'Side orders')
+      noteValueFromOrder(order, 'Side orders'),
+      order.admin_notes,
+      order.specialNotes,
+      order.menu_summary
     ], { defaultKnown:true });
     if (Object.keys(map).length) return addonSummaryFromItems(addonItemsFromMap(map));
     return text(order.addons || order.add_ons || '');
@@ -973,14 +1022,22 @@
       order.proteinSelections,
       order.protein_selections,
       order.proteins,
+      order.selectedProteins,
+      order.selected_proteins,
+      order.menuSelections,
+      order.menu_selections,
       order.proteinSummary,
       order.protein_summary,
       noteValueFromOrder(order, 'Protein summary'),
       noteValueFromOrder(order, 'Protein selections'),
+      noteValueFromOrder(order, 'Proteins'),
       noteValueFromOrder(order, 'Menu selections'),
-      order.menu_summary
+      order.menu_summary,
+      order.admin_notes,
+      order.specialNotes
     ]);
-    if (Object.keys(map).length) return proteinSummaryFromSelections(map);
+    const proteinMap = proteinSelectionsFromMap(map);
+    if (Object.keys(proteinMap).length) return proteinSummaryFromSelections(proteinMap);
     return text(order.proteinSummary || order.protein_summary || '');
   }
 
@@ -1062,6 +1119,7 @@
       : '<div class="empty-state">No active upcoming booking was found. Try the booking phone or email, or call Phoenix Hibachi.</div>';
     const result = document.getElementById('orderLookupResult');
     if (result) result.innerHTML = html;
+    forceOrderLookupWholeWindow();
     setTimeout(injectButtons, 120);
   }
   function setPaymentOrderContext(orderId) {
@@ -1106,6 +1164,7 @@
         renderLookupOrders(orders);
       } else if (result) {
         result.innerHTML = `<div class="empty-state">${esc(backendMessage || 'Order-number lookup is not available yet.')}<br><br>For now, search by the booking phone or email, or deploy the latest Supabase booking-lifecycle function.</div>`;
+        forceOrderLookupWholeWindow();
       }
     }, true);
   }
@@ -1115,7 +1174,7 @@
     const verify = cleanVerificationContact(verificationContact);
     if (!verify) throw new Error('Phone or email verification is required to modify this order.');
     const data = await invokeLifecycle('customer_edit_order', { bookingNumber:orderId, verificationContact:verify });
-    const fullOrder = { ...(data.booking || order), __v241VerificationContact:verify, __v241PublicLookup:false, __v241Locked:data.locked === true };
+    const fullOrder = { ...order, ...(data.booking || {}), __v241VerificationContact:verify, __v241PublicLookup:false, __v241Locked:data.locked === true };
     lookupOrders.set(orderId.toLowerCase(), fullOrder);
     return fullOrder;
   }
@@ -1494,7 +1553,10 @@
   try {
     const observer = new MutationObserver(() => {
       clearTimeout(window.__PHX_V241_ENHANCE_TIMER__);
-      window.__PHX_V241_ENHANCE_TIMER__ = setTimeout(injectButtons, 160);
+      window.__PHX_V241_ENHANCE_TIMER__ = setTimeout(() => {
+        forceOrderLookupWholeWindow();
+        injectButtons();
+      }, 160);
     });
     observer.observe(document.body, { childList:true, subtree:true });
   } catch {}
@@ -1502,10 +1564,18 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       installOrderNumberLookupFallback();
+      document.addEventListener('click', event => {
+        if (event.target?.closest?.('[data-open-order-lookup]')) setTimeout(forceOrderLookupWholeWindow, 30);
+      }, true);
+      forceOrderLookupWholeWindow();
       setTimeout(injectButtons, 500);
     }, { once:true });
   } else {
     installOrderNumberLookupFallback();
+    document.addEventListener('click', event => {
+      if (event.target?.closest?.('[data-open-order-lookup]')) setTimeout(forceOrderLookupWholeWindow, 30);
+    }, true);
+    forceOrderLookupWholeWindow();
     setTimeout(injectButtons, 500);
   }
 })();

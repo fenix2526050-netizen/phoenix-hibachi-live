@@ -25,7 +25,7 @@ const pkg = 'package.json';
 check('V241 frontend file exists', fs.existsSync(path.join(root, v241)));
 check('V2382 loads V241 patch', includes(v2382, 'phoenix-v241-order-modification.js'));
 check('Index directly loads V241 patch', includes(index, 'src/phoenix-v241-order-modification.js'));
-check('V241 script is cache-busted to force latest modify UI', includes(index, 'phoenix-v241-order-modification.js?v=247') && includes(v2382, 'phoenix-v241-order-modification.js?v=247'));
+check('V241 script is cache-busted to force latest modify UI', includes(index, 'phoenix-v241-order-modification.js?v=248') && includes(v2382, 'phoenix-v241-order-modification.js?v=248'));
 check('V241 has single-run guard', includes(v241, '__PHX_V241_ORDER_MODIFICATION__'));
 check('V241 customer edit window is 48 hours', includes(v241, 'EDIT_WINDOW_HOURS = 48'));
 check('V241 injects Modify order button', includes(v241, 'data-v241-edit-order'));
@@ -43,7 +43,7 @@ check('V241 installs order-number lookup fallback before legacy form handler', i
 check('V241 has direct public order-number fallback', includes(v241, 'directPublicLookupByNumber') && includes(v241, "from('bookings').select(fields)"));
 check('V241 replaces Edge Function non-2xx with friendly deployment message', includes(v241, 'friendlyFunctionError') && includes(v241, 'booking-lifecycle'));
 check('V241 keeps edit modal within viewport with sticky actions', includes(v241, 'max-height:min(92vh,880px)') && includes(v241, 'position:sticky') && includes(v241, 'Save changes'));
-check('V241 uses whole-window lookup scrolling instead of lower-result scrolling', includes(v241, '#orderLookupModal{width:min(96vw,820px)') && includes(v241, '#orderLookupModal .order-lookup-result{order:30;overflow:visible') && includes(v241, 'max-height:none;padding-right:0'));
+check('V241 uses whole-window lookup scrolling instead of lower-result scrolling', includes(v241, '#orderLookupModal{width:min(96vw,920px)!important') && includes(v241, '#orderLookupModal .order-lookup-result{order:30;overflow:visible!important') && includes(v241, 'forceOrderLookupWholeWindow'));
 check('V241 adds payment button to public/customer cards', includes(v241, 'Pay deposit / balance') && includes(v241, 'data-open-payment'));
 check('V241 public payment button sets order payment context', includes(v241, 'setPaymentOrderContext') && includes(v241, 'lastSubmittedOrder'));
 check('V241 payment modal supports card/cash option handling', includes(index, 'phx-card-option') && includes(index, 'phx-cash-option') && includes(v241, 'data-v241-card-payment'));
@@ -61,7 +61,9 @@ check('V241 customer modify caps total protein pool, not each protein by guest c
 check('V241 customer modify reads existing structured order proteins/add-ons', includes(v241, 'proteinTextV246') && includes(v241, 'addonsTextV246') && includes(v241, 'firstQtyMapFromSources') && includes(v241, 'protein_selections') && includes(v241, 'noteValueFromOrder'));
 check('V241 package switch can clamp Premium portions back to Classic limit', includes(v241, 'normalizedPackageName') && includes(v241, 'portionsPerGuest') && includes(v241, 'updateProteinTotalIndicator'));
 check('V241 customer modify has live price preview', includes(v241, 'data-v241-price-preview') && includes(v241, 'updatePricePreview') && includes(v241, 'Minimum order adjustment'));
-check('V241 mobile lookup modal scrolls as one full card', includes(v241, '#orderLookupModal{width:calc(100vw - 14px)') && includes(v241, 'height:auto;max-height:92dvh;margin:auto;overflow:auto') && includes(v241, '#orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:none') && includes(v241, '#orderLookupModal .order-lookup-result{min-height:96px;max-height:none;overflow:visible'));
+check('V241 mobile lookup modal scrolls as one full card', includes(v241, '#orderLookupModal{width:calc(100vw - 14px)!important') && includes(v241, 'height:auto!important;max-height:92dvh!important;margin:auto!important;overflow-y:auto!important') && includes(v241, '#orderLookupModal .order-lookup-card{width:100%!important;height:auto!important;max-height:none!important') && includes(v241, '#orderLookupModal .order-lookup-result{min-height:96px;max-height:none!important;overflow:visible!important'));
+check('V241 customer modify keeps lookup order fields while loading editable order', includes(v241, 'const fullOrder = { ...order, ...(data.booking || {})'));
+check('V241 customer modify parses legacy notes for proteins/add-ons safely', includes(v241, 'proteinSelectionsFromMap') && includes(v241, 'order.admin_notes') && includes(v241, 'order.selected_proteins') && includes(v241, 'order.menu_selections'));
 check('V241 paid-in-full modifications never create refunds', includes(v241, 'No refund after order modification') && includes(v241, 'reductions do not create refunds') && includes(v241, 'noRefundCredit'));
 check('V241 added guests/items only create additional unpaid balance', includes(v241, 'Additional balance due after order modification') && includes(v241, 'Previously paid') && includes(v241, 'additionalDue'));
 check('V241 modification preserves paid amount and payment status', includes(v241, 'amountPaidForOrder') && includes(v241, 'paid_amount:paid') && includes(v241, 'payment_status:paymentStatus'));

@@ -308,7 +308,7 @@
     if (!window.__PHX_V241_LOADER__ && !document.querySelector('script[data-phoenix-patch="v241-order-modification"]')) {
       window.__PHX_V241_LOADER__ = true;
       const script = document.createElement('script');
-      script.src = 'src/phoenix-v241-order-modification.js?v=247';
+      script.src = 'src/phoenix-v241-order-modification.js?v=248';
       script.defer = true;
       script.dataset.phoenixPatch = 'v241-order-modification';
       (document.currentScript?.parentNode || document.body || document.documentElement).appendChild(script);
