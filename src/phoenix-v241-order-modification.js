@@ -226,6 +226,8 @@
       .phx-v241-choice-section{grid-column:1/-1;display:grid;gap:9px;border:1px solid rgba(255,215,121,.18);background:rgba(255,255,255,.035);border-radius:14px;padding:12px}
       .phx-v241-choice-section h3{margin:0;color:#ffd778;font-size:.95rem}
       .phx-v241-choice-section p{margin:0;color:#d7c8ad;font-size:.84rem;line-height:1.45}
+      .phx-v241-protein-total{display:flex;justify-content:space-between;gap:10px;border:1px solid rgba(255,215,121,.22);border-radius:10px;background:rgba(255,215,121,.07);padding:8px 10px;margin:8px 0 0;color:#ffd778;font-weight:900;font-size:.84rem}
+      .phx-v241-protein-total.warn{border-color:rgba(255,120,120,.45);background:rgba(255,80,80,.12);color:#ffb1a7}
       .phx-v241-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
       .phx-v241-choice-grid label{display:grid;grid-template-columns:1fr 74px;align-items:center;gap:8px;border:1px solid rgba(255,215,121,.22);border-radius:12px;padding:8px 10px;background:rgba(0,0,0,.22);font-size:.82rem;font-weight:850}
       .phx-v241-choice-grid small{display:block;color:#cdbb9b;font-size:.72rem;font-weight:750;margin-top:2px}
@@ -245,11 +247,11 @@
       .phx-v241-edit-status{min-height:22px;color:#ffd778;font-weight:800;font-size:.88rem}
       .phx-v241-edit-actions{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:linear-gradient(180deg,rgba(16,11,7,.78),#100b07 38%);border-top:1px solid rgba(255,215,121,.18);padding-top:12px;margin-top:0;z-index:2}
       .phx-v241-customer-locked{opacity:.65;cursor:not-allowed}
-      #orderLookupModal{width:min(96vw,760px);max-width:min(96vw,760px);max-height:92dvh;overflow:auto;padding:0}
-      #orderLookupModal .order-lookup-card{width:100%;max-height:92dvh;overflow:auto;display:flex;flex-direction:column;box-sizing:border-box}
+      #orderLookupModal{width:min(96vw,760px);max-width:min(96vw,760px);height:auto;max-height:92dvh;overflow:auto;padding:0}
+      #orderLookupModal .order-lookup-card{width:100%;height:auto;max-height:92dvh;overflow:auto;display:flex;flex-direction:column;box-sizing:border-box}
       #orderLookupModal .order-lookup-card label{flex:0 0 auto}
-      #orderLookupModal .order-lookup-card .modal-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(180deg,rgba(16,11,7,.72),#100b07 42%);padding-top:10px}
-      #orderLookupModal .order-lookup-result{overflow:auto;min-height:88px;max-height:min(38dvh,360px);padding-right:4px;scrollbar-gutter:stable}
+      #orderLookupModal .order-lookup-card .modal-actions{order:30;position:sticky;bottom:0;z-index:2;background:linear-gradient(180deg,rgba(16,11,7,.72),#100b07 42%);padding-top:10px}
+      #orderLookupModal .order-lookup-result{order:20;overflow:auto;min-height:88px;max-height:min(38dvh,360px);padding-right:4px;scrollbar-gutter:stable}
       #orderLookupModal .lookup-card{max-height:none}
       .lookup-card-v103 .lookup-actions-v103 [data-open-payment]{background:linear-gradient(135deg,#ffd77a,#d99a16);color:#170c03;border:0}
       #paymentModal.open .phx-payment-card{max-height:90vh;overflow:auto}
@@ -264,7 +266,7 @@
       .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
       .phx-v241-payment-note b{color:#ffd778}
       .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px);max-width:calc(100vw - 14px);max-height:94dvh}#orderLookupModal .order-lookup-card{width:100%;max-height:94dvh;padding:16px 13px;overflow:auto}#orderLookupModal .order-lookup-result{min-height:74px;max-height:34dvh}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
+      @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px);max-width:calc(100vw - 14px);max-height:88dvh;margin:auto}#orderLookupModal .order-lookup-card{width:100%;max-height:88dvh;padding:16px 13px;overflow:auto}#orderLookupModal .order-lookup-result{min-height:72px;max-height:26dvh;margin-top:10px}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
     `;
     document.head.appendChild(style);
   }
@@ -323,7 +325,7 @@
         <div class="phx-v241-choice-section" data-v241-customer-choices hidden>
           <h3>Choose menu changes</h3>
           <p>Select the package, guests, proteins, side orders, and allergy notes you want Phoenix to review. Event time changes must be handled by Phoenix customer service.</p>
-          <div><strong>Protein choices</strong><div class="phx-v241-choice-grid" data-v241-protein-choices></div></div>
+          <div><strong>Protein choices</strong><div class="phx-v241-protein-total" data-v241-protein-total></div><div class="phx-v241-choice-grid" data-v241-protein-choices></div></div>
           <div><strong>Add-ons / side orders</strong><div class="phx-v241-choice-grid" data-v241-addon-choices></div></div>
         </div>
         <label class="wide" data-v241-menu-text>Add-ons / side orders<textarea name="addons" rows="3" placeholder="One item per line"></textarea></label>
@@ -406,6 +408,7 @@
     return map;
   }
   function selectedProteinsFromForm(form) {
+    normalizeProteinTotal(form);
     const selections = {};
     form?.querySelectorAll?.('[data-v241-protein-input]').forEach(input => {
       const qty = int(input.value, 0);
@@ -457,27 +460,53 @@
     }).join('');
   }
 
-  function clampProteinTotal(form, changedInput) {
+  function updateProteinTotalIndicator(form) {
+    const rule = proteinRuleForForm(form);
+    const total = Array.from(form?.querySelectorAll?.('[data-v241-protein-input]') || [])
+      .reduce((sum, input) => sum + int(input.value, 0), 0);
+    const indicator = form?.querySelector?.('[data-v241-protein-total]');
+    if (!indicator) return;
+    indicator.classList.toggle('warn', total !== rule.required);
+    indicator.innerHTML = `<span>Total selected</span><b>${total} / ${rule.required} portions</b>`;
+  }
+  function normalizeProteinTotal(form, changedInput = null) {
     const rule = proteinRuleForForm(form);
     const inputs = Array.from(form?.querySelectorAll?.('[data-v241-protein-input]') || []);
-    if (!changedInput || !inputs.length || rule.required <= 0) return;
+    if (!inputs.length || rule.required <= 0) {
+      updateProteinTotalIndicator(form);
+      return;
+    }
     inputs.forEach(input => {
       input.max = String(rule.maxTotal);
       if (int(input.value, 0) < 0) input.value = '0';
     });
-    const othersTotal = inputs
-      .filter(input => input !== changedInput)
-      .reduce((sum, input) => sum + int(input.value, 0), 0);
-    const allowedForCurrent = Math.max(0, rule.required - othersTotal);
-    const current = int(changedInput.value, 0);
-    if (current > allowedForCurrent) changedInput.value = String(allowedForCurrent);
+    if (changedInput) {
+      const othersTotal = inputs
+        .filter(input => input !== changedInput)
+        .reduce((sum, input) => sum + int(input.value, 0), 0);
+      const allowedForCurrent = Math.max(0, rule.required - othersTotal);
+      const current = int(changedInput.value, 0);
+      if (current > allowedForCurrent) changedInput.value = String(allowedForCurrent);
+    }
+    let runningTotal = 0;
+    const ordered = changedInput
+      ? [changedInput, ...inputs.filter(input => input !== changedInput)]
+      : inputs;
+    ordered.forEach(input => {
+      const current = int(input.value, 0);
+      const remaining = Math.max(0, rule.required - runningTotal);
+      const next = Math.min(current, remaining);
+      if (current !== next) input.value = String(next);
+      runningTotal += next;
+    });
+    updateProteinTotalIndicator(form);
   }
 
   function setupCustomerChoices(dialog, form) {
     renderProteinQuantityList(dialog.querySelector('[data-v241-protein-choices]'), form, form.elements.proteinSummary.value);
     renderAddonQuantityList(dialog.querySelector('[data-v241-addon-choices]'), form, form.elements.addons.value);
     const sync = event => {
-      if (event?.target?.matches?.('[data-v241-protein-input]')) clampProteinTotal(form, event.target);
+      normalizeProteinTotal(form, event?.target?.matches?.('[data-v241-protein-input]') ? event.target : null);
       const proteins = selectedProteinsFromForm(form);
       const addons = selectedAddonsFromForm(form);
       form.elements.proteinSummary.value = proteinSummaryFromSelections(proteins);
@@ -485,6 +514,7 @@
       updatePricePreview(form);
     };
     dialog.querySelectorAll('[data-v241-protein-input],[data-v241-addon-input]').forEach(input => input.addEventListener('input', sync));
+    normalizeProteinTotal(form);
     sync();
   }
 
