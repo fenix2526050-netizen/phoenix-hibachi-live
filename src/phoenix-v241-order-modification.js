@@ -140,7 +140,27 @@
       '';
     const match = text(raw).match(/\bPHX[-\w]+\b/i);
     const id = (match ? match[0] : text(raw)).toLowerCase();
-    return id ? orders.get(id) || null : null;
+    if (!id) return null;
+    return orders.get(id) || orderStubFromCard(card, id);
+  }
+  function orderStubFromCard(card, id) {
+    const rawId = text(id).toUpperCase();
+    const bodyText = text(card?.textContent || '');
+    const dateMatch = bodyText.match(/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}\b/i);
+    const timeMatch = bodyText.match(/\b\d{1,2}:\d{2}\s*(?:AM|PM)\b/i);
+    const lines = bodyText.split(/\n+/).map(line => line.trim()).filter(Boolean);
+    const addressLine = lines.find(line => /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(line)) || '';
+    return {
+      id:rawId,
+      booking_number:rawId,
+      eventDate:dateMatch?.[0] || '',
+      eventTime:timeMatch?.[0] || '',
+      address:addressLine,
+      package:'Classic',
+      adults:0,
+      kids:0,
+      __v241NeedsFullFetch:true
+    };
   }
   function currentRole() {
     try { return text(window.currentDashboardRole || currentDashboardRole || localStorage.getItem('phoenix_portal_role') || localStorage.getItem('phoenix_dashboard_role')); }
@@ -178,6 +198,12 @@
   function actionsFor(card) {
     return card.querySelector('.order-actions, .order-actions-v101, .v102-order-tools, .v107-payment-actions, .phx-v120-stop-actions, .lookup-actions-v103');
   }
+  function paymentButtonHtml(id) {
+    return `<button type="button" data-open-payment="${esc(id)}" data-v241-payment-order="${esc(id)}">Pay deposit / balance</button>`;
+  }
+  function paymentNoteHtml() {
+    return `<div class="phx-v241-payment-note"><b>Payment options</b><span>Pay a deposit or balance after Phoenix accepts the order. Include your booking number so staff can verify the payment.</span></div>`;
+  }
 
   function styleOnce() {
     if (document.getElementById('phx-v241-order-mod-style')) return;
@@ -187,20 +213,35 @@
       .phx-v241-lock-note{border:1px solid rgba(214,154,40,.25);background:rgba(214,154,40,.08);border-radius:10px;padding:8px 10px;margin:8px 0;color:inherit;font-size:.84rem;line-height:1.45}
       .phx-v241-lock-note strong{display:block;color:#ffd778;margin-bottom:2px}
       body.light-theme .phx-v241-lock-note,body.light .phx-v241-lock-note{background:#fff7e7;color:#332315}
-      .phx-v241-edit-modal{max-width:min(96vw,820px);width:820px;border:1px solid rgba(255,215,121,.36);border-radius:18px;background:#100b07;color:#fff7ea;padding:0;box-shadow:0 28px 90px rgba(0,0,0,.62)}
+      .phx-v241-edit-modal{max-width:min(96vw,820px);width:820px;max-height:min(92vh,880px);overflow:hidden;border:1px solid rgba(255,215,121,.36);border-radius:18px;background:#100b07;color:#fff7ea;padding:0;box-shadow:0 28px 90px rgba(0,0,0,.62)}
       .phx-v241-edit-modal::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(4px)}
-      .phx-v241-edit-card{padding:20px;display:grid;gap:14px}
+      .phx-v241-edit-card{padding:20px;display:flex;flex-direction:column;gap:12px;max-height:min(92vh,880px);overflow:hidden}
       .phx-v241-edit-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
       .phx-v241-edit-head h2{margin:.1rem 0 .25rem;font-family:Georgia,serif}
       .phx-v241-edit-close{border:0;background:transparent;color:inherit;font-size:30px;line-height:1;cursor:pointer}
-      .phx-v241-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+      .phx-v241-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;overflow:auto;max-height:calc(min(92vh,880px) - 190px);padding-right:6px;scrollbar-gutter:stable}
       .phx-v241-edit-grid label{display:grid;gap:6px;font-weight:800;font-size:.86rem}
       .phx-v241-edit-grid .wide{grid-column:1/-1}
       .phx-v241-edit-grid input,.phx-v241-edit-grid select,.phx-v241-edit-grid textarea{width:100%;box-sizing:border-box;border:1px solid rgba(255,215,121,.28);border-radius:10px;background:#050302;color:inherit;padding:10px 11px;font:inherit}
+      .phx-v241-edit-grid textarea{min-height:58px;max-height:92px;resize:vertical}
       .phx-v241-edit-status{min-height:22px;color:#ffd778;font-weight:800;font-size:.88rem}
-      .phx-v241-edit-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+      .phx-v241-edit-actions{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;background:linear-gradient(180deg,rgba(16,11,7,.78),#100b07 38%);border-top:1px solid rgba(255,215,121,.18);padding-top:12px;margin-top:0;z-index:2}
       .phx-v241-customer-locked{opacity:.65;cursor:not-allowed}
-      @media(max-width:720px){.phx-v241-edit-grid{grid-template-columns:1fr}.phx-v241-edit-card{padding:16px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}}
+      #orderLookupModal{max-width:min(96vw,760px);max-height:92vh;overflow:hidden;padding:0}
+      #orderLookupModal .order-lookup-card{width:min(760px,calc(100vw - 24px));max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+      #orderLookupModal .order-lookup-result{overflow:auto;max-height:calc(90vh - 280px);padding-right:4px;scrollbar-gutter:stable}
+      #orderLookupModal .lookup-card{max-height:none}
+      .lookup-card-v103 .lookup-actions-v103 [data-open-payment]{background:linear-gradient(135deg,#ffd77a,#d99a16);color:#170c03;border:0}
+      #paymentModal.open .phx-payment-card{max-height:90vh;overflow:auto}
+      #paymentModal .phx-payment-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+      #paymentModal .phx-payment-option{border-radius:14px;padding:13px;display:grid;gap:9px;align-content:start}
+      #paymentModal .phx-payment-option img{max-height:230px}
+      #paymentModal .phx-payment-icon-card{min-height:112px;border:1px solid rgba(255,215,121,.28);border-radius:14px;background:linear-gradient(135deg,rgba(255,215,121,.14),rgba(255,255,255,.035));display:grid;place-items:center;color:#ffd778;font-weight:950;letter-spacing:.18em}
+      #paymentModal .phx-payment-inline-btn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font:inherit}
+      .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
+      .phx-v241-payment-note b{color:#ffd778}
+      .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
+      @media(max-width:720px){.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92vh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal .order-lookup-card{width:calc(100vw - 18px);padding:18px 14px}#orderLookupModal .order-lookup-result{max-height:calc(90vh - 255px)}#paymentModal .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img{max-height:210px}}
     `;
     document.head.appendChild(style);
   }
@@ -222,12 +263,14 @@
         const note = document.createElement('div');
         note.className = 'phx-v241-lock-note';
         note.innerHTML = open
-          ? `<strong>Order changes</strong><span>You can modify this order until ${EDIT_WINDOW_HOURS} hours before the event. After that, please call Phoenix Hibachi support for special requests.</span>`
-          : `<strong>Order locked</strong><span>This order is within ${EDIT_WINDOW_HOURS} hours of the event. Please call <a href="${esc(supportHref())}">${esc(supportPhone())}</a> to ask whether a change is still possible.</span>`;
+          ? `<strong>Order changes</strong><span>You can modify this order until ${EDIT_WINDOW_HOURS} hours before the event. Saved changes notify Phoenix Hibachi for manager review.</span>`
+          : `<strong>Order locked <span class="phx-v241-locked-stamp">locked</span></strong><span>This order is within ${EDIT_WINDOW_HOURS} hours of the event. Please call <a href="${esc(supportHref())}">${esc(supportPhone())}</a> to ask whether a change is still possible.</span>`;
         actions.parentNode.insertBefore(note, actions);
+        if (!card.querySelector('.phx-v241-payment-note')) actions.parentNode.insertBefore(document.createRange().createContextualFragment(paymentNoteHtml()), actions);
         actions.insertAdjacentHTML('afterbegin', open
           ? `<button type="button" data-v241-edit-order="${id}" data-v241-mode="customer">Modify order</button>`
-          : `<button type="button" class="phx-v241-customer-locked" data-v241-locked-order="${id}" title="Call support for changes within ${EDIT_WINDOW_HOURS} hours">Order locked</button>`);
+          : `<button type="button" class="phx-v241-customer-locked" data-v241-locked-order="${id}" title="Call support for changes within ${EDIT_WINDOW_HOURS} hours" disabled>Modify locked</button>`);
+        if (!actions.querySelector('[data-open-payment]')) actions.insertAdjacentHTML('beforeend', paymentButtonHtml(id));
       } else if (staff) {
         actions.insertAdjacentHTML('afterbegin', `<button type="button" data-v241-edit-order="${id}" data-v241-mode="admin">Modify order</button>`);
       }
@@ -302,15 +345,116 @@
     const contact = cleanVerificationContact(document.getElementById('orderLookupEmail')?.value);
     return contact || (/^PHX-/i.test(query) ? '' : query);
   }
+  function normalizedBookingNumber(value) {
+    const match = text(value).match(/\bPHX[-\w]+\b/i);
+    return (match ? match[0] : text(value)).toUpperCase();
+  }
+  function friendlyFunctionError(error, action = 'request') {
+    const message = text(error?.message || error);
+    if (/non-2xx|failed to send|functions? invoke|edge function/i.test(message)) {
+      return `Phoenix online service has not been updated for this ${action} yet. Please deploy the latest Supabase Edge Function: booking-lifecycle.`;
+    }
+    return message || `Phoenix could not complete this ${action}.`;
+  }
   async function invokeLifecycle(action, body = {}) {
     const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
     const cfg = window.PHOENIX_SUPABASE_CONFIG || window.PHX_SUPABASE_CONFIG || {};
     const fn = cfg.bookingLifecycleFunction || cfg.lookupBookingFunction || 'booking-lifecycle';
     if (!client?.functions?.invoke) throw new Error('Booking service is not available.');
     const { data, error } = await client.functions.invoke(fn, { body:{ action, ...body } });
-    if (error) throw new Error(error.message || 'Booking service rejected the request.');
+    if (error) throw new Error(friendlyFunctionError(error, action));
     if (data?.ok === false) throw new Error(data.error || 'Booking service rejected the request.');
     return data || {};
+  }
+  function maskedPublicOrderFromRow(row = {}) {
+    const phoneDigits = text(row.customer_phone || row.phone).replace(/\D/g, '');
+    const email = text(row.customer_email || row.email);
+    return rememberLookupOrder({
+      id:row.booking_number || row.id,
+      booking_number:row.booking_number || row.id,
+      eventDate:row.event_date || row.eventDate || '',
+      eventTime:row.event_time || row.eventTime || '',
+      status:row.status || '',
+      requestStatus:row.request_status || '',
+      paymentStatus:row.payment_status || '',
+      depositStatus:row.deposit_status || '',
+      depositPaid:num(row.deposit_amount || row.depositPaid, 0),
+      balanceDueCents:num(row.balance_due_cents || row.balanceDueCents, 0),
+      name:row.customer_name ? `${text(row.customer_name).slice(0, 1)}***` : 'Guest',
+      phone:phoneDigits ? `***${phoneDigits.slice(-4)}` : '',
+      email:email ? email.replace(/^(.).+(@.+)$/, '$1***$2') : '',
+      address:row.address ? text(row.address).split(',').slice(-2).join(',').trim() : '',
+      package:row.package_name || row.package || 'Classic',
+      adults:int(row.adults, 0),
+      kids:int(row.kids, 0),
+      totalGuests:int(row.guest_count || row.totalGuests, 0),
+      travelFee:num(row.travel_fee || row.travelFee, 0),
+      finalTotal:num(row.final_total || row.finalTotal, 0),
+      __v241PublicLookup:true
+    });
+  }
+  async function directPublicLookupByNumber(query) {
+    const orderId = normalizedBookingNumber(query);
+    if (!orderId || !/^PHX-/i.test(orderId)) return null;
+    const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
+    if (!client) return null;
+    const fields = 'booking_number,event_date,event_time,status,request_status,payment_status,deposit_status,deposit_amount,balance_due_cents,customer_name,customer_phone,customer_email,address,package_name,adults,kids,guest_count,travel_fee,final_total';
+    const { data, error } = await client.from('bookings').select(fields).eq('booking_number', orderId).order('created_at', { ascending:false }).limit(1).maybeSingle();
+    if (error || !data) return null;
+    return maskedPublicOrderFromRow(data);
+  }
+  function renderLookupOrders(orders = []) {
+    const html = orders.length
+      ? orders.slice(0, 5).map(order => typeof orderLookupResultHtml === 'function' ? orderLookupResultHtml(order) : `<div class="lookup-card"><strong>${esc(idOf(order))}</strong></div>`).join('')
+      : '<div class="empty-state">No active upcoming booking was found. Try the booking phone or email, or call Phoenix Hibachi.</div>';
+    const result = document.getElementById('orderLookupResult');
+    if (result) result.innerHTML = html;
+    setTimeout(injectButtons, 120);
+  }
+  function setPaymentOrderContext(orderId) {
+    const id = normalizedBookingNumber(orderId);
+    if (!id) return;
+    const order = collectOrders().get(id.toLowerCase()) || { id, booking_number:id };
+    const normalized = { ...order, id:idOf(order) || id, booking_number:idOf(order) || id };
+    try { lastSubmittedOrder = normalized; } catch { window.lastSubmittedOrder = normalized; }
+    try { window.lastSubmittedOrder = normalized; } catch {}
+    try { window.phoenixRefreshRequiredDepositUI?.(normalized); } catch {}
+    try { if (typeof prepareBookingPaymentAccessToken === 'function') prepareBookingPaymentAccessToken(normalized); } catch {}
+  }
+  function installOrderNumberLookupFallback() {
+    if (window.__PHX_V241_ORDER_NUMBER_LOOKUP_FALLBACK__) return;
+    window.__PHX_V241_ORDER_NUMBER_LOOKUP_FALLBACK__ = true;
+    document.addEventListener('submit', async event => {
+      const form = event.target?.closest?.('#orderLookupForm');
+      if (!form) return;
+      const query = text(document.getElementById('orderLookupInput')?.value);
+      const contact = text(document.getElementById('orderLookupEmail')?.value);
+      if (!/^PHX-/i.test(query) || contact) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      const result = document.getElementById('orderLookupResult');
+      if (result) result.innerHTML = '<div class="empty-state">Searching active upcoming booking by order number...</div>';
+      let orders = [];
+      let backendMessage = '';
+      try {
+        const data = await invokeLifecycle('lookup', { query, verificationContact:'' });
+        orders = Array.isArray(data.orders) ? data.orders.map(rememberLookupOrder) : [];
+      } catch (error) {
+        backendMessage = friendlyFunctionError(error, 'order-number lookup');
+      }
+      if (!orders.length) {
+        try {
+          const direct = await directPublicLookupByNumber(query);
+          if (direct) orders = [direct];
+        } catch {}
+      }
+      if (orders.length) {
+        renderLookupOrders(orders);
+      } else if (result) {
+        result.innerHTML = `<div class="empty-state">${esc(backendMessage || 'Order-number lookup is not available yet.')}<br><br>For now, search by the booking phone or email, or deploy the latest Supabase booking-lifecycle function.</div>`;
+      }
+    }, true);
   }
   async function loadEditableCustomerOrder(order = {}, verificationContact = '') {
     const orderId = idOf(order);
@@ -322,6 +466,30 @@
     lookupOrders.set(orderId.toLowerCase(), fullOrder);
     return fullOrder;
   }
+  async function loadFullAdminOrder(order = {}) {
+    const orderId = idOf(order);
+    if (!orderId) throw new Error('Order number is missing.');
+    const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
+    if (!client) throw new Error('Supabase client is not available.');
+    const { data, error } = await client.from('bookings').select('*').eq('booking_number', orderId).order('created_at', { ascending:false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message || 'Could not load this order.');
+    if (!data) throw new Error('Order was not found in Supabase.');
+    const fullOrder = {
+      ...data,
+      id:data.booking_number || orderId,
+      booking_number:data.booking_number || orderId,
+      name:data.customer_name || data.name || '',
+      phone:data.customer_phone || data.phone || '',
+      email:data.customer_email || data.email || '',
+      eventDate:data.event_date || data.eventDate || '',
+      eventTime:data.event_time || data.eventTime || '',
+      package:data.package_name || data.package || 'Classic',
+      totalGuests:data.guest_count || data.totalGuests || 0,
+      __v241NeedsFullFetch:false
+    };
+    lookupOrders.set(orderId.toLowerCase(), fullOrder);
+    return fullOrder;
+  }
 
   async function openEditor(order, mode) {
     const customerMode = mode === 'customer';
@@ -330,6 +498,14 @@
       return;
     }
     let editableOrder = order;
+    if (!customerMode && order.__v241NeedsFullFetch) {
+      try {
+        editableOrder = await loadFullAdminOrder(order);
+      } catch (error) {
+        alert(`${error?.message || 'Could not load this order.'} Open Order details once, then try Modify order again.`);
+        return;
+      }
+    }
     if (customerMode && order.__v241PublicLookup) {
       let verify = lookupContactValue();
       if (!verify) {
@@ -526,8 +702,9 @@
       setStatus('Saving changes...');
       const built = patchFromForm(form, order, mode);
       let remoteOk = false;
+      let serviceData = null;
       try {
-        await lifecycleUpdate(orderId, mode, built.dbPatch, order, built.verificationContact);
+        serviceData = await lifecycleUpdate(orderId, mode, built.dbPatch, order, built.verificationContact);
         remoteOk = true;
       } catch (serviceError) {
         if (mode === 'admin') {
@@ -538,7 +715,11 @@
         }
       }
       patchLocal(orderId, built.localPatch);
-      setStatus(remoteOk ? `Saved. New total ${money(built.finalTotal)}; balance ${money(built.balance)}.` : 'Saved locally only.');
+      const notified = serviceData?.notification?.sentAny === true || serviceData?.notification?.queued === true;
+      const notificationLine = mode === 'customer'
+        ? (notified ? 'Phoenix has been notified for review.' : `Saved, but automatic SMS/email confirmation was not reported. Please call ${supportPhone()} if the change is urgent.`)
+        : (notified ? 'Booking modified notification was queued.' : 'Saved. Notification delivery depends on Make/SMS configuration.');
+      setStatus(remoteOk ? `Saved. New total ${money(built.finalTotal)}; balance ${money(built.balance)}. ${notificationLine}` : 'Saved locally only.');
       setTimeout(() => {
         closeModal();
         try {
@@ -558,6 +739,22 @@
   }
 
   document.addEventListener('click', async event => {
+    const cardPay = event.target?.closest?.('[data-v241-card-payment]');
+    if (cardPay) {
+      event.preventDefault();
+      const button = document.getElementById('payStripeDepositBtn');
+      if (button && !button.disabled && button.offsetParent) {
+        button.click();
+      } else {
+        alert('Secure card checkout is available only when Phoenix Hibachi activates card payment for this booking. Please use Zelle, Venmo, or call Phoenix to request a card payment link.');
+      }
+      return;
+    }
+    const pay = event.target?.closest?.('[data-open-payment]');
+    if (pay) {
+      setPaymentOrderContext(pay.getAttribute('data-open-payment') || pay.getAttribute('data-v241-payment-order') || '');
+      return;
+    }
     const locked = event.target?.closest?.('[data-v241-locked-order]');
     if (locked) {
       event.preventDefault();
@@ -612,8 +809,12 @@
   } catch {}
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(injectButtons, 500), { once:true });
+    document.addEventListener('DOMContentLoaded', () => {
+      installOrderNumberLookupFallback();
+      setTimeout(injectButtons, 500);
+    }, { once:true });
   } else {
+    installOrderNumberLookupFallback();
     setTimeout(injectButtons, 500);
   }
 })();

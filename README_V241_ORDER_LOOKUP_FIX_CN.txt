@@ -28,11 +28,36 @@ What changed in this fix:
    - After verification, the booking-lifecycle function returns the full editable order details.
    - This prevents masked public data, such as city-only address, from overwriting the real order.
 
+3.1 Clear fallback when Supabase is still old
+   - If the live Supabase Edge Function has not been deployed yet, the website no longer shows the confusing "Edge Function returned a non-2xx status code" message.
+   - It now explains that the latest booking-lifecycle Edge Function must be deployed.
+   - Order-number-only search also has a read-only fallback attempt, but this can work only if the live Supabase RLS allows public read by booking number.
+   - The permanent fix is still to deploy supabase/functions/booking-lifecycle/index.ts.
+
 4. Admin dashboard
    - Admin / Manager / Customer Service order cards continue to get Modify order.
    - Staff can modify orders anytime.
    - If the order card is rendered by the V120 calendar/dispatch view and the order object is not available in the global cache, the button still appears.
    - When staff clicks Modify order, the site fetches the full order from Supabase by booking number before opening the edit form.
+
+5. Modal / mobile usability
+   - Modify order modal now stays inside the browser viewport.
+   - The form body scrolls, while Cancel / Save changes stay visible at the bottom.
+   - Public order lookup results now scroll inside the lookup dialog, so customers do not need to zoom out to reach the bottom buttons.
+
+6. Customer payment entry
+   - Public/customer order cards now show Pay deposit / balance.
+   - The payment dialog now presents four payment choices:
+     - Zelle
+     - Venmo
+     - Secure card payment, when enabled
+     - Cash at event
+   - The payment button passes the booking number into the existing payment modal.
+
+7. 48-hour lock display
+   - More than 48 hours before event: customer sees Modify order.
+   - Within 48 hours: the button becomes a disabled gray Modify locked button, with a locked notice telling the customer to call Phoenix.
+   - Customer changes still save through booking-lifecycle and trigger booking_modified notification delivery through Make/SMS when configured.
 
 Files that must be uploaded to GitHub:
 
@@ -54,6 +79,8 @@ Important Supabase note:
   supabase/functions/booking-lifecycle/index.ts
 - After uploading files to GitHub, GitHub Pages updates the website code, but it does not automatically update Supabase Edge Functions unless your repo has an Edge Function deployment workflow.
 - For the customer Modify order save to work on the live site, deploy the updated booking-lifecycle Edge Function to Supabase.
+- If customers can search by phone/email but not by order number, the live website is probably using the old booking-lifecycle function.
+- If Modify order opens a system notice about the online service not being updated, deploy booking-lifecycle.
 
 No new Supabase table or column is required.
 
@@ -63,7 +90,7 @@ Tests completed locally:
 - node --check scripts/verify-phoenix-v241.js
 - node --check supabase/functions/booking-lifecycle/index.ts
 - npm run test:v240: 74/74 passed
-- npm run test:v241: 37/37 passed
+- npm run test:v241: 50/50 passed
 
 Manual checks after upload:
 

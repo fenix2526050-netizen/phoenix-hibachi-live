@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="src/phoenix-v224-stripe.css" />
   <link rel="stylesheet" href="src/phoenix-v225-cash-benefits.css" />
   <link rel="stylesheet" href="src/phoenix-v226-video-media.css" />
+  <link rel="stylesheet" href="src/phoenix-stability-v239.css" />
   <meta name="phx-build" content="V234_COMPLETE_LIFECYCLE_FULL_PAYMENT_NOTIFICATIONS" />
   <script src="https://js.stripe.com/v3/"></script>
   <script src="src/phoenix-payment-config.js"></script>
@@ -1221,6 +1222,8 @@
       <div class="phx-payment-grid phx-v227-payment-grid">
         <article class="phx-payment-option phx-zelle-option"><h3>Phoenix Hibachi · Zelle</h3><a class="phx-payment-image-link" href="zelle-payment.html" target="_blank" rel="noopener noreferrer" aria-label="Open Phoenix Hibachi Zelle payment card"><img src="assets/payment-zelle-qr.png" alt="Phoenix Hibachi Zelle QR code"></a><strong class="phx-v227-payment-account">Recipient may display: FENY MOTION LLC</strong><a class="phx-payment-full-link" href="zelle-payment.html" target="_blank" rel="noopener noreferrer">Open Phoenix Hibachi Zelle</a></article>
         <article class="phx-payment-option phx-venmo-option"><h3>Phoenix Hibachi · Venmo</h3><a class="phx-payment-image-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer" aria-label="Open Phoenix Hibachi Venmo card"><img src="assets/payment-venmo-qr.png" alt="Phoenix Hibachi Venmo QR code"></a><strong class="phx-v227-payment-account">@Phoenix-Hibachi</strong><a class="phx-payment-full-link" href="assets/payment-venmo-phoenix-hibachi.jpg" target="_blank" rel="noopener noreferrer">Open Phoenix Hibachi Venmo</a></article>
+        <article class="phx-payment-option phx-card-option"><h3>Secure card payment</h3><div class="phx-payment-icon-card">CARD</div><strong>Deposit, full balance, or custom amount</strong><p>Available when secure card checkout is enabled for the booking. Phoenix verifies every payment before marking the order paid.</p><button type="button" class="phx-payment-full-link phx-payment-inline-btn" data-v241-card-payment>Use card payment</button></article>
+        <article class="phx-payment-option phx-cash-option"><h3>Cash at event</h3><div class="phx-payment-icon-card">CASH</div><strong>Balance due before setup</strong><p>Cash may be used for the remaining balance when the chef arrives. A deposit may still be required to hold the date.</p><a class="phx-payment-full-link" href="tel:+15165183325">Call Phoenix to confirm</a></article>
       </div>
       <div class="policy-alert compact"><strong>Important</strong><span>Include the booking reference or event name. Staff must verify every transfer before the order is marked paid.</span></div>
       <button class="gold-btn full" type="button" data-close-payment>Done</button>
@@ -1233,6 +1236,8 @@
   <script src="src/phoenix-video-config.js"></script>
   <script src="src/phoenix-v226-video-media.js"></script>
   <script src="src/phoenix-v2382-admin-lifecycle-bridge.js"></script>
-  <script src="src/phoenix-v241-order-modification.js?v=242-fix1"></script>
+  <script src="src/phoenix-stability-v239.js"></script>
+  <script src="src/phoenix-v240-travel-fee-notifications.js"></script>
+  <script src="src/phoenix-v241-order-modification.js"></script>
 </body>
 </html>
