@@ -52,6 +52,12 @@ check('V241 locked customer edit shows disabled Modify locked button', includes(
 check('V241 opens order modification modal', includes(v241, 'phxOrderModifyModalV241'));
 check('V241 customer modify shows order summary instead of base-info reentry', includes(v241, 'data-v241-customer-summary') && includes(v241, 'setCustomerBasicMode') && includes(v241, 'data-v241-basic-field'));
 check('V241 customer modify offers menu choice checkboxes', includes(v241, 'PROTEIN_CHOICES_V241') && includes(v241, 'ADDON_CHOICES_V241') && includes(v241, 'data-v241-protein-choices') && includes(v241, 'data-v241-addon-choices'));
+check('V241 customer modify uses quantity inputs for proteins/add-ons', includes(v241, 'data-v241-protein-input') && includes(v241, 'data-v241-addon-input') && includes(v241, 'selectedProteinsFromForm'));
+check('V241 customer modify enforces two protein portions per billable guest', includes(v241, 'billableGuests * 2') && includes(v241, 'validateProteinQuantities'));
+check('V241 customer modify caps each protein by guest count', includes(v241, 'maxEach') && includes(v241, 'quantity cannot exceed'));
+check('V241 customer modify has live price preview', includes(v241, 'data-v241-price-preview') && includes(v241, 'updatePricePreview') && includes(v241, 'Minimum order adjustment'));
+check('V241 customer copy blocks event-time self edits', includes(v241, 'Event time changes must be handled by Phoenix customer service'));
+check('V241 only lets admin submit date/time/address changes', includes(v241, "if (mode === 'admin')") && includes(v241, 'dbPatch.event_time = timeToDb(eventTime)') && includes(v241, 'dbPatch.address = address'));
 check('V241 calls customer_modify_order', includes(v241, "action:'customer_modify_order'"));
 check('V241 calls admin_modify_order', includes(v241, "'admin_modify_order'"));
 check('V241 keeps customer Travel Fee hidden', includes(v241, 'travelWrap.hidden = true'));

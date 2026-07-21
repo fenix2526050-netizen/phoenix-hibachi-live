@@ -227,8 +227,15 @@
       .phx-v241-choice-section h3{margin:0;color:#ffd778;font-size:.95rem}
       .phx-v241-choice-section p{margin:0;color:#d7c8ad;font-size:.84rem;line-height:1.45}
       .phx-v241-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-      .phx-v241-choice-grid label{display:flex;align-items:center;gap:7px;border:1px solid rgba(255,215,121,.22);border-radius:999px;padding:8px 10px;background:rgba(0,0,0,.22);font-size:.82rem;font-weight:850;cursor:pointer}
-      .phx-v241-choice-grid input{width:auto;margin:0;accent-color:#f5b83f}
+      .phx-v241-choice-grid label{display:grid;grid-template-columns:1fr 74px;align-items:center;gap:8px;border:1px solid rgba(255,215,121,.22);border-radius:12px;padding:8px 10px;background:rgba(0,0,0,.22);font-size:.82rem;font-weight:850}
+      .phx-v241-choice-grid small{display:block;color:#cdbb9b;font-size:.72rem;font-weight:750;margin-top:2px}
+      .phx-v241-choice-grid input{width:100%;margin:0;text-align:center;accent-color:#f5b83f}
+      .phx-v241-price-preview{grid-column:1/-1;border:1px solid rgba(255,215,121,.26);background:linear-gradient(135deg,rgba(255,215,121,.12),rgba(255,255,255,.035));border-radius:14px;padding:12px;display:grid;gap:7px}
+      .phx-v241-price-preview h3{margin:0;color:#ffd778;font-size:.96rem}
+      .phx-v241-price-preview div{display:flex;justify-content:space-between;gap:10px;border-top:1px solid rgba(255,215,121,.12);padding-top:6px;font-size:.86rem}
+      .phx-v241-price-preview div:first-of-type{border-top:0;padding-top:0}
+      .phx-v241-price-preview b{color:#fff7ea}
+      .phx-v241-price-preview .warn{color:#ffcd77;font-weight:900}
       .phx-v241-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;overflow:auto;max-height:calc(min(92vh,880px) - 190px);padding-right:6px;scrollbar-gutter:stable}
       .phx-v241-edit-grid label{display:grid;gap:6px;font-weight:800;font-size:.86rem}
       .phx-v241-edit-grid .wide{grid-column:1/-1}
@@ -313,14 +320,15 @@
         <label class="wide" data-v241-basic-field>Event address<input name="address" placeholder="Full event address"></label>
         <div class="phx-v241-choice-section" data-v241-customer-choices hidden>
           <h3>Choose menu changes</h3>
-          <p>Select the package, proteins, side orders, and allergy notes you want Phoenix to review. Your event date, time, address, name, phone, and email stay on the order.</p>
+          <p>Select the package, guests, proteins, side orders, and allergy notes you want Phoenix to review. Event time changes must be handled by Phoenix customer service.</p>
           <div><strong>Protein choices</strong><div class="phx-v241-choice-grid" data-v241-protein-choices></div></div>
           <div><strong>Add-ons / side orders</strong><div class="phx-v241-choice-grid" data-v241-addon-choices></div></div>
         </div>
-        <label class="wide">Add-ons / side orders<textarea name="addons" rows="3" placeholder="One item per line"></textarea></label>
-        <label class="wide">Protein selections<textarea name="proteinSummary" rows="3" placeholder="Chicken 4, Steak 4, Shrimp 2..."></textarea></label>
+        <label class="wide" data-v241-menu-text>Add-ons / side orders<textarea name="addons" rows="3" placeholder="One item per line"></textarea></label>
+        <label class="wide" data-v241-menu-text>Protein selections<textarea name="proteinSummary" rows="3" placeholder="Chicken 4, Steak 4, Shrimp 2..."></textarea></label>
         <label class="wide">Allergies / dietary notes<textarea name="allergyNotes" rows="3"></textarea></label>
         <label class="wide">Change note<textarea name="changeNote" rows="3" placeholder="Tell Phoenix Hibachi what changed."></textarea></label>
+        <div class="phx-v241-price-preview" data-v241-price-preview></div>
       </div>
       <div class="phx-v241-edit-status" data-v241-status></div>
       <div class="phx-v241-edit-actions"><button type="button" class="outline-btn" data-v241-close>Cancel</button><button type="submit" class="gold-btn">Save changes</button></div>
@@ -338,14 +346,28 @@
   }
 
   const PROTEIN_CHOICES_V241 = [
-    'Chicken', 'Steak', 'Shrimp', 'Salmon', 'Tofu',
-    'Filet Mignon upgrade', 'Scallops upgrade', 'Lobster Tail upgrade'
+    { name:'Chicken', label:'Chicken' },
+    { name:'Steak', label:'Steak' },
+    { name:'Shrimp', label:'Shrimp' },
+    { name:'Salmon', label:'Salmon' },
+    { name:'Tofu', label:'Tofu' },
+    { name:'Filet Mignon', label:'Filet Mignon upgrade', premium:true },
+    { name:'Scallop', label:'Scallop upgrade', premium:true },
+    { name:'Lobster', label:'Lobster Tail upgrade', premium:true }
   ];
   const ADDON_CHOICES_V241 = [
-    'Extra Fried Rice Tray', 'Noodle / Yakisoba Tray', 'Hibachi Vegetables',
-    'Hibachi Tofu', 'Extra Gyoza Tray', 'Extra Edamame Tray',
-    'Sushi Starter', 'Party Roll Platter', 'Deluxe Sushi Platter',
-    'Phoenix Party Punch', 'Japanese Ramune Soda', 'Mochi Ice Cream'
+    { name:'Extra Fried Rice Tray', price:25, note:'serves about 5' },
+    { name:'Noodle / Yakisoba Tray', price:50, note:'tray' },
+    { name:'Hibachi Vegetables', price:28, note:'serves about 5' },
+    { name:'Hibachi Tofu', price:30, note:'serves about 5' },
+    { name:'Extra Gyoza Tray', price:45, note:'tray' },
+    { name:'Extra Edamame Tray', price:35, note:'tray' },
+    { name:'Sushi Starter', price:59, note:'28 pcs' },
+    { name:'Party Roll Platter', price:89, note:'56 pcs' },
+    { name:'Deluxe Sushi Platter', price:119, note:'72 pcs' },
+    { name:'Phoenix Party Punch', price:49, note:'1 gallon' },
+    { name:'Japanese Ramune Soda', price:20, note:'5 bottles' },
+    { name:'Mochi Ice Cream', price:32, note:'12 pcs' }
   ];
 
   function customerSummaryHtml(order = {}) {
@@ -365,24 +387,200 @@
     `;
   }
 
-  function renderChoiceList(container, choices, textarea, currentText) {
-    if (!container || !textarea) return;
-    const current = lower(currentText || textarea.value);
-    container.innerHTML = choices.map(choice => {
-      const normalized = lower(choice).replace(/\s+upgrade$/, '');
-      const checked = current.includes(normalized) || current.includes(lower(choice));
-      return `<label><input type="checkbox" value="${esc(choice)}" ${checked ? 'checked' : ''}> ${esc(choice)}</label>`;
+  function parseQtyMap(value = '') {
+    const map = {};
+    text(value).replace(/^Protein selections:\s*/i, '').split(/[,;\n]+/).forEach(part => {
+      const clean = text(part);
+      if (!clean) return;
+      const m = clean.match(/^(.+?)\s*(?:[脳x×]\s*|\s+)(\d+)$/i);
+      if (!m) return;
+      const rawName = text(m[1]).replace(/\s*\([^)]*\)\s*$/, '');
+      const qty = int(m[2], 0);
+      const protein = PROTEIN_CHOICES_V241.find(item => lower(item.name) === lower(rawName) || lower(item.label).replace(/\s+upgrade$/, '') === lower(rawName));
+      const addon = ADDON_CHOICES_V241.find(item => lower(item.name) === lower(rawName));
+      const name = protein?.name || addon?.name || rawName;
+      if (qty > 0) map[name] = qty;
+    });
+    return map;
+  }
+  function selectedProteinsFromForm(form) {
+    const selections = {};
+    form?.querySelectorAll?.('[data-v241-protein-input]').forEach(input => {
+      const qty = int(input.value, 0);
+      const name = text(input.getAttribute('data-v241-protein-input'));
+      if (name && qty > 0) selections[name] = qty;
+    });
+    return selections;
+  }
+  function selectedAddonsFromForm(form) {
+    const items = [];
+    form?.querySelectorAll?.('[data-v241-addon-input]').forEach(input => {
+      const qty = int(input.value, 0);
+      const name = text(input.getAttribute('data-v241-addon-input'));
+      const unitPrice = num(input.getAttribute('data-v241-addon-price'), 0);
+      if (name && qty > 0) items.push({ name, qty, unitPrice, price:unitPrice * qty });
+    });
+    return items;
+  }
+  function proteinSummaryFromSelections(selections = {}) {
+    const parts = Object.entries(selections).filter(([, qty]) => Number(qty) > 0).map(([name, qty]) => `${name} x ${qty}`);
+    return parts.join(', ');
+  }
+  function addonSummaryFromItems(items = []) {
+    return items.filter(item => Number(item.qty) > 0).map(item => `${item.name} x ${item.qty}`).join('\n');
+  }
+  function proteinRuleForForm(form) {
+    const adults = int(form?.elements?.adults?.value, 0);
+    const kids = int(form?.elements?.kids?.value, 0);
+    const billableGuests = Math.max(0, adults + kids * 0.5);
+    const required = Math.ceil(billableGuests * 2);
+    return { adults, kids, billableGuests, required, maxEach:Math.ceil(billableGuests) };
+  }
+  function renderProteinQuantityList(container, form, currentText) {
+    if (!container || !form) return;
+    const current = parseQtyMap(currentText || form.elements.proteinSummary.value);
+    const rule = proteinRuleForForm(form);
+    container.innerHTML = PROTEIN_CHOICES_V241.map(choice => {
+      const value = int(current[choice.name], 0);
+      const note = choice.premium ? '+$5 per portion' : 'included protein';
+      return `<label><span>${esc(choice.label)}<small>${esc(note)}</small></span><input type="number" min="0" max="${rule.maxEach}" step="1" value="${value}" data-v241-protein-input="${esc(choice.name)}" aria-label="${esc(choice.label)} quantity"></label>`;
     }).join('');
-    const sync = () => {
-      const selected = [...container.querySelectorAll('input:checked')].map(input => text(input.value));
-      textarea.value = selected.join(', ');
-    };
-    container.querySelectorAll('input').forEach(input => input.addEventListener('change', sync));
+  }
+  function renderAddonQuantityList(container, form, currentText) {
+    if (!container || !form) return;
+    const current = parseQtyMap(currentText || form.elements.addons.value);
+    container.innerHTML = ADDON_CHOICES_V241.map(item => {
+      const value = int(current[item.name], 0);
+      return `<label><span>${esc(item.name)}<small>${money(item.price)} · ${esc(item.note || 'add-on')}</small></span><input type="number" min="0" step="1" value="${value}" data-v241-addon-input="${esc(item.name)}" data-v241-addon-price="${esc(item.price)}" aria-label="${esc(item.name)} quantity"></label>`;
+    }).join('');
   }
 
   function setupCustomerChoices(dialog, form) {
-    renderChoiceList(dialog.querySelector('[data-v241-protein-choices]'), PROTEIN_CHOICES_V241, form.elements.proteinSummary, form.elements.proteinSummary.value);
-    renderChoiceList(dialog.querySelector('[data-v241-addon-choices]'), ADDON_CHOICES_V241, form.elements.addons, form.elements.addons.value);
+    renderProteinQuantityList(dialog.querySelector('[data-v241-protein-choices]'), form, form.elements.proteinSummary.value);
+    renderAddonQuantityList(dialog.querySelector('[data-v241-addon-choices]'), form, form.elements.addons.value);
+    const sync = () => {
+      const proteins = selectedProteinsFromForm(form);
+      const addons = selectedAddonsFromForm(form);
+      form.elements.proteinSummary.value = proteinSummaryFromSelections(proteins);
+      form.elements.addons.value = addonSummaryFromItems(addons);
+      updatePricePreview(form);
+    };
+    dialog.querySelectorAll('[data-v241-protein-input],[data-v241-addon-input]').forEach(input => input.addEventListener('input', sync));
+    sync();
+  }
+
+  function bindPricePreviewEvents(dialog, form, customerMode) {
+    const rerenderProteins = () => {
+      if (customerMode) setupCustomerChoices(dialog, form);
+      updatePricePreview(form);
+    };
+    ['packageName', 'adults', 'kids', 'travelFee'].forEach(name => {
+      const input = form.elements[name];
+      if (!input) return;
+      input.oninput = name === 'adults' || name === 'kids' ? rerenderProteins : () => updatePricePreview(form);
+      input.onchange = input.oninput;
+    });
+    ['addons', 'proteinSummary', 'allergyNotes'].forEach(name => {
+      const input = form.elements[name];
+      if (input) input.oninput = () => updatePricePreview(form);
+    });
+  }
+
+  function draftOrderFromForm(form, order = {}, mode = text(form?.elements?.mode?.value || 'customer')) {
+    const packageName = text(form.elements.packageName.value) || 'Classic';
+    const adults = int(form.elements.adults.value, 0);
+    const kids = int(form.elements.kids.value, 0);
+    const totalGuests = adults + kids;
+    const proteinSelections = mode === 'customer'
+      ? selectedProteinsFromForm(form)
+      : parseQtyMap(form.elements.proteinSummary.value);
+    const pricedAddons = mode === 'customer'
+      ? selectedAddonsFromForm(form)
+      : text(form.elements.addons.value).split(/\n+/).map(line => line.trim()).filter(Boolean);
+    const travelFee = mode === 'admin' ? num(form.elements.travelFee.value, 0) : num(order.travelFee ?? order.travel_fee, 0);
+    return {
+      ...order,
+      eventDate:form.elements.eventDate.value,
+      event_date:form.elements.eventDate.value,
+      eventTime:form.elements.eventTime.value,
+      event_time:form.elements.eventTime.value,
+      package:packageName,
+      package_name:packageName,
+      adults,
+      kids,
+      totalGuests,
+      guest_count:totalGuests,
+      billableGuests:adults + kids * 0.5,
+      address:form.elements.address.value,
+      addons:pricedAddons,
+      add_ons:pricedAddons,
+      proteinSelections,
+      proteinSummary:proteinSummaryFromSelections(proteinSelections),
+      protein_summary:proteinSummaryFromSelections(proteinSelections),
+      allergyNotes:form.elements.allergyNotes.value,
+      allergy_notes:form.elements.allergyNotes.value,
+      travelFee,
+      travel_fee:travelFee
+    };
+  }
+
+  function estimateOrderFromForm(form, order = {}, mode = text(form?.elements?.mode?.value || 'customer')) {
+    const draft = draftOrderFromForm(form, order, mode);
+    try {
+      if (typeof calculateOrderMoney === 'function') return { draft, money:calculateOrderMoney(draft) || {} };
+    } catch {}
+    const packagePrices = { Classic:55, Premium:65, Signature:110 };
+    const packagePrice = packagePrices[draft.package] || 55;
+    const kidFoodPrice = draft.package === 'Classic' ? 28 : Math.ceil(packagePrice / 2);
+    const rawFood = draft.adults * packagePrice + draft.kids * kidFoodPrice + selectedAddonsFromForm(form).reduce((sum, item) => sum + item.price, 0);
+    const minimumFoodTotal = 550;
+    const minimumOrderAdjustment = Math.max(0, minimumFoodTotal - rawFood);
+    const foodSubtotal = rawFood + minimumOrderAdjustment;
+    const guestTotalBeforeDeposit = foodSubtotal + num(draft.travelFee, 0);
+    return { draft, money:{ packagePrice, billableGuests:draft.billableGuests, minimumFoodTotal, minimumOrderAdjustment, foodSubtotal, travelFee:num(draft.travelFee, 0), salesTax:0, guestTotalBeforeDeposit, guestTotalAfterDeposit:guestTotalBeforeDeposit } };
+  }
+
+  function proteinRuleMessage(form) {
+    const rule = proteinRuleForForm(form);
+    return `${formatGuestNumberSafe(rule.billableGuests)} adult-equivalent guests x 2 = ${rule.required} protein portions required. Each protein quantity may not exceed ${rule.maxEach}.`;
+  }
+  function formatGuestNumberSafe(value) {
+    try { return typeof formatGuestNumber === 'function' ? formatGuestNumber(value) : (Number.isInteger(Number(value)) ? String(Number(value)) : Number(value).toFixed(1).replace(/\.0$/, '')); }
+    catch { return String(value); }
+  }
+  function validateProteinQuantities(form) {
+    const rule = proteinRuleForForm(form);
+    const selections = selectedProteinsFromForm(form);
+    const total = Object.values(selections).reduce((sum, qty) => sum + int(qty, 0), 0);
+    const over = Object.entries(selections).find(([, qty]) => int(qty, 0) > rule.maxEach);
+    if (rule.required <= 0) return 'Please enter the guest count before saving changes.';
+    if (over) return `${over[0]} quantity cannot exceed ${rule.maxEach}.`;
+    if (total !== rule.required) return `Protein quantity must equal ${rule.required}. Current selected total is ${total}. ${proteinRuleMessage(form)}`;
+    return '';
+  }
+  function updatePricePreview(form, order = collectOrders().get(text(form?.elements?.bookingNumber?.value).toLowerCase()) || {}) {
+    const box = document.querySelector('#phxOrderModifyModalV241 [data-v241-price-preview]');
+    if (!box || !form) return;
+    const { money:m } = estimateOrderFromForm(form, order, text(form.elements.mode.value || 'customer'));
+    const rule = proteinRuleForForm(form);
+    const proteinTotal = Object.values(selectedProteinsFromForm(form)).reduce((sum, qty) => sum + int(qty, 0), 0);
+    const paid = num(order.paidAmount ?? order.paid_amount ?? order.depositPaid ?? order.deposit_amount, 0);
+    const finalTotal = num(m.guestTotalBeforeDeposit ?? m.total ?? m.grandTotal, 0);
+    const balance = Math.max(0, finalTotal - paid);
+    const minimumLine = num(m.minimumOrderAdjustment, 0) > 0
+      ? `<div class="warn"><span>Minimum order adjustment</span><b>${money(m.minimumOrderAdjustment)} to meet ${money(m.minimumFoodTotal || 550)}</b></div>`
+      : `<div><span>Minimum order</span><b>Met</b></div>`;
+    box.innerHTML = `
+      <h3>Updated price preview</h3>
+      <div><span>Protein rule</span><b>${proteinTotal}/${rule.required} portions</b></div>
+      <div><span>Package</span><b>${esc(text(form.elements.packageName.value || 'Classic'))} · ${money(m.packagePrice || 0)}/adult</b></div>
+      <div><span>Food subtotal</span><b>${money(m.foodSubtotal || 0)}</b></div>
+      ${minimumLine}
+      <div><span>Travel fee</span><b>${money(m.travelFee || 0)}</b></div>
+      <div><span>Sales tax</span><b>${money(m.salesTax || 0)}</b></div>
+      <div><span>Estimated final total</span><b>${money(finalTotal)}</b></div>
+      <div><span>Balance after paid/deposit</span><b>${money(balance)}</b></div>
+    `;
   }
 
   function setCustomerBasicMode(dialog, customerMode, order) {
@@ -394,6 +592,7 @@
     }
     if (choices) choices.hidden = !customerMode;
     dialog.querySelectorAll('[data-v241-basic-field]').forEach(label => { label.hidden = customerMode; });
+    dialog.querySelectorAll('[data-v241-menu-text]').forEach(label => { label.hidden = customerMode; });
     if (customerMode) setupCustomerChoices(dialog, dialog.querySelector('form'));
   }
 
@@ -665,11 +864,12 @@
     form.elements.changeNote.value = '';
     form.elements.travelFee.value = num(editableOrder.travelFee ?? editableOrder.travel_fee, 0).toFixed(2);
     setCustomerBasicMode(dialog, customerMode, editableOrder);
+    bindPricePreviewEvents(dialog, form, customerMode);
     const help = dialog.querySelector('[data-v241-help]');
     const travelWrap = dialog.querySelector('[data-v241-travel-wrap]');
     const verifyWrap = dialog.querySelector('[data-v241-verify-wrap]');
     if (customerMode) {
-      help.textContent = `${formatWindow(editableOrder)} Travel fee and final total may still require manager review after changes.`;
+      help.textContent = `${formatWindow(editableOrder)} Event time changes must be handled by Phoenix customer service. Price preview updates here; final total may still require manager review.`;
       travelWrap.hidden = true;
       verifyWrap.hidden = true;
     } else {
@@ -678,6 +878,7 @@
       verifyWrap.hidden = true;
     }
     setStatus('');
+    updatePricePreview(form, editableOrder);
     try { dialog.showModal(); } catch { dialog.setAttribute('open', ''); }
   }
 
@@ -690,8 +891,12 @@
     const adults = int(fd.get('adults'), 0);
     const kids = int(fd.get('kids'), 0);
     const address = text(fd.get('address'));
-    const addOns = text(fd.get('addons')).split(/\n+/).map(line => line.trim()).filter(Boolean);
-    const proteinSummaryValue = text(fd.get('proteinSummary'));
+    const proteinSelectionsValue = mode === 'customer' ? selectedProteinsFromForm(form) : parseQtyMap(fd.get('proteinSummary'));
+    const proteinSummaryValue = proteinSummaryFromSelections(proteinSelectionsValue) || text(fd.get('proteinSummary'));
+    const pricedAddOns = mode === 'customer'
+      ? selectedAddonsFromForm(form)
+      : text(fd.get('addons')).split(/\n+/).map(line => line.trim()).filter(Boolean);
+    const addOns = mode === 'customer' ? addonSummaryFromItems(pricedAddOns).split(/\n+/).filter(Boolean) : pricedAddOns;
     const allergyNotes = text(fd.get('allergyNotes'));
     const changeNote = text(fd.get('changeNote'));
     const totalGuests = adults + kids;
@@ -709,6 +914,7 @@
       address,
       add_ons:addOns,
       addons:addOns,
+      proteinSelections:proteinSelectionsValue,
       proteinSummary:proteinSummaryValue,
       protein_summary:proteinSummaryValue,
       allergyNotes,
@@ -718,7 +924,7 @@
       localPatch.travelFee = num(fd.get('travelFee'), 0);
       localPatch.travel_fee = localPatch.travelFee;
     }
-    const updated = { ...order, ...localPatch };
+    const updated = { ...order, ...localPatch, addons:pricedAddOns, add_ons:pricedAddOns, proteinSelections:proteinSelectionsValue };
     const m = (() => { try { return typeof calculateOrderMoney === 'function' ? calculateOrderMoney(updated) : {}; } catch { return {}; } })();
     const finalTotal = num(m.guestTotalBeforeDeposit ?? updated.finalTotal ?? updated.final_total, 0);
     const paid = num(updated.paidAmount ?? updated.paid_amount ?? updated.depositPaid ?? updated.deposit_amount, 0);
@@ -732,14 +938,13 @@
     if (allergyNotes) notes = upsertNote(notes, 'Allergy / dietary notes', allergyNotes);
     if (changeNote) notes = addHistory(notes, `${mode === 'admin' ? 'Admin' : 'Customer'} modification note`, changeNote);
     const dbPatch = {
-      event_date:eventDate,
-      event_time:timeToDb(eventTime),
       package_name:packageName,
       adults,
       kids,
       guest_count:totalGuests,
-      address,
       add_ons:addOns,
+      proteinSummary:proteinSummaryValue,
+      protein_summary:proteinSummaryValue,
       allergy_notes:allergyNotes || null,
       admin_notes:notes,
       final_total:finalTotal,
@@ -747,7 +952,12 @@
       balance_due:balance,
       balance_due_cents:Math.round(balance * 100)
     };
-    if (mode === 'admin') dbPatch.travel_fee = localPatch.travelFee;
+    if (mode === 'admin') {
+      dbPatch.event_date = eventDate;
+      dbPatch.event_time = timeToDb(eventTime);
+      dbPatch.address = address;
+      dbPatch.travel_fee = localPatch.travelFee;
+    }
     if (mode === 'customer') {
       dbPatch.status = /cancel|complete/i.test(text(order.status)) ? order.status : 'Customer updated - manager review';
       dbPatch.request_status = 'modified';
@@ -820,6 +1030,14 @@
     if (mode === 'customer' && !customerCanModify(order)) {
       setStatus(`This order is locked within ${EDIT_WINDOW_HOURS} hours. Please call ${supportPhone()}.`, true);
       return;
+    }
+    if (mode === 'customer') {
+      const proteinError = validateProteinQuantities(form);
+      if (proteinError) {
+        setStatus(proteinError, true);
+        updatePricePreview(form, order);
+        return;
+      }
     }
     const submit = form.querySelector('button[type="submit"]');
     if (submit) submit.disabled = true;
