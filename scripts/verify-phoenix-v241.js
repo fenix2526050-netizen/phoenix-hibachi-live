@@ -17,12 +17,14 @@ function matches(file, regex) {
 
 const v2382 = 'src/phoenix-v2382-admin-lifecycle-bridge.js';
 const v241 = 'src/phoenix-v241-order-modification.js';
+const index = 'index.html';
 const lifecycle = 'supabase/functions/booking-lifecycle/index.ts';
 const script = 'script.js';
 const pkg = 'package.json';
 
 check('V241 frontend file exists', fs.existsSync(path.join(root, v241)));
 check('V2382 loads V241 patch', includes(v2382, 'phoenix-v241-order-modification.js'));
+check('Index directly loads V241 patch', includes(index, 'src/phoenix-v241-order-modification.js'));
 check('V241 has single-run guard', includes(v241, '__PHX_V241_ORDER_MODIFICATION__'));
 check('V241 customer edit window is 48 hours', includes(v241, 'EDIT_WINDOW_HOURS = 48'));
 check('V241 injects Modify order button', includes(v241, 'data-v241-edit-order'));
@@ -32,6 +34,8 @@ check('V241 admin mode exists', includes(v241, 'data-v241-mode="admin"'));
 check('V241 infers staff cards from existing admin controls', includes(v241, 'hasStaffControls') && includes(v241, 'assign chef') && includes(v241, 'payment\\s*\\/\\s*price'));
 check('V241 enhances public lookup cards', includes(v241, '.lookup-card') && includes(v241, 'data-print-lookup') && includes(v241, 'lookup-actions-v103'));
 check('V241 tracks public lookup orders', includes(v241, 'rememberLookupOrder') && includes(v241, '__PHX_LOOKUP_ORDER_CACHE__'));
+check('V241 shows admin button even when cache misses', includes(v241, 'orderStubFromCard') && includes(v241, '__v241NeedsFullFetch'));
+check('V241 fetches full admin order before editing fallback cards', includes(v241, 'loadFullAdminOrder') && includes(v241, ".from('bookings').select('*')"));
 check('V241 requests customer verification before public edits', includes(v241, 'Verification phone or email') && includes(v241, 'verificationContact'));
 check('V241 fetches full editable order before public edit', includes(v241, 'customer_edit_order') && includes(v241, 'loadEditableCustomerOrder'));
 check('V241 opens order modification modal', includes(v241, 'phxOrderModifyModalV241'));

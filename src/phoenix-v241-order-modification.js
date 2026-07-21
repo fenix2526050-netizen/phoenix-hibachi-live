@@ -140,7 +140,27 @@
       '';
     const match = text(raw).match(/\bPHX[-\w]+\b/i);
     const id = (match ? match[0] : text(raw)).toLowerCase();
-    return id ? orders.get(id) || null : null;
+    if (!id) return null;
+    return orders.get(id) || orderStubFromCard(card, id);
+  }
+  function orderStubFromCard(card, id) {
+    const rawId = text(id).toUpperCase();
+    const bodyText = text(card?.textContent || '');
+    const dateMatch = bodyText.match(/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}\b/i);
+    const timeMatch = bodyText.match(/\b\d{1,2}:\d{2}\s*(?:AM|PM)\b/i);
+    const lines = bodyText.split(/\n+/).map(line => line.trim()).filter(Boolean);
+    const addressLine = lines.find(line => /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(line)) || '';
+    return {
+      id:rawId,
+      booking_number:rawId,
+      eventDate:dateMatch?.[0] || '',
+      eventTime:timeMatch?.[0] || '',
+      address:addressLine,
+      package:'Classic',
+      adults:0,
+      kids:0,
+      __v241NeedsFullFetch:true
+    };
   }
   function currentRole() {
     try { return text(window.currentDashboardRole || currentDashboardRole || localStorage.getItem('phoenix_portal_role') || localStorage.getItem('phoenix_dashboard_role')); }
@@ -322,6 +342,30 @@
     lookupOrders.set(orderId.toLowerCase(), fullOrder);
     return fullOrder;
   }
+  async function loadFullAdminOrder(order = {}) {
+    const orderId = idOf(order);
+    if (!orderId) throw new Error('Order number is missing.');
+    const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
+    if (!client) throw new Error('Supabase client is not available.');
+    const { data, error } = await client.from('bookings').select('*').eq('booking_number', orderId).order('created_at', { ascending:false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message || 'Could not load this order.');
+    if (!data) throw new Error('Order was not found in Supabase.');
+    const fullOrder = {
+      ...data,
+      id:data.booking_number || orderId,
+      booking_number:data.booking_number || orderId,
+      name:data.customer_name || data.name || '',
+      phone:data.customer_phone || data.phone || '',
+      email:data.customer_email || data.email || '',
+      eventDate:data.event_date || data.eventDate || '',
+      eventTime:data.event_time || data.eventTime || '',
+      package:data.package_name || data.package || 'Classic',
+      totalGuests:data.guest_count || data.totalGuests || 0,
+      __v241NeedsFullFetch:false
+    };
+    lookupOrders.set(orderId.toLowerCase(), fullOrder);
+    return fullOrder;
+  }
 
   async function openEditor(order, mode) {
     const customerMode = mode === 'customer';
@@ -330,6 +374,14 @@
       return;
     }
     let editableOrder = order;
+    if (!customerMode && order.__v241NeedsFullFetch) {
+      try {
+        editableOrder = await loadFullAdminOrder(order);
+      } catch (error) {
+        alert(`${error?.message || 'Could not load this order.'} Open Order details once, then try Modify order again.`);
+        return;
+      }
+    }
     if (customerMode && order.__v241PublicLookup) {
       let verify = lookupContactValue();
       if (!verify) {

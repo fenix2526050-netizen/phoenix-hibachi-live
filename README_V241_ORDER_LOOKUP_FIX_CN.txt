@@ -7,6 +7,11 @@ This package is still local only. It has not been pushed to GitHub, and it has n
 
 What changed in this fix:
 
+0. V241 loading
+   - index.html now directly loads src/phoenix-v241-order-modification.js.
+   - The older bridge loader remains as backup.
+   - This fixes cases where Travel Fee V240 loaded but the Modify order button did not appear.
+
 1. Public order lookup
    - Customers can search by order number alone, for example PHX-260720-A52P.
    - The public result remains masked / customer-safe.
@@ -26,6 +31,8 @@ What changed in this fix:
 4. Admin dashboard
    - Admin / Manager / Customer Service order cards continue to get Modify order.
    - Staff can modify orders anytime.
+   - If the order card is rendered by the V120 calendar/dispatch view and the order object is not available in the global cache, the button still appears.
+   - When staff clicks Modify order, the site fetches the full order from Supabase by booking number before opening the edit form.
 
 Files that must be uploaded to GitHub:
 
