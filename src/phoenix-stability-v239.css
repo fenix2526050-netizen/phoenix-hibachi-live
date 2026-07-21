@@ -1,0 +1,826 @@
+/*
+  Phoenix Hibachi V239 stability layer.
+  Loaded last to centralize readability, fixed action placement, mobile overflow,
+  admin card field display, and compact print behavior without changing pricing
+  or Supabase data flow.
+*/
+
+:root {
+  --phx-v239-overlay: 2147483200;
+  --phx-v239-modal: 2147483600;
+  --phx-v239-radius: 18px;
+  --phx-v239-shadow: 0 18px 48px rgba(0, 0, 0, .34);
+  --phx-v239-focus: 0 0 0 3px rgba(227, 167, 45, .28);
+}
+
+body {
+  --phx-v239-panel: var(--panel, #120b07);
+  --phx-v239-panel-2: var(--panel2, #19100a);
+  --phx-v239-text: var(--text, #fff8ec);
+  --phx-v239-muted: var(--muted, #d4c2aa);
+  --phx-v239-soft: var(--soft, #b8a990);
+  --phx-v239-line: var(--line, rgba(255, 215, 121, .22));
+  --phx-v239-input: #0b0704;
+  --phx-v239-input-text: var(--text, #fff8ec);
+  --phx-v239-chip: rgba(227, 167, 45, .12);
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: hidden;
+  color-scheme: dark;
+}
+
+body.light-theme {
+  --bg: #fff8ec;
+  --panel: #fffaf2;
+  --panel2: #fff2de;
+  --text: #211207;
+  --muted: #5f4934;
+  --soft: #6d5d50;
+  --line: rgba(157, 90, 5, .24);
+  --gold: #b97712;
+  --gold2: #8b4f04;
+  --red: #b33b2e;
+  --green: #247849;
+  --phx-v239-panel: #fffaf2;
+  --phx-v239-panel-2: #fff2de;
+  --phx-v239-text: #211207;
+  --phx-v239-muted: #5f4934;
+  --phx-v239-soft: #6d5d50;
+  --phx-v239-line: rgba(157, 90, 5, .24);
+  --phx-v239-input: #fffef8;
+  --phx-v239-input-text: #211207;
+  --phx-v239-chip: rgba(185, 119, 18, .12);
+  color-scheme: light;
+}
+
+html,
+body {
+  max-width: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  max-width: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--phx-v239-focus);
+}
+
+.modal-card,
+.full-booking,
+.contact-card,
+.login-card,
+.dashboard-card,
+.member-card,
+.chef-apply-card,
+.assistant-card,
+.booking-card,
+.calendar-card,
+.time-panel,
+.package-card,
+.review-card,
+.media-card,
+.portal-grid article,
+.addon-grid article,
+.summary-panel,
+.lookup-card,
+.coupon-panel,
+.order-card,
+.dispatch-card,
+.feedback-card,
+.settings-card,
+.v140-content-card,
+.v140-admin-panel,
+.v140-settings-grid article,
+.v140-post-form,
+.v140-product-form,
+.v140-list-card {
+  color: var(--phx-v239-text);
+  border-color: var(--phx-v239-line);
+}
+
+body.light-theme .top-strip {
+  color: rgba(33, 18, 7, .68);
+}
+
+body.light-theme .site-header,
+body.light-theme .mobile-nav,
+body.light-theme .modal-card,
+body.light-theme .full-booking,
+body.light-theme .contact-card,
+body.light-theme .login-card,
+body.light-theme .dashboard-card,
+body.light-theme .member-card,
+body.light-theme .chef-apply-card,
+body.light-theme .assistant-card,
+body.light-theme .booking-card,
+body.light-theme .calendar-card,
+body.light-theme .time-panel,
+body.light-theme .package-card,
+body.light-theme .review-card,
+body.light-theme .media-card,
+body.light-theme .portal-grid article,
+body.light-theme .addon-grid article,
+body.light-theme .summary-panel,
+body.light-theme .lookup-card,
+body.light-theme .coupon-panel,
+body.light-theme .order-card,
+body.light-theme .dispatch-card,
+body.light-theme .feedback-card,
+body.light-theme .settings-card,
+body.light-theme .calendar-summary-panel,
+body.light-theme .route-planner-panel,
+body.light-theme .dashboard-assistant-panel {
+  background: var(--phx-v239-panel) !important;
+  color: var(--phx-v239-text) !important;
+  border-color: var(--phx-v239-line) !important;
+}
+
+body.light-theme .section,
+body.light-theme .reviews,
+body.light-theme .calendar,
+body.light-theme .addons,
+body.light-theme .packages,
+body.light-theme .performance,
+body.light-theme .occasion-strip,
+body.light-theme .portal-section,
+body.light-theme .booking,
+body.light-theme .section.soft-bg,
+body.light-theme footer {
+  background: #fff8ec !important;
+  color: var(--phx-v239-text) !important;
+}
+
+body.light-theme .modal-card p,
+body.light-theme .full-booking p,
+body.light-theme .dashboard-card p,
+body.light-theme .dashboard-card small,
+body.light-theme .order-card p,
+body.light-theme .dispatch-card p,
+body.light-theme .feedback-card p,
+body.light-theme .small-muted,
+body.light-theme .modal-help,
+body.light-theme .form-help,
+body.light-theme .tiny-note,
+body.light-theme .muted,
+body.light-theme .soft-text {
+  color: var(--phx-v239-muted) !important;
+}
+
+body.light-theme h1,
+body.light-theme h2,
+body.light-theme h3,
+body.light-theme h4,
+body.light-theme .card-title,
+body.light-theme .brand-text strong,
+body.light-theme .order-card strong,
+body.light-theme .dispatch-card strong,
+body.light-theme .feedback-card strong {
+  color: var(--phx-v239-text) !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-width: 0;
+}
+
+body.light-theme input:not([type="checkbox"]):not([type="radio"]),
+body.light-theme select,
+body.light-theme textarea,
+body.light-theme .v142-rich-editor {
+  background: var(--phx-v239-input) !important;
+  color: var(--phx-v239-input-text) !important;
+  border-color: var(--phx-v239-line) !important;
+}
+
+body.light-theme input::placeholder,
+body.light-theme textarea::placeholder {
+  color: rgba(33, 18, 7, .46) !important;
+}
+
+body.light-theme .outline-btn,
+body.light-theme .ghost-btn,
+body.light-theme .ai-toggle,
+body.light-theme .theme-toggle-btn,
+body.light-theme .dashboard-theme-btn,
+body.light-theme .dashboard-assistant-btn,
+body.light-theme .order-actions button,
+body.light-theme .order-actions a,
+body.light-theme .phx-v120-stop-actions button,
+body.light-theme .dashboard-tabs button {
+  background: rgba(255, 255, 255, .82) !important;
+  color: #7a4505 !important;
+  border-color: rgba(185, 119, 18, .32) !important;
+}
+
+body.light-theme .gold-btn,
+body.light-theme .gold-btn-mini,
+body.light-theme .floating-book {
+  color: #160a03 !important;
+}
+
+body.light-theme .tag,
+body.light-theme .role-badge,
+body.light-theme .badge,
+body.light-theme .route-letter-badge {
+  background: var(--phx-v239-chip) !important;
+  color: #7a4505 !important;
+  border-color: rgba(185, 119, 18, .28) !important;
+}
+
+.theme-switcher,
+.ai-assistant,
+.floating-book {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.theme-switcher {
+  position: fixed !important;
+  right: 22px !important;
+  bottom: 152px !important;
+  z-index: var(--phx-v239-overlay) !important;
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.ai-assistant {
+  position: fixed !important;
+  left: auto !important;
+  right: 22px !important;
+  bottom: 86px !important;
+  z-index: var(--phx-v239-overlay) !important;
+  display: block !important;
+}
+
+.floating-book {
+  position: fixed !important;
+  right: 22px !important;
+  bottom: 22px !important;
+  z-index: var(--phx-v239-overlay) !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+}
+
+body.portal-mode .theme-switcher,
+body.portal-mode .ai-assistant,
+body.portal-mode .floating-book,
+body.phx-mobile-menu-open .theme-switcher,
+body.phx-mobile-menu-open .ai-assistant,
+body.phx-mobile-menu-open .floating-book,
+body.mobile-nav-open .theme-switcher,
+body.mobile-nav-open .ai-assistant,
+body.mobile-nav-open .floating-book {
+  display: initial !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+body.portal-mode .theme-switcher,
+body.phx-mobile-menu-open .theme-switcher,
+body.mobile-nav-open .theme-switcher {
+  display: grid !important;
+}
+
+body.portal-mode .ai-assistant,
+body.phx-mobile-menu-open .ai-assistant,
+body.mobile-nav-open .ai-assistant {
+  display: block !important;
+}
+
+body.portal-mode .floating-book,
+body.phx-mobile-menu-open .floating-book,
+body.mobile-nav-open .floating-book {
+  display: inline-flex !important;
+}
+
+.ai-panel {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.order-card,
+.dispatch-card,
+.feedback-card,
+.calendar-order-list > article,
+.phx-v120-managed-order-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-card header,
+.dispatch-card header,
+.feedback-card header {
+  min-width: 0;
+}
+
+.order-actions,
+.v102-order-tools,
+.v107-payment-actions,
+.phx-v120-stop-actions,
+.route-manual-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-actions button,
+.order-actions a,
+.v102-order-tools button,
+.v107-payment-actions button,
+.phx-v120-stop-actions button,
+.route-manual-actions button {
+  min-height: 38px;
+  white-space: normal;
+}
+
+.phx-v239-order-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--phx-v239-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.phx-v239-field {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.phx-v239-field span {
+  color: var(--phx-v239-soft);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.phx-v239-field b {
+  color: var(--phx-v239-text);
+  font-size: .84rem;
+  line-height: 1.25;
+}
+
+body.light-theme .phx-v239-order-fields {
+  background: rgba(255, 255, 255, .66);
+}
+
+body.light-theme .phx-v239-field span {
+  color: #7d6247 !important;
+}
+
+body.light-theme .phx-v239-field b {
+  color: #211207 !important;
+}
+
+.dashboard-card,
+.full-booking,
+.login-card,
+.contact-card,
+.member-card,
+.chef-apply-card,
+.print-card {
+  max-width: calc(100vw - 20px);
+}
+
+.customer-table-wrap,
+.people-management-list,
+.calendar-summary-list,
+.route-plan-summary,
+.route-map-board {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  max-width: 100%;
+}
+
+.print-modal[open] {
+  z-index: var(--phx-v239-modal);
+}
+
+.print-card {
+  max-height: 92dvh;
+  overflow: auto;
+}
+
+.print-card #printArea.invoice-paper {
+  width: min(8.5in, 100%) !important;
+  max-width: 100% !important;
+  padding: .22in !important;
+  margin: 0 auto !important;
+  zoom: .82 !important;
+}
+
+.print-card #printArea.phx-v239-print-ready .guest-invoice,
+.print-card #printArea.phx-v239-print-ready .chef-settlement-sheet {
+  color: #111 !important;
+}
+
+#printArea[data-v239-density="compact"] .guest-invoice,
+#printArea[data-v239-density="compact"] .chef-settlement-sheet {
+  font-size: 11px !important;
+  line-height: 1.12 !important;
+}
+
+#printArea[data-v239-density="tight"] .guest-invoice,
+#printArea[data-v239-density="tight"] .chef-settlement-sheet {
+  font-size: 10px !important;
+  line-height: 1.08 !important;
+}
+
+#printArea[data-v239-density="ultra"] .guest-invoice,
+#printArea[data-v239-density="ultra"] .chef-settlement-sheet {
+  font-size: 9px !important;
+  line-height: 1.04 !important;
+}
+
+@media (max-width: 900px) {
+  .desktop-nav {
+    min-width: 0;
+  }
+
+  .dashboard-tabs {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .dashboard-tabs button {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .container {
+    width: min(100% - 24px, 1180px) !important;
+  }
+
+  .site-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px !important;
+  }
+
+  .brand {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .brand-text {
+    min-width: 0;
+  }
+
+  .brand-text strong {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+    font-size: clamp(.78rem, 3.4vw, 1rem) !important;
+    line-height: 1.02;
+  }
+
+  .brand-text small {
+    display: none !important;
+  }
+
+  .header-actions {
+    flex: 0 0 auto;
+    gap: 6px !important;
+  }
+
+  .mobile-toggle {
+    flex: 0 0 42px;
+    width: 42px;
+    min-height: 42px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.35rem, 13vw, 3.45rem) !important;
+    line-height: .9 !important;
+  }
+
+  .hero-lead,
+  .section-lead {
+    max-width: 100%;
+  }
+
+  .quote-form,
+  .hero-stats,
+  .dashboard-grid,
+  .dashboard-stats,
+  .review-grid,
+  .media-grid,
+  .portal-grid,
+  .footer-grid,
+  .invoice-main-grid,
+  .settlement-grid,
+  .settlement-money,
+  .settlement-checks,
+  .people-settings-grid,
+  .phx-v239-order-fields {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-card,
+  .full-booking,
+  .login-card,
+  .contact-card,
+  .member-card,
+  .chef-apply-card,
+  .print-card {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    padding: 16px !important;
+    margin: 8px auto !important;
+    border-radius: 18px !important;
+  }
+
+  .dashboard-head,
+  .modal-title-row,
+  .booking-summary,
+  .section-row,
+  .order-card header,
+  .dispatch-card header,
+  .feedback-card header {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .dashboard-actions,
+  .receipt-actions,
+  .print-modal-actions {
+    justify-content: flex-start !important;
+  }
+
+  .calendar-summary-controls,
+  .inline-admin-form,
+  .v102-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .calendar-summary-controls button,
+  .inline-admin-form button,
+  .v102-row button {
+    width: 100%;
+  }
+
+  .order-card,
+  .dispatch-card,
+  .feedback-card,
+  .calendar-card,
+  .time-panel,
+  .package-card,
+  .addon-grid article,
+  .review-card,
+  .media-card {
+    border-radius: 16px !important;
+  }
+
+  .theme-switcher {
+    right: max(10px, env(safe-area-inset-right)) !important;
+    bottom: calc(env(safe-area-inset-bottom) + 112px) !important;
+  }
+
+  .theme-toggle-btn {
+    width: 58px !important;
+    min-height: 38px !important;
+    padding: 6px 8px !important;
+    font-size: .66rem !important;
+  }
+
+  .ai-assistant {
+    right: max(10px, env(safe-area-inset-right)) !important;
+    bottom: calc(env(safe-area-inset-bottom) + 66px) !important;
+  }
+
+  .ai-toggle {
+    min-height: 38px !important;
+    max-width: 86px;
+    padding: 8px 10px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ai-panel {
+    position: absolute !important;
+    right: 0 !important;
+    bottom: 48px !important;
+    width: min(392px, calc(100vw - 24px)) !important;
+    max-height: calc(100dvh - 90px) !important;
+    overflow: auto !important;
+  }
+
+  .floating-book {
+    right: max(10px, env(safe-area-inset-right)) !important;
+    bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
+    min-height: 38px;
+    max-width: 94px;
+    padding: 0 12px !important;
+    font-size: .72rem !important;
+    letter-spacing: .04em !important;
+  }
+
+  .floating-book::before {
+    margin-right: 4px !important;
+  }
+
+  .mobile-nav {
+    width: calc(100vw - 20px) !important;
+    right: 10px !important;
+    left: auto !important;
+  }
+
+  .print-card #printArea.invoice-paper {
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+    zoom: .52 !important;
+  }
+}
+
+@media print {
+  @page {
+    size: Letter portrait;
+    margin: 4mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  body.printing-invoice {
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.printing-invoice * {
+    visibility: hidden !important;
+  }
+
+  body.printing-invoice #printArea,
+  body.printing-invoice #printArea * {
+    visibility: visible !important;
+  }
+
+  body.printing-invoice #printArea {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body.printing-invoice #printArea.invoice-paper {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    zoom: 1 !important;
+  }
+
+  body.printing-invoice #printArea .guest-invoice,
+  body.printing-invoice #printArea .chef-settlement-sheet {
+    font-size: 7.4pt !important;
+    line-height: 1.06 !important;
+    color: #111 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body.printing-invoice #printArea[data-v239-density="compact"] .guest-invoice,
+  body.printing-invoice #printArea[data-v239-density="compact"] .chef-settlement-sheet {
+    font-size: 7.1pt !important;
+    line-height: 1.04 !important;
+  }
+
+  body.printing-invoice #printArea[data-v239-density="tight"] .guest-invoice,
+  body.printing-invoice #printArea[data-v239-density="tight"] .chef-settlement-sheet {
+    font-size: 6.7pt !important;
+    line-height: 1.02 !important;
+  }
+
+  body.printing-invoice #printArea[data-v239-density="ultra"] .guest-invoice,
+  body.printing-invoice #printArea[data-v239-density="ultra"] .chef-settlement-sheet {
+    font-size: 6.25pt !important;
+    line-height: 1 !important;
+  }
+
+  body.printing-invoice #printArea .invoice-top-line,
+  body.printing-invoice #printArea .invoice-footer-red {
+    display: none !important;
+  }
+
+  body.printing-invoice #printArea .invoice-brand {
+    margin: 0 0 4px !important;
+    gap: 1px !important;
+  }
+
+  body.printing-invoice #printArea .invoice-main-grid,
+  body.printing-invoice #printArea .settlement-grid,
+  body.printing-invoice #printArea .settlement-money {
+    gap: 4px !important;
+  }
+
+  body.printing-invoice #printArea .invoice-labels div,
+  body.printing-invoice #printArea .invoice-row,
+  body.printing-invoice #printArea .invoice-totals div,
+  body.printing-invoice #printArea .invoice-notes,
+  body.printing-invoice #printArea .invoice-remark,
+  body.printing-invoice #printArea .tip-suggestions,
+  body.printing-invoice #printArea .tip-suggestions-clean,
+  body.printing-invoice #printArea .tip-suggestions-final {
+    gap: 2px 5px !important;
+  }
+
+  body.printing-invoice #printArea .invoice-ref,
+  body.printing-invoice #printArea .invoice-selected-items,
+  body.printing-invoice #printArea .invoice-totals,
+  body.printing-invoice #printArea .invoice-notes,
+  body.printing-invoice #printArea .invoice-remark,
+  body.printing-invoice #printArea .invoice-rule-box,
+  body.printing-invoice #printArea .invoice-rule-box-v162,
+  body.printing-invoice #printArea .invoice-payment-grid-v164,
+  body.printing-invoice #printArea .invoice-ledger-grid-v164,
+  body.printing-invoice #printArea .tip-suggestions,
+  body.printing-invoice #printArea .tip-suggestions-clean,
+  body.printing-invoice #printArea .tip-suggestions-final,
+  body.printing-invoice #printArea .settlement-grid,
+  body.printing-invoice #printArea .settlement-money,
+  body.printing-invoice #printArea .settlement-checks {
+    margin: 3px 0 !important;
+    padding: 2px 4px !important;
+    background: #fff !important;
+    border-color: #bbb !important;
+  }
+
+  body.printing-invoice #printArea .invoice-row,
+  body.printing-invoice #printArea .invoice-labels div,
+  body.printing-invoice #printArea .invoice-totals div,
+  body.printing-invoice #printArea .settlement-money div,
+  body.printing-invoice #printArea .settlement-grid div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.printing-invoice .print-modal-actions,
+  body.printing-invoice .modal-close,
+  body.printing-invoice .theme-switcher,
+  body.printing-invoice .ai-assistant,
+  body.printing-invoice .floating-book {
+    display: none !important;
+  }
+}

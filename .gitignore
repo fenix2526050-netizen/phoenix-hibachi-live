@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.codex-backups/
+*.log
+*.tmp
+*.zip
+.DS_Store
+Thumbs.db

@@ -386,7 +386,7 @@
 
   function pricing(){
     if (typeof window.PHX_GET_PRICING_V140 === 'function') return window.PHX_GET_PRICING_V140();
-    return {packages:{Classic:55, Premium:65, Signature:110}, addons:addonPriceMap(defaultAddons), proteinUpcharge:5, moneyRules:{depositRequired:200, minimumBillableGuests:0, minimumFoodOrder:550, chefAdultRate:15, chefKidRate:7.5, chefMinimumPayout:150, firstPartyCoupon:50, birthdayCoupon:50, socialCoupon:50, couponMinimumParty:600, defaultTravelFee:0, estimatedFoodCostRate:35, salesTaxRate:8.875}};
+    return {packages:{Classic:55, Premium:65, Signature:110}, addons:addonPriceMap(defaultAddons), proteinUpcharge:5, moneyRules:{depositRequired:200, minimumBillableGuests:0, minimumFoodOrder:550, chefAdultRate:15, chefKidRate:7.5, chefMinimumPayout:150, firstPartyCoupon:50, birthdayCoupon:50, socialCoupon:50, couponMinimumParty:600, defaultTravelFee:50, travelFeeBase:50, travelFeeIncludedMiles:20, travelFeePerExtraMile:2, njTollFee:30, travelFeeCustomQuoteMiles:100, estimatedFoodCostRate:35, salesTaxRate:8.875}};
   }
 
   function addonArticleMarkup(item){
@@ -594,12 +594,18 @@
     const p = pricing();
     const pkg = p.packages || {}, addons = p.addons || {}, rules = p.moneyRules || {};
     const num = (name, value, label) => `<label>${label}<input type="number" step="0.01" data-price-field="${esc(name)}" value="${esc(value)}"></label>`;
+    const travelBase = rules.travelFeeBase ?? rules.defaultTravelFee ?? 50;
+    const includedMiles = rules.travelFeeIncludedMiles ?? 20;
+    const perExtraMile = rules.travelFeePerExtraMile ?? 2;
+    const njTollFee = rules.njTollFee ?? 30;
+    const customQuoteMiles = rules.travelFeeCustomQuoteMiles ?? 100;
     return `<div class="v140-admin-panel"><div class="section-row"><div><h3>Pricing / Menu Settings</h3><p class="small-muted">Change prices once. Homepage, booking calculation, invoice, payment panel, and revenue view will read the same pricing source in this browser. Supabase sync can make it global later.</p></div><button type="button" class="outline-btn" data-v140-reset-pricing>Reset defaults</button></div>
       <div class="v140-settings-grid">
         <article><h4>Package prices</h4>${num('packages.Classic', pkg.Classic, 'Classic')}${num('packages.Premium', pkg.Premium, 'Premium')}${num('packages.Signature', pkg.Signature, 'Signature')}${num('moneyRules.minimumFoodOrder', rules.minimumFoodOrder || 550, 'Minimum food order ($)')}</article>
         <article><h4>Add-ons / side orders</h4><p class="small-muted">These food items count toward the minimum food order. For adding/deleting photos and notes, use the Add-ons Menu Manager tab.</p>${Object.entries(addons).map(([k,v]) => num(`addons.${k}`, v, k)).join('')}</article>
         <article><h4>Protein / Deposit / Coupons</h4>${num('proteinUpcharge', p.proteinUpcharge, 'Premium protein upcharge')}${num('moneyRules.depositRequired', rules.depositRequired, 'Deposit required')}${num('moneyRules.firstPartyCoupon', rules.firstPartyCoupon, 'First party coupon')}${num('moneyRules.birthdayCoupon', rules.birthdayCoupon, 'Birthday coupon')}${num('moneyRules.socialCoupon', rules.socialCoupon, 'Social share coupon')}${num('moneyRules.couponMinimumParty', rules.couponMinimumParty, 'Coupon minimum')}</article>
-        <article><h4>Chef payout / business rules</h4>${num('moneyRules.chefAdultRate', rules.chefAdultRate, 'Chef adult payout')}${num('moneyRules.chefKidRate', rules.chefKidRate, 'Chef kid payout')}${num('moneyRules.chefMinimumPayout', rules.chefMinimumPayout, 'Chef minimum payout')}${num('moneyRules.defaultTravelFee', rules.defaultTravelFee ?? 0, 'Manual travel fee default')}${num('moneyRules.estimatedFoodCostRate', rules.estimatedFoodCostRate || 35, 'Estimated food cost %')}${num('moneyRules.salesTaxRate', rules.salesTaxRate || 8.875, 'Sales tax %')}</article>
+        <article><h4>Travel fee rules</h4><p class="small-muted">Saved here updates address estimates, Booking totals, Admin cards, customer Portal, and Invoice display in this browser immediately. Supabase sync makes the rule global after admin save.</p>${num('moneyRules.travelFeeBase', travelBase, 'Base travel fee ($)')}${num('moneyRules.travelFeeIncludedMiles', includedMiles, 'Miles included in base')}${num('moneyRules.travelFeePerExtraMile', perExtraMile, 'Extra mileage rate ($ / mile)')}${num('moneyRules.njTollFee', njTollFee, 'NJ toll fee ($)')}${num('moneyRules.travelFeeCustomQuoteMiles', customQuoteMiles, 'Custom quote above miles')}</article>
+        <article><h4>Chef payout / business rules</h4>${num('moneyRules.chefAdultRate', rules.chefAdultRate, 'Chef adult payout')}${num('moneyRules.chefKidRate', rules.chefKidRate, 'Chef kid payout')}${num('moneyRules.chefMinimumPayout', rules.chefMinimumPayout, 'Chef minimum payout')}${num('moneyRules.defaultTravelFee', rules.defaultTravelFee ?? travelBase, 'Manual travel fee default')}${num('moneyRules.estimatedFoodCostRate', rules.estimatedFoodCostRate || 35, 'Estimated food cost %')}${num('moneyRules.salesTaxRate', rules.salesTaxRate || 8.875, 'Sales tax %')}</article>
       </div><div class="v140-admin-actions"><button type="button" class="gold-btn" data-v140-save-pricing>Save pricing</button><span class="small-muted" id="v140PricingStatus"></span></div></div>`;
   }
 
