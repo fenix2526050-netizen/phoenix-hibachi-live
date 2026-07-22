@@ -19,7 +19,7 @@
     stripePublishableKey: sandboxEnabled ? testStripePublishableKey : liveStripePublishableKey,
     supabaseFunctionsBaseUrl: 'https://kyjiwwsqeyhllmzhncap.supabase.co/functions/v1',
     createCheckoutFunction: 'create-stripe-checkout-session',
-    applyBenefitsFunction: 'apply-booking-benefits',
+    applyBenefitsFunction: 'booking-lifecycle',
     purchaseCreditFunction: 'purchase-phoenix-credit',
     updatePreferenceFunction: 'update-booking-payment-preference',
     lookupBookingFunction: 'booking-lifecycle',
@@ -29,7 +29,7 @@
     features: Object.freeze({
       preferenceUpdate: false,
       stripe: sandboxEnabled || liveStripeEnabled,
-      benefits: false,
+      benefits: true,
       creditTopup: false,
       loyalty: false
     })

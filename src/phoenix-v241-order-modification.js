@@ -1340,12 +1340,7 @@
       protein_summary:proteinSummaryValue,
       allergy_notes:allergyNotes || null,
       admin_notes:notes,
-      final_total:finalTotal,
-      order_total_cents:Math.round(finalTotal * 100),
-      balance_due:balance,
-      balance_due_cents:Math.round(balance * 100),
-      paid_amount:paid,
-      payment_status:paymentStatus,
+      // Security: prices, balances, payments and discounts are calculated by booking-lifecycle.
       paymentAdjustmentNote:paymentNote,
       changeNote
     };
@@ -1449,14 +1444,11 @@
         serviceData = await lifecycleUpdate(orderId, mode, built.dbPatch, order, built.verificationContact);
         remoteOk = true;
       } catch (serviceError) {
-        if (mode === 'admin') {
-          await directUpdate(orderId, built.dbPatch);
-          remoteOk = true;
-        } else {
-          throw serviceError;
-        }
+        // Security: never fall back to a direct browser update of protected booking fields.
+        throw serviceError;
       }
-      patchLocal(orderId, built.localPatch);
+      const serverBooking = serviceData?.booking || null;
+      patchLocal(orderId, serverBooking ? { ...built.localPatch, ...serverBooking } : built.localPatch);
       const notified = serviceData?.notification?.sentAny === true || serviceData?.notification?.queued === true;
       const notificationLine = mode === 'customer'
         ? (notified ? 'Phoenix has been notified for review.' : `Saved, but automatic SMS/email confirmation was not reported. Please call ${supportPhone()} if the change is urgent.`)
@@ -1464,7 +1456,9 @@
       const paymentLine = built.noRefundCredit > 0.004
         ? 'No refund is created by this reduction; paid funds stay applied to the booking.'
         : (built.additionalDue > 0.004 && built.paid > 0 ? `Additional unpaid balance is ${money(built.additionalDue)}.` : '');
-      setStatus(remoteOk ? `Saved. New total ${money(built.finalTotal)}; balance ${money(built.balance)}. ${paymentLine} ${notificationLine}`.replace(/\s+/g, ' ').trim() : 'Saved locally only.');
+      const savedTotal = Number(serverBooking?.finalTotal ?? serverBooking?.final_total ?? built.finalTotal);
+      const savedBalance = Number(serverBooking?.balanceDue ?? serverBooking?.balance_due ?? built.balance);
+      setStatus(remoteOk ? `Saved. New total ${money(savedTotal)}; balance ${money(savedBalance)}. ${paymentLine} ${notificationLine}`.replace(/\s+/g, ' ').trim() : 'Saved locally only.');
       setTimeout(() => {
         closeModal();
         try {

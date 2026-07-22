@@ -68,7 +68,7 @@
       benefitStatus.textContent='Checking secure balance…';benefitStatus.className='phx-v225-benefit-status';
       const endpoint=`${cfg.supabaseFunctionsBaseUrl.replace(/\/$/,'')}/${cfg.applyBenefitsFunction}`;
       let authHeader={}; try{const client=typeof initSupabaseClient==='function'?initSupabaseClient():null; const session=client?(await client.auth.getSession()).data.session:null; if(session?.access_token) authHeader={Authorization:`Bearer ${session.access_token}`}}catch{}
-      const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...authHeader},body:JSON.stringify({bookingNumber:ref,customerEmail,type,code,paymentAccessToken:paymentAccessToken(ref)})});
+      const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...authHeader},body:JSON.stringify({action:type==='coupon'?'apply_coupon':'apply_benefit',bookingNumber:ref,customerEmail,type,code,paymentAccessToken:paymentAccessToken(ref)})});
       const data=await res.json(); if(!res.ok) throw new Error(data.error||'Unable to apply benefit');
       document.getElementById('v225DiscountTotal').textContent=data.discountFormatted||'$0.00';
       document.getElementById('v225StoredValueTotal').textContent=data.storedValueFormatted||'$0.00';

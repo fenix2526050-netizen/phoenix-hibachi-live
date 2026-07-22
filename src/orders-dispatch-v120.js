@@ -705,23 +705,31 @@
     notes = upsertNoteLine(notes, 'Adjustment reason', reason);
     notes = upsertNoteLine(notes, 'Customer payment note', customerNote);
     const statusLower = String(status || '').toLowerCase();
-    const adjustedOrder = {...order, travelFee: waived ? 0 : travel, travel_fee: waived ? 0 : travel, specialNotes: notes, admin_notes: notes};
-    const calculatedTotal = Number(finalTotal || orderTotal(adjustedOrder) || 0);
-    const calculatedTotalCents = Math.max(0, Math.round(calculatedTotal * 100));
-    const paidInFull = statusLower.includes('paid in full') || (calculatedTotal > 0 && received >= calculatedTotal);
-    const depositPaid = paidInFull || statusLower.includes('deposit received') || statusLower.includes('cash deposit') || statusLower.includes('zelle deposit');
-    const verifiedDeposit = depositPaid ? Math.min(received, Number(order.depositRequired || order.deposit_required_cents / 100 || 200)) : Number(order.depositPaid || order.deposit_amount || 0);
-    const remainingCents = paidInFull ? 0 : Math.max(0, calculatedTotalCents - Math.round(received * 100));
-    const dbPatch = {payment_status:status, paid_amount:received, deposit_amount:verifiedDeposit, final_total:calculatedTotal, order_total_cents:calculatedTotalCents, balance_due:remainingCents / 100, balance_due_cents:remainingCents, travel_fee: waived ? 0 : travel, admin_notes:notes};
-    if (paidInFull) { dbPatch.balance_due_cents = 0; dbPatch.payment_verification_status = 'verified'; }
-    if (depositPaid) { dbPatch.deposit_status = 'paid'; dbPatch.deposit_due_cents = 0; dbPatch.deposit_deferred = false; dbPatch.deposit_paid_at = new Date().toISOString(); dbPatch.payment_verification_status = 'verified'; }
-    const ok = await updateOrderV120(orderId, dbPatch, {paymentStatus:status, payment_status:status, paidAmount:received, paid_amount:received, depositPaid:verifiedDeposit, deposit_amount:verifiedDeposit, finalTotal:calculatedTotal, final_total:calculatedTotal, orderTotalCents:calculatedTotalCents, order_total_cents:calculatedTotalCents, balanceDue:dbPatch.balance_due, balance_due:dbPatch.balance_due, balanceDueCents:dbPatch.balance_due_cents, balance_due_cents:dbPatch.balance_due_cents, travelFee:adjustedOrder.travelFee, travel_fee:adjustedOrder.travel_fee, specialNotes:notes, admin_notes:notes});
-    let notified = false;
-    if(ok && (depositPaid || paidInFull) && typeof window.phoenixAdminBookingActionV234 === 'function') {
-      try { const result = await window.phoenixAdminBookingActionV234('admin_payment_update', orderId, {paymentStatus:status, paymentMethod:method, amountReceived:received, paidInFull}); notified = !!result?.notification?.sentAny; }
-      catch(error) { console.warn('Payment notification failed:', error); }
+    const paidInFull = statusLower.includes('paid in full');
+    if (typeof window.phoenixAdminBookingActionV234 !== 'function') {
+      return alert('Secure payment update is unavailable. No database change was made.');
     }
-    alert(ok ? ((depositPaid || paidInFull) ? (notified ? 'Payment saved. Customer email/SMS notification was sent.' : 'Payment saved. Notification delivery is not configured or did not send.') : 'Payment / price saved.') : 'Saved locally. Supabase did not confirm yet.');
+    try {
+      const result = await window.phoenixAdminBookingActionV234('admin_payment_update', orderId, {
+        paymentStatus:status,
+        paymentMethod:method,
+        amountReceived:received,
+        paidInFull,
+        managerDiscount:discount,
+        travelFee:travel,
+        waiveTravelFee:waived,
+        reason,
+        customerNote
+      });
+      try { if (typeof loadDashboardDataFromSupabase === 'function') await loadDashboardDataFromSupabase(); } catch {}
+      const sent = !!result?.notification?.sentAny;
+      alert((received > 0 || paidInFull)
+        ? (sent ? 'Payment / price saved. Customer notification was sent.' : 'Payment / price saved. Notification was not sent.')
+        : 'Payment / price saved securely.');
+    } catch(error) {
+      console.error('Secure payment update failed:', error);
+      alert(`Payment / price was not saved: ${error?.message || error}`);
+    }
   }
   async function cancelOrderV235(orderId){
     const order = findOrderById(orderId);

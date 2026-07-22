@@ -97,6 +97,99 @@ function finalTotalDollars(b: Row, amountPaid = 0, balanceDue = 0) {
   const direct = moneyField(b.final_total, b.finalTotal, centsField(b.order_total_cents), b.guest_total_before_deposit)
   return direct || Math.max(0, amountPaid + balanceDue)
 }
+
+const PACKAGE_PRICES: Record<string, number> = { Classic:55, Premium:65, Signature:110 }
+const ADDON_PRICES: Record<string, number> = {
+  'Sushi Roll Tray':85,
+  'Premium Sushi Tray':130,
+  'Sushi & Sashimi Combo':160,
+  'Extra Gyoza Tray':45,
+  'Extra Edamame Tray':35,
+  'Noodle / Yakisoba Tray':50,
+}
+const PREMIUM_PROTEINS = new Set(['filet','filet mignon','lobster','scallop','scallops'])
+function inferState(b: Row) {
+  const raw = text(b.state || b.event_state).toUpperCase().replace(/[^A-Z]/g, '').slice(0,2)
+  if (raw) return raw
+  const address = text(b.address).toUpperCase(), zip = text(b.zip || b.postal_code)
+  if (/\bNJ\b|NEW JERSEY/.test(address) || /^0[78]/.test(zip)) return 'NJ'
+  if (/\bCT\b|CONNECTICUT/.test(address) || /^06/.test(zip)) return 'CT'
+  if (/\bPA\b|PENNSYLVANIA/.test(address) || /^(15|16|17|18|19)/.test(zip)) return 'PA'
+  return 'NY'
+}
+function taxRate(b: Row) {
+  const state = inferState(b), address = text(b.address).toUpperCase(), zip = text(b.zip || b.postal_code)
+  if (state === 'NJ') return 0.06625
+  if (state === 'CT') return 0.0635
+  if (state === 'PA') return 0
+  return (/^11[5789]/.test(zip) || /LONG ISLAND|NASSAU|SUFFOLK/.test(address)) ? 0.08625 : 0.08875
+}
+function addonQuantity(raw: unknown, name: string) {
+  const line = text(raw)
+  const safe = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = line.match(new RegExp(`^${safe}\\s*(?:[×x]\\s*(\\d+))?`, 'i'))
+  return m ? Math.max(1, Number(m[1] || 1)) : 0
+}
+function canonicalAddonsTotal(raw: unknown) {
+  const rows = Array.isArray(raw) ? raw : splitLines(raw)
+  let total = 0
+  for (const row of rows) {
+    const name = typeof row === 'object' && row ? text((row as Row).name || (row as Row).label) : text(row).replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*[×x]\s*\d+.*$/, '').trim()
+    if (!(name in ADDON_PRICES)) continue
+    const qty = typeof row === 'object' && row ? Math.max(1, Number((row as Row).qty || (row as Row).quantity || 1)) : addonQuantity(row, name)
+    total += ADDON_PRICES[name] * qty
+  }
+  return total
+}
+function premiumProteinCount(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return 0
+  let total = 0
+  for (const [name, value] of Object.entries(raw as Row)) {
+    if (!PREMIUM_PROTEINS.has(lower(name))) continue
+    const n = typeof value === 'object' && value ? Number((value as Row).qty || (value as Row).quantity || (value as Row).count || 0) : Number(value || 0)
+    total += Math.max(0, n)
+  }
+  return total
+}
+function staffingFee(b: Row) {
+  const notes = [b.admin_notes,b.service_notes,b.customer_notes,b.special_requests].map(text).join('\n')
+  const waitstaff = Math.max(0, Number(notes.match(/Waitstaff requested:\s*(\d+)/i)?.[1] || 0)) * 100
+  const guests = Number(b.adults || 0) + Number(b.kids || 0)
+  const extraChef = /Additional chef requested:\s*Yes/i.test(notes) && guests <= 30 ? 150 : 0
+  return waitstaff + extraChef
+}
+function secureMoney(b: Row, options: Row = {}) {
+  const packageName = text(b.package_name || b.package || 'Classic')
+  const price = PACKAGE_PRICES[packageName] || PACKAGE_PRICES.Classic
+  const adults = Math.max(0, Math.floor(Number(b.adults || 0)))
+  const kids = Math.max(0, Math.floor(Number(b.kids || 0)))
+  const kidPrice = packageName === 'Classic' ? 28 : Math.ceil(price / 2)
+  const addons = canonicalAddonsTotal(b.add_ons || b.addons)
+  const proteinUpcharge = premiumProteinCount(b.protein_selections || b.proteinSelections) * 5
+  const qualifyingFood = adults * price + kids * kidPrice + addons + proteinUpcharge
+  const foodSubtotal = Math.max(550, qualifyingFood)
+  const travel = Math.max(0, moneyField(options.travelFee, b.travel_fee, b.travelFee))
+  const staff = staffingFee(b)
+  const toll = njTollFee(b)
+  // Tax is deliberately calculated before manager/coupon discounts. Discounts never lower tax.
+  const tax = Math.round((foodSubtotal + travel + staff) * taxRate(b) * 100) / 100
+  const managerDiscount = Math.min(foodSubtotal, Math.max(0, moneyField(options.managerDiscount, b.manager_discount)))
+  const couponDiscount = Math.min(Math.max(0, foodSubtotal - managerDiscount), Math.max(0, moneyField(options.couponDiscount, b.coupon_discount)))
+  const total = Math.max(0, foodSubtotal + travel + staff + toll + tax - managerDiscount - couponDiscount)
+  const paid = Math.max(0, moneyField(b.paid_amount, b.deposit_amount))
+  const balance = Math.max(0, total - paid)
+  return { foodSubtotal, travel, staff, toll, tax, managerDiscount, couponDiscount, total, paid, balance }
+}
+function secureMoneyPatch(b: Row, options: Row = {}) {
+  const m = secureMoney(b, options)
+  return {
+    food_subtotal:Number(m.foodSubtotal.toFixed(2)), food_subtotal_cents:Math.round(m.foodSubtotal * 100),
+    travel_fee:Number(m.travel.toFixed(2)), sales_tax:Number(m.tax.toFixed(2)), sales_tax_cents:Math.round(m.tax * 100),
+    manager_discount:Number(m.managerDiscount.toFixed(2)), coupon_discount:Number(m.couponDiscount.toFixed(2)),
+    final_total:Number(m.total.toFixed(2)), order_total_cents:Math.round(m.total * 100),
+    balance_due:Number(m.balance.toFixed(2)), balance_due_cents:Math.round(m.balance * 100),
+  }
+}
 function addOnsText(b: Row) { return displayText(b.add_ons || b.addons) }
 function allergiesText(b: Row) { return displayText(b.allergies || b.allergy_notes || b.allergyNotes) }
 function noteSummary(b: Row) {
@@ -119,6 +212,9 @@ function publicOrder(b: Row) {
     email: b.customer_email ? text(b.customer_email).replace(/^(.).+(@.+)$/, '$1***$2') : '',
     address: b.address ? text(b.address).split(',').slice(-2).join(',').trim() : '', package: b.package_name || 'Classic',
     adults: Number(b.adults || 0), kids: Number(b.kids || 0), totalGuests: Number(b.guest_count || 0), travelFee: Number(b.travel_fee || 0), finalTotal: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)), final_total: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)), order_total_cents: Number(b.order_total_cents || 0),
+    foodSubtotal:Number(b.food_subtotal || 0), food_subtotal:Number(b.food_subtotal || 0), salesTax:Number(b.sales_tax || 0), sales_tax:Number(b.sales_tax || 0),
+    managerDiscount:Number(b.manager_discount || 0), manager_discount:Number(b.manager_discount || 0), couponDiscount:Number(b.coupon_discount || 0), coupon_discount:Number(b.coupon_discount || 0),
+    couponCode:text(b.applied_coupon_code), applied_coupon_code:text(b.applied_coupon_code),
   }
 }
 function editableCustomerOrder(b: Row) {
@@ -200,15 +296,19 @@ async function promoteDraft(draft: Row, patch: Record<string, any>) {
   await service.from('booking_drafts').delete().eq('id', draft.id)
   return data as Row
 }
-async function adminRole(req: Request) {
-  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim(); if (!token) return ''
-  const { data, error } = await service.auth.getUser(token); if (error || !data.user) return ''
+async function adminRole(req: Request, body?: Row) {
+  const headerToken = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  const bodyToken = text(body?.accessToken || body?.access_token || body?.token)
+  const token = headerToken || bodyToken
+  if (!token) return ''
+  const { data, error } = await service.auth.getUser(token)
+  if (error || !data.user) return ''
   const { data: profile } = await service.from('profiles').select('role').eq('id', data.user.id).maybeSingle()
   return lower(profile?.role || data.user.user_metadata?.role)
 }
-async function requireAdmin(req: Request) {
-  const role = await adminRole(req)
-  if (!['admin','manager','customer_service','customer service'].includes(role)) throw new Error('Admin or manager login is required.')
+async function requireAdmin(req: Request, body?: Row) {
+  const role = await adminRole(req, body)
+  if (!['admin','owner','manager','customer_service','customer service'].includes(role)) throw new Error('Admin or manager login is required.')
 }
 function upsertNote(notes: unknown, label: string, value: unknown) {
   const cleanLabel = text(label)
@@ -328,12 +428,7 @@ function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin')
     changes.push('Allergies')
   }
   if (actor === 'admin') setNumber('travel_fee', raw.travelFee ?? raw.travel_fee, 'Travel Fee')
-  setNumber('final_total', raw.finalTotal ?? raw.final_total, 'Final Total')
-  setNumber('balance_due', raw.balanceDue ?? raw.balance_due, 'Balance Due')
-  setNumber('paid_amount', raw.paidAmount ?? raw.paid_amount ?? raw.amount_paid, 'Paid amount')
-  setText('payment_status', raw.paymentStatus || raw.payment_status, 'Payment status')
-  if (patch.final_total !== undefined) patch.order_total_cents = Math.round(Number(patch.final_total || 0) * 100)
-  if (patch.balance_due !== undefined) patch.balance_due_cents = Math.round(Number(patch.balance_due || 0) * 100)
+  // Security: browser-submitted totals, balances, paid amounts and discounts are never trusted here.
   const source = actor === 'admin' ? 'Admin dashboard' : 'Customer portal'
   let notes = text(booking.admin_notes)
   notes = upsertNote(notes, actor === 'admin' ? 'Admin modified at' : 'Customer modified at', new Date().toISOString())
@@ -1052,6 +1147,42 @@ Deno.serve(async req => {
     }
 
     const booking = await getActive(number); if (!booking) return json(req, { ok:false, error:'Active booking was not found.' }, 404)
+    if (action === 'apply_coupon') {
+      if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Email or phone verification is required to apply a coupon.' }, 403)
+      const code = text(body.code || body.couponCode).toUpperCase()
+      if (!code) return json(req, { ok:false, error:'Enter a coupon code.' }, 400)
+      if (moneyField(booking.manager_discount) > 0) return json(req, { ok:false, error:'A manager discount is already applied. Coupons cannot be combined with another discount.' }, 409)
+      const { data: coupon, error: couponError } = await service.from('coupons').select('*').eq('code', code).maybeSingle()
+      if (couponError) throw new Error(couponError.message)
+      if (!coupon || lower(coupon.status) !== 'active') return json(req, { ok:false, error:'This coupon is invalid or inactive.' }, 404)
+      const now = Date.now()
+      if (coupon.starts_at && new Date(coupon.starts_at).getTime() > now) return json(req, { ok:false, error:'This coupon is not active yet.' }, 400)
+      if (coupon.expires_at && new Date(coupon.expires_at).getTime() < now) return json(req, { ok:false, error:'This coupon has expired.' }, 400)
+      const eventDate = text(booking.event_date)
+      if (coupon.applicable_event_date_start && eventDate < text(coupon.applicable_event_date_start)) return json(req, { ok:false, error:'This coupon is not valid for the selected event date.' }, 400)
+      if (coupon.applicable_event_date_end && eventDate > text(coupon.applicable_event_date_end)) return json(req, { ok:false, error:'This coupon is not valid for the selected event date.' }, 400)
+      if (coupon.applicable_month && Number(eventDate.slice(5,7)) !== Number(coupon.applicable_month)) return json(req, { ok:false, error:'This coupon is not valid for the selected event month.' }, 400)
+      const base = secureMoney({ ...booking, manager_discount:0, coupon_discount:0 })
+      if (base.foodSubtotal < moneyField(coupon.minimum_order_amount)) return json(req, { ok:false, error:`This coupon requires at least ${moneyFromDollars(coupon.minimum_order_amount)} in food subtotal.` }, 400)
+      const { count: usedCount } = await service.from('coupon_redemptions').select('id', { count:'exact', head:true }).eq('coupon_id', coupon.id).in('status', ['reserved','redeemed'])
+      if (Number(usedCount || 0) >= Number(coupon.max_redemptions || 1)) return json(req, { ok:false, error:'This coupon has reached its usage limit.' }, 409)
+      if (booking.customer_id) {
+        const { count: customerCount } = await service.from('coupon_redemptions').select('id', { count:'exact', head:true }).eq('coupon_id', coupon.id).eq('customer_id', booking.customer_id).in('status', ['reserved','redeemed'])
+        if (Number(customerCount || 0) >= Number(coupon.max_redemptions_per_customer || 1)) return json(req, { ok:false, error:'This coupon has already been used by this customer.' }, 409)
+      } else {
+        const { count: emailCount } = await service.from('bookings').select('id', { count:'exact', head:true }).ilike('customer_email', lower(booking.customer_email)).eq('applied_coupon_code', code).neq('id', booking.id)
+        if (Number(emailCount || 0) >= Number(coupon.max_redemptions_per_customer || 1)) return json(req, { ok:false, error:'This coupon has already been used by this customer.' }, 409)
+      }
+      const discount = lower(coupon.discount_type) === 'percent'
+        ? Math.min(base.foodSubtotal, Math.round(base.foodSubtotal * Number(coupon.discount_value || 0)) / 100)
+        : Math.min(base.foodSubtotal, moneyField(coupon.discount_value))
+      await service.from('coupon_redemptions').update({ status:'released', released_at:new Date().toISOString() }).eq('booking_id', booking.id).eq('status', 'reserved')
+      const moneyPatch = secureMoneyPatch({ ...booking, manager_discount:0, coupon_discount:discount }, { managerDiscount:0, couponDiscount:discount })
+      const data = await updateBookingCompat(booking.id, { ...moneyPatch, applied_coupon_id:coupon.id, applied_coupon_code:code, coupon_discount:discount })
+      const { error: reserveError } = await service.from('coupon_redemptions').insert({ coupon_id:coupon.id, booking_id:booking.id, customer_id:booking.customer_id || null, code, discount_amount:discount, status:'reserved' })
+      if (reserveError) throw new Error(reserveError.message)
+      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), discountFormatted:moneyFromDollars(discount), storedValueFormatted:'$0.00', depositDueFormatted:moneyFromCents(data.deposit_due_cents), balanceDueFormatted:moneyFromCents(data.balance_due_cents), message:`Coupon ${code} applied: ${moneyFromDollars(discount)} off. Tax, travel fee and tip basis are unchanged.` })
+    }
     if (action === 'customer_edit_order') {
       if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
       return json(req, { ok:true, locked:!customerCanModify(booking), booking:editableCustomerOrder(booking) })
@@ -1060,27 +1191,31 @@ Deno.serve(async req => {
       if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
       if (!customerCanModify(booking)) return json(req, { ok:false, locked:true, error:'This order is within 48 hours of the event and is locked. Please call Phoenix Hibachi support to ask whether a change is still possible.' }, 423)
       const built = modificationPatch(body, booking, 'customer')
-      const patch = { ...built.patch, request_status:'modified', status:/cancel|complete/i.test(text(booking.status)) ? booking.status : 'Customer updated - manager review' }
+      const candidate = { ...booking, ...built.patch }
+      const moneyPatch = secureMoneyPatch(candidate)
+      const patch = { ...built.patch, ...moneyPatch, request_status:'modified', status:/cancel|complete/i.test(text(booking.status)) ? booking.status : 'Customer updated - manager review' }
       const data = await updateBookingCompat(booking.id, patch)
       const notification = await dispatchMake(data as Row, 'booking_modified', { source:'Customer portal', changes:built.changes, modifiedAt:new Date().toISOString() })
-      return json(req, { ok:true, booking:publicOrder(data as Row), notification })
+      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification })
     }
     if (action === 'admin_modify_order') {
-      await requireAdmin(req)
+      await requireAdmin(req, body)
       const built = modificationPatch(body, booking, 'admin')
-      const data = await updateBookingCompat(booking.id, built.patch)
+      const candidate = { ...booking, ...built.patch }
+      const moneyPatch = secureMoneyPatch(candidate, { travelFee:candidate.travel_fee })
+      const data = await updateBookingCompat(booking.id, { ...built.patch, ...moneyPatch })
       const notification = await dispatchMake(data as Row, 'booking_modified', { source:'Admin dashboard', changes:built.changes, modifiedAt:new Date().toISOString() })
-      return json(req, { ok:true, booking:publicOrder(data as Row), notification })
+      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification })
     }
     if (action === 'admin_confirm') {
-      await requireAdmin(req)
+      await requireAdmin(req, body)
       const { data, error } = await service.from('bookings').update({ request_status:'confirmed', status:'Confirmed', activated_at:booking.activated_at || new Date().toISOString() }).eq('id', booking.id).select('*').single()
       if (error) throw new Error(error.message)
       const notification = await dispatchMake(data as Row, 'booking_confirmed')
       return json(req, { ok:true, notification })
     }
     if (action === 'admin_reschedule') {
-      await requireAdmin(req)
+      await requireAdmin(req, body)
       const patch: Record<string, any> = { rescheduled_at:new Date().toISOString(), status:/confirm/i.test(text(booking.status)) ? 'Confirmed - exact time updated' : 'Time updated' }
       if (body.eventDate) patch.event_date = text(body.eventDate)
       if (body.eventTime) patch.event_time = text(body.eventTime)
@@ -1090,7 +1225,7 @@ Deno.serve(async req => {
       return json(req, { ok:true, notification })
     }
     if (action === 'admin_cancel') {
-      await requireAdmin(req)
+      await requireAdmin(req, body)
       const reason = text(body.reason) || 'Cancelled by Phoenix Hibachi after manager review.'
       const { data, error } = await service.from('bookings').update({ request_status:'cancelled', status:'Cancelled', cancelled_at:new Date().toISOString(), cancellation_reason:reason }).eq('id', booking.id).select('*').single()
       if (error) throw new Error(error.message)
@@ -1098,19 +1233,41 @@ Deno.serve(async req => {
       return json(req, { ok:true, notification })
     }
     if (action === 'admin_payment_update') {
-      await requireAdmin(req)
-      const amount = Math.max(0, Number(body.amountReceived || 0)), paidInFull = body.paidInFull === true
-      const depositRequired = Math.max(0, Number(booking.deposit_required_cents || 10000)) / 100
+      await requireAdmin(req, body)
+      const amount = Math.max(0, Number(body.amountReceived ?? booking.paid_amount ?? 0))
+      const paidInFull = body.paidInFull === true
+      const managerDiscount = Math.max(0, Number(body.managerDiscount ?? body.manager_discount ?? booking.manager_discount ?? 0))
+      const waiveTravel = body.waiveTravelFee === true || body.waive_travel_fee === true
+      const requestedTravel = waiveTravel ? 0 : Math.max(0, Number(body.travelFee ?? body.travel_fee ?? booking.travel_fee ?? 0))
+      if (managerDiscount > 0 && text(booking.applied_coupon_code)) throw new Error('Manager discount cannot be combined with an applied coupon.')
+      const candidate = { ...booking, paid_amount:amount, deposit_amount:amount, manager_discount:managerDiscount, coupon_discount:managerDiscount > 0 ? 0 : booking.coupon_discount, travel_fee:requestedTravel }
+      const moneyPatch = secureMoneyPatch(candidate, { managerDiscount, couponDiscount:candidate.coupon_discount, travelFee:requestedTravel })
+      const depositRequired = Math.max(0, Number(booking.deposit_required_cents || 20000)) / 100
       const depositAmount = amount > 0 ? Math.min(amount, depositRequired) : Number(booking.deposit_amount || 0)
-      const orderTotal = Math.max(0, Number(booking.order_total_cents || 0)) / 100
-      const remainingCents = paidInFull ? 0 : Math.max(0, Math.round((orderTotal - amount) * 100))
-      const patch: any = { payment_status:text(body.paymentStatus) || booking.payment_status, payment_preference:lower(body.paymentMethod) || booking.payment_preference, paid_amount:amount, deposit_amount:depositAmount, balance_due_cents:remainingCents }
+      const actuallyPaidInFull = paidInFull || amount >= Number(moneyPatch.final_total || 0)
+      const patch: Row = {
+        ...moneyPatch,
+        payment_status:actuallyPaidInFull ? 'paid in full' : (text(body.paymentStatus) || booking.payment_status),
+        payment_preference:lower(body.paymentMethod) || booking.payment_preference,
+        paid_amount:amount,
+        deposit_amount:depositAmount,
+        manager_discount:managerDiscount,
+        balance_due:actuallyPaidInFull ? 0 : moneyPatch.balance_due,
+        balance_due_cents:actuallyPaidInFull ? 0 : moneyPatch.balance_due_cents,
+      }
+      if (managerDiscount > 0) Object.assign(patch, { applied_coupon_id:null, applied_coupon_code:null, coupon_discount:0 })
       if (amount > 0) Object.assign(patch, { deposit_status:'paid', deposit_due_cents:0, deposit_deferred:false, deposit_paid_at:booking.deposit_paid_at || new Date().toISOString(), payment_verification_status:'verified' })
-      if (paidInFull) Object.assign(patch, { balance_due_cents:0, payment_status:'paid in full', payment_verification_status:'verified' })
-      const { data, error } = await service.from('bookings').update(patch).eq('id', booking.id).select('*').single(); if (error) throw new Error(error.message)
-      const eventType: EventType = paidInFull ? 'paid_in_full' : 'deposit_paid'
-      const notification = await dispatchMake(data as Row, eventType, { amountCents:Math.round(amount * 100), amountPaid:amount, source:'admin_payment_update' })
-      return json(req, { ok:true, notification })
+      if (actuallyPaidInFull) Object.assign(patch, { payment_status:'paid in full', payment_verification_status:'verified' })
+      let notes = text(booking.admin_notes)
+      notes = upsertNote(notes, 'Manager discount', managerDiscount.toFixed(2))
+      notes = upsertNote(notes, 'Travel fee waived', waiveTravel ? 'yes' : 'no')
+      const reason = text(body.reason || body.adjustmentReason)
+      if (reason) notes = appendNote(notes, 'Adjustment reason', reason)
+      patch.admin_notes = notes
+      const data = await updateBookingCompat(booking.id, patch)
+      const eventType: EventType = actuallyPaidInFull ? 'paid_in_full' : 'deposit_paid'
+      const notification = amount > 0 ? await dispatchMake(data as Row, eventType, { amountCents:Math.round(amount * 100), amountPaid:amount, source:'admin_payment_update' }) : { sentAny:false }
+      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification })
     }
     return json(req, { ok:false, error:'Unsupported booking action.' }, 400)
   } catch (error) {
