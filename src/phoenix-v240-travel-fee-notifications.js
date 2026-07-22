@@ -296,6 +296,21 @@
         const base = previousCalc.call(this, order) || {};
         const njTollFee = njTollFeeForOrder(order);
         const travelFee = asNumber(base.travelFee ?? order.travelFee ?? order.travel_fee, 0);
+        if (base.serverPricingVerified === true || order.serverPricingVerified === true) {
+          const discount = asNumber(base.managerDiscount, 0) + asNumber(base.couponDiscount, 0) + asNumber(base.memberCreditUsed, 0);
+          const tipBasisBeforeDiscount = Math.max(0, asNumber(base.guestTotalBeforeDeposit, 0) + discount);
+          return {
+            ...base,
+            njTollFee,
+            nj_toll_fee:njTollFee,
+            tollFee:njTollFee,
+            travelAndTollTotal:travelFee + njTollFee,
+            tipBasisBeforeDiscount,
+            tip20:Math.round(tipBasisBeforeDiscount * 0.20),
+            tip25:Math.round(tipBasisBeforeDiscount * 0.25),
+            tip30:Math.round(tipBasisBeforeDiscount * 0.30)
+          };
+        }
         if (njTollFee <= 0) {
           return { ...base, njTollFee: 0, nj_toll_fee: 0, tollFee: 0, travelAndTollTotal: travelFee };
         }
@@ -307,9 +322,10 @@
         const taxDelta = Math.max(0, salesTax - asNumber(base.salesTax, 0));
         const guestTotalBeforeDeposit = asNumber(base.guestTotalBeforeDeposit, 0) + njTollFee + taxDelta;
         const guestTotalAfterDeposit = Math.max(0, guestTotalBeforeDeposit - depositPaid);
-        const tip20 = Math.round(guestTotalBeforeDeposit * 0.20);
-        const tip25 = Math.round(guestTotalBeforeDeposit * 0.25);
-        const tip30 = Math.round(guestTotalBeforeDeposit * 0.30);
+        const tipBasisBeforeDiscount = asNumber(base.tipBasisBeforeDiscount ?? base.guestTotalBeforeDeposit, 0) + njTollFee + taxDelta;
+        const tip20 = Math.round(tipBasisBeforeDiscount * 0.20);
+        const tip25 = Math.round(tipBasisBeforeDiscount * 0.25);
+        const tip30 = Math.round(tipBasisBeforeDiscount * 0.30);
         const companyBalanceDue = Math.max(0, asNumber(base.companyBalanceDue, 0) + taxDelta);
         const chefKeepsBeforeTip = asNumber(base.chefKeepsBeforeTip, 0) + njTollFee;
         const chefReturnToCompany = Math.max(0, companyBalanceDue - asNumber(base.chefGuestPayout, 0));
@@ -321,6 +337,7 @@
           nj_toll_fee: njTollFee,
           tollFee: njTollFee,
           travelAndTollTotal: travelFee + njTollFee,
+          tipBasisBeforeDiscount,
           taxableSubtotal,
           salesTax,
           guestTotalBeforeDeposit,

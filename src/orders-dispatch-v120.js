@@ -259,8 +259,15 @@
     const m = (() => { try { return typeof calculateOrderMoney === 'function' ? calculateOrderMoney(order) : {}; } catch { return {}; } })();
     const travel = Number(order.travelFee || order.travel_fee || m.travelFee || 0);
     const received = Number(order.depositPaid || order.deposit_amount || noteValue(notes, 'Payment received') || 0);
-    const discount = Number(noteValue(notes, 'Manager discount') || 0);
-    const finalTotal = noteValue(notes, 'Final total override');
+    const discount = Number(order.managerDiscount ?? order.manager_discount ?? noteValue(notes, 'Manager discount') ?? 0);
+    const couponCode = String(order.couponCode || order.applied_coupon_code || '').trim();
+    const couponDiscount = Number(order.couponDiscount ?? order.coupon_discount ?? 0);
+    const foodSubtotal = Number(order.foodSubtotal ?? order.food_subtotal ?? m.foodSubtotal ?? 0);
+    const salesTax = Number(order.salesTax ?? order.sales_tax ?? m.salesTax ?? 0);
+    const guestCount = Math.max(0, Number(order.totalGuests || order.guest_count || 0), Number(order.adults || 0) + Number(order.kids || 0));
+    const requiredDeposit = Math.max(200, Number(order.depositRequired || 0), Number(order.deposit_required_cents || 0) / 100, guestCount >= 31 ? 300 : 0);
+    const serverTotal = Number(order.finalTotal ?? order.final_total ?? ((order.orderTotalCents ?? order.order_total_cents) != null ? Number(order.orderTotalCents ?? order.order_total_cents) / 100 : m.guestTotalBeforeDeposit) ?? 0);
+    const serverBalance = Number(order.balanceDue ?? order.balance_due ?? ((order.balanceDueCents ?? order.balance_due_cents) != null ? Number(order.balanceDueCents ?? order.balance_due_cents) / 100 : m.guestTotalAfterDeposit) ?? serverTotal);
     const depositState = String(order.depositStatus || order.deposit_status || '').toLowerCase();
     const verificationState = String(order.paymentVerificationStatus || order.payment_verification_status || '').toLowerCase();
     const balanceRaw = order.balanceDueCents ?? order.balance_due_cents;
@@ -279,7 +286,7 @@
       <div class="v102-detail-grid">
         <p><b>Customer</b><br>${esc(order.name || 'Guest')}<br>${esc(order.phone || 'No phone')}<br>${esc(order.email || 'No email')}</p>
         <p><b>Event</b><br>${esc(order.eventDate || order.event_date || '')} · ${esc(order.eventTime || order.event_time || '')}<br>${esc(order.address || order.event_address || 'No address')}</p>
-        <p><b>Package / money</b><br>${esc(order.package || order.packageName || 'Classic')} · ${esc(order.totalGuests || order.total_guests || order.guests || '')} guests<br>Total ${money(orderTotal(order))} · Travel ${money(travel)}</p>
+        <p><b>Package / money</b><br>${esc(order.package || order.packageName || 'Classic')} · ${esc(order.totalGuests || order.total_guests || order.guests || '')} guests<br>Server total ${money(serverTotal)} · Travel ${money(travel)}${discount > 0 ? ` · Manager discount -${money(discount)}` : ''}${couponCode ? ` · Coupon ${esc(couponCode)} -${money(couponDiscount)}` : ''}</p>
         <p><b>Chef visible to customer</b><br>${esc(chefName(order))}<br><small>${esc(noteValue(notes, 'Customer visible note') || noteValue(notes, 'Phoenix customer note') || 'No customer-facing note yet.')}</small></p>
       </div>
       <div class="v102-tool-boxes">
@@ -288,20 +295,20 @@
       </div>
     </div>
     <section class="v107-payment-panel" data-v120-payment-panel="${id}" hidden>
-      <header><div><h4>Payment / price adjustment</h4><p>Waive travel fee, discount a missed item, accept cash/Zelle, or manually override the final total.</p></div><span class="v107-balance-badge">Balance due ${money(m.guestTotalAfterDeposit || orderTotal(order))}</span></header>
+      <header><div><h4>Payment / price adjustment</h4><p>Manager discount reduces the food amount only. Tax, travel fee, NJ toll, and tip basis stay unchanged. Final totals are calculated securely by Supabase.</p></div><span class="v107-balance-badge">Balance due ${money(serverBalance)}</span></header>
       <div class="v107-payment-grid">
         <label>Payment status<select data-v120-payment-status="${id}">${['unpaid','transfer pending','deposit received','paid in full','cash deposit received','zelle deposit received','balance due','refunded / adjusted'].map(s => `<option value="${esc(s)}" ${String(paymentStatus).toLowerCase() === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
         <label>Payment method<select data-v120-payment-method="${id}">${['','Zelle','Cash','Venmo','Cash App','Credit card','Check','Other transfer'].map(s => `<option value="${esc(s)}" ${paymentMethod === s ? 'selected' : ''}>${s ? esc(s) : 'Not selected'}</option>`).join('')}</select></label>
         <label>Deposit / payment received<input type="number" min="0" step="0.01" data-v120-payment-received="${id}" value="${esc(Number(received || 0).toFixed(2))}"></label>
-        <label>Manager discount / credit<input type="number" min="0" step="0.01" data-v120-discount="${id}" value="${esc(Number(discount || 0).toFixed(2))}"></label>
-        <label>Final total override<input type="number" min="0" step="0.01" placeholder="Leave blank for calculated total" data-v120-final-total="${id}" value="${esc(finalTotal)}"></label>
+        <label>Manager discount / credit<input type="number" min="0" step="0.01" data-v120-discount="${id}" value="${esc(Number(discount || 0).toFixed(2))}" ${couponCode ? 'disabled title="Remove the coupon before applying a manager discount"' : ''}></label>
+        <label>Server final total<input type="text" readonly value="${esc(money(serverTotal))}" aria-label="Server calculated final total"></label>
         <label>Travel fee<input type="number" min="0" step="0.01" data-v120-travel-fee="${id}" value="${esc(Number(travel || 0).toFixed(2))}"></label>
       </div>
       <label class="v107-check"><input type="checkbox" data-v120-waive-travel="${id}" ${waived ? 'checked' : ''}> Waive travel fee / 免车费</label>
       <label>Reason / internal note<textarea rows="2" data-v120-reason="${id}" placeholder="Example: chef forgot sushi roll tray, manager approved credit.">${esc(reason)}</textarea></label>
       <label>Customer visible payment note<textarea rows="2" data-v120-customer-note="${id}" placeholder="Example: Deposit received by Zelle. Balance due at event.">${esc(customerNote)}</textarea></label>
-      <div class="v107-payment-summary"><b>Current estimate:</b> ${money(m.guestTotalBeforeDeposit || orderTotal(order))} · <b>Received:</b> ${money(m.depositPaid || received || 0)} · <b>Balance:</b> ${money(m.guestTotalAfterDeposit || Math.max(0, orderTotal(order) - received))}</div>
-      <div class="v107-payment-actions"><button type="button" class="gold-btn-mini" data-v120-save-payment="${id}">Save payment / price</button><button type="button" data-v120-mark-deposit="${id}">Quick mark $200 deposit received</button><button type="button" data-print-guest="${id}">Print updated invoice</button></div>
+      <div class="v107-payment-summary"><b>Food subtotal:</b> ${money(foodSubtotal)} · <b>Tax:</b> ${money(salesTax)} · <b>Travel:</b> ${money(travel)} · <b>Manager discount:</b> -${money(discount)} · <b>Coupon:</b> ${couponCode ? `${esc(couponCode)} (-${money(couponDiscount)})` : 'None'}<br><b>Server total:</b> ${money(serverTotal)} · <b>Received:</b> ${money(received)} · <b>Balance:</b> ${money(serverBalance)}</div>
+      <div class="v107-payment-actions"><button type="button" class="gold-btn-mini" data-v120-save-payment="${id}">Save payment / price</button><button type="button" data-v120-mark-deposit="${id}" data-v120-required-deposit="${requiredDeposit.toFixed(2)}">Quick mark ${money(requiredDeposit)} deposit received</button><button type="button" data-print-guest="${id}">Print updated invoice</button></div>
     </section>`;
   }
   function orderHtml(order){
@@ -681,8 +688,10 @@
     const order = findOrderById(orderId);
     if(!order) return alert('Order not found.');
     if(quick){
+      const quickButton = card?.querySelector(`[data-v120-mark-deposit="${CSS.escape(String(orderId))}"]`);
+      const quickAmount = Math.max(200, Number(quickButton?.dataset?.v120RequiredDeposit || order.depositRequired || 0), Number(order.deposit_required_cents || 0) / 100, Math.max(0, Number(order.totalGuests || order.guest_count || 0), Number(order.adults || 0) + Number(order.kids || 0)) >= 31 ? 300 : 0);
       const inp = card?.querySelector(`[data-v120-payment-received="${CSS.escape(String(orderId))}"]`);
-      if(inp) inp.value = '200.00';
+      if(inp) inp.value = quickAmount.toFixed(2);
       const status = card?.querySelector(`[data-v120-payment-status="${CSS.escape(String(orderId))}"]`);
       if(status) status.value = 'deposit received';
     }
@@ -690,7 +699,6 @@
     const method = card?.querySelector(`[data-v120-payment-method="${CSS.escape(String(orderId))}"]`)?.value || '';
     const received = paymentNumber(card, `[data-v120-payment-received="${CSS.escape(String(orderId))}"]`);
     const discount = paymentNumber(card, `[data-v120-discount="${CSS.escape(String(orderId))}"]`);
-    const finalTotal = card?.querySelector(`[data-v120-final-total="${CSS.escape(String(orderId))}"]`)?.value || '';
     const travel = paymentNumber(card, `[data-v120-travel-fee="${CSS.escape(String(orderId))}"]`, order.travelFee || order.travel_fee || 0);
     const waived = !!card?.querySelector(`[data-v120-waive-travel="${CSS.escape(String(orderId))}"]`)?.checked;
     const reason = card?.querySelector(`[data-v120-reason="${CSS.escape(String(orderId))}"]`)?.value || '';
@@ -700,7 +708,6 @@
     notes = upsertNoteLine(notes, 'Payment method', method);
     notes = upsertNoteLine(notes, 'Payment received', received.toFixed(2));
     notes = upsertNoteLine(notes, 'Manager discount', discount.toFixed(2));
-    notes = upsertNoteLine(notes, 'Final total override', finalTotal);
     notes = upsertNoteLine(notes, 'Travel fee waived', waived ? 'yes' : 'no');
     notes = upsertNoteLine(notes, 'Adjustment reason', reason);
     notes = upsertNoteLine(notes, 'Customer payment note', customerNote);
@@ -722,6 +729,7 @@
         customerNote
       });
       try { if (typeof loadDashboardDataFromSupabase === 'function') await loadDashboardDataFromSupabase(); } catch {}
+      try { if (typeof renderDashboard === 'function') renderDashboard(window.currentDashboardRole || 'Manager'); } catch {}
       const sent = !!result?.notification?.sentAny;
       alert((received > 0 || paidInFull)
         ? (sent ? 'Payment / price saved. Customer notification was sent.' : 'Payment / price saved. Notification was not sent.')

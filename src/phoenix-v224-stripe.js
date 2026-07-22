@@ -81,7 +81,12 @@
 
     const paymentType = document.querySelector('input[name="stripePaymentAmount"]:checked')?.value || 'deposit';
     const customAmount = Math.round(Number(customAmountInput?.value || 0) * 100);
-    return { bookingNumber, customerEmail, paymentAccessToken, paymentType, customAmountCents: paymentType === 'custom' ? customAmount : 0 };
+    let couponCode = String(order.applied_coupon_code || order.couponCode || order.pendingCouponCode || '').trim().toUpperCase();
+    try {
+      const getter = window.phoenixPendingCouponCodeV253 || window.phoenixPendingCouponCodeV251;
+      couponCode = String((typeof getter === 'function' ? getter(bookingNumber) : '') || couponCode).trim().toUpperCase();
+    } catch {}
+    return { bookingNumber, customerEmail, paymentAccessToken, paymentType, customAmountCents: paymentType === 'custom' ? customAmount : 0, couponCode };
   }
 
   function money(cents, currency = 'usd') {
@@ -113,11 +118,10 @@
   function requiredDepositCents() {
     const order = currentOrderObject();
     const direct = Number(order.depositRequired || 0) * 100 || Number(order.deposit_required_cents || 0);
-    if (Number.isFinite(direct) && direct >= 10000) return Math.round(direct);
+    if (Number.isFinite(direct) && direct >= 20000) return Math.round(direct);
     const guests = Math.max(10, Math.ceil(Number(order.totalGuests || order.guest_count || (Number(order.adults || 0) + Number(order.kids || 0)) || 0)));
     if (guests >= 31) return 30000;
-    if (guests >= 21) return 20000;
-    return 10000;
+    return 20000;
   }
 
   function selectedPaymentType() {
@@ -135,7 +139,7 @@
     const custom = customAmountCents();
     amountInputs.forEach(input => input.closest('.phx-stripe-amount-option')?.classList.toggle('selected', input.checked));
     if (depositTitle) depositTitle.textContent = `Pay ${money(deposit)} required deposit`;
-    if (depositHelp) depositHelp.textContent = 'Party-size rule: up to 20 guests $100; 21–30 guests $200; 31+ guests $300.';
+    if (depositHelp) depositHelp.textContent = 'Required deposit: at least $200; parties of 31+ guests require $300.';
     if (fullBalanceLabel) fullBalanceLabel.textContent = balance > 0 ? `Pay ${money(balance)} now and leave a $0 balance.` : 'Exact amount is verified by the server before payment.';
     if (customAmountInput) {
       customAmountInput.max = balance > 0 ? String(Math.floor(balance / 100)) : '';

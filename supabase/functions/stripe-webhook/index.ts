@@ -84,9 +84,17 @@ function njTollFee(b: Row) {
 function travelFee(b: Row) { return moneyField(b.travel_fee, b.travelFee) }
 function salesTax(b: Row) { return moneyField(b.sales_tax, centsField(b.sales_tax_cents)) }
 function paidAmount(b: Row, fallback = 0) { return moneyField(b.paid_amount, b.deposit_amount, b.amount_paid, fallback) }
-function balanceDueDollars(b: Row) { return centsField(b.balance_due_cents) || moneyField(b.balance_due, b.balanceDue) }
+function balanceDueDollars(b: Row) {
+  if (b.balance_due_cents !== null && b.balance_due_cents !== undefined && b.balance_due_cents !== '') return centsField(b.balance_due_cents)
+  if (b.balance_due !== null && b.balance_due !== undefined && b.balance_due !== '') return moneyField(b.balance_due)
+  return moneyField(b.balanceDue)
+}
 function finalTotalDollars(b: Row, paid = 0, balance = 0) {
-  return moneyField(b.final_total, b.finalTotal, centsField(b.order_total_cents), b.guest_total_before_deposit) || Math.max(0, paid + balance)
+  if (b.final_total !== null && b.final_total !== undefined && b.final_total !== '') return moneyField(b.final_total)
+  if (b.finalTotal !== null && b.finalTotal !== undefined && b.finalTotal !== '') return moneyField(b.finalTotal)
+  if (b.order_total_cents !== null && b.order_total_cents !== undefined && b.order_total_cents !== '') return centsField(b.order_total_cents)
+  if (b.guest_total_before_deposit !== null && b.guest_total_before_deposit !== undefined && b.guest_total_before_deposit !== '') return moneyField(b.guest_total_before_deposit)
+  return Math.max(0, paid + balance)
 }
 function notesSummary(b: Row) { return text(b.service_notes || b.customer_notes || b.special_requests || b.admin_notes).slice(0, 700) }
 function notificationType(paymentType: string, b: Row): EventType { return paymentType === 'full_balance' || Number(b.balance_due_cents || 0) <= 0 ? 'paid_in_full' : 'deposit_paid' }
@@ -128,8 +136,13 @@ function makePayload(b: Row, eventType: EventType, amountCents: number, sessionI
   const tax = salesTax(b)
   const paid = paidAmount(b, amountPaid)
   const finalTotal = finalTotalDollars(b, paid, balanceDue)
+  const managerDiscount = moneyField(b.manager_discount)
+  const couponDiscount = moneyField(b.coupon_discount)
+  const couponCode = text(b.applied_coupon_code)
   const feeLines = [`Travel Fee ${moneyDollars(travel)}`]
   if (toll > 0) feeLines.push(`NJ Toll Fee ${moneyDollars(toll)}`)
+  if (managerDiscount > 0) feeLines.push(`Manager Discount -${moneyDollars(managerDiscount)}`)
+  if (couponDiscount > 0) feeLines.push(`Coupon ${couponCode || ''} -${moneyDollars(couponDiscount)}`.trim())
   feeLines.push(`Final Total ${moneyDollars(finalTotal)}`, `Balance Due ${moneyDollars(balanceDue)}`)
   const detailedSmsContent = `Phoenix Hibachi ${text(b.booking_number)} ${title}. ${text(b.customer_name)} ${text(b.event_date)} ${text(b.event_time)}. Address: ${address || '-'}. ${feeLines.join('; ')}. ${sitePhone}. Reply STOP to opt out.`
   const detailRows = [
@@ -148,6 +161,8 @@ function makePayload(b: Row, eventType: EventType, amountCents: number, sessionI
     ['Travel Fee', moneyDollars(travel)],
     ...(toll > 0 ? [['NJ Toll Fee', moneyDollars(toll)] as [string, unknown]] : []),
     ['Sales Tax', moneyDollars(tax)],
+    ...(managerDiscount > 0 ? [['Manager Discount', `-${moneyDollars(managerDiscount)}`] as [string, unknown]] : []),
+    ...(couponDiscount > 0 ? [[`Coupon ${couponCode}`, `-${moneyDollars(couponDiscount)}`] as [string, unknown]] : []),
     ['Final Total', moneyDollars(finalTotal)],
     ['Paid', moneyDollars(paid)],
     ['Balance Due', moneyDollars(balanceDue)],
@@ -179,6 +194,9 @@ function makePayload(b: Row, eventType: EventType, amountCents: number, sessionI
     travel_fee:Number(travel.toFixed(2)),
     nj_toll_fee:Number(toll.toFixed(2)),
     sales_tax:Number(tax.toFixed(2)),
+    manager_discount:Number(managerDiscount.toFixed(2)),
+    coupon_discount:Number(couponDiscount.toFixed(2)),
+    applied_coupon_code:couponCode,
     final_total:Number(finalTotal.toFixed(2)),
     payment_status:text(b.payment_status),
     deposit_status:text(b.deposit_status),
@@ -226,54 +244,123 @@ async function dispatchMake(b: Row, eventType: EventType, amountCents: number, s
 async function activeById(id: string) { if (!id) return null; const { data, error } = await db.from('bookings').select('*').eq('id', id).maybeSingle(); if (error) throw new Error(error.message); return data as Row | null }
 async function activeByNumber(number: string) { if (!number) return null; const { data, error } = await db.from('bookings').select('*').eq('booking_number', number).maybeSingle(); if (error) throw new Error(error.message); return data as Row | null }
 async function draftById(id: string) { if (!id) return null; const { data, error } = await db.from('booking_drafts').select('*').eq('id', id).maybeSingle(); if (error) throw new Error(error.message); return data as Row | null }
-function paymentPatch(row: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
-  const currentPaidCents = Math.max(0, Math.round(Math.max(Number(row.paid_amount || 0), Number(row.deposit_amount || 0)) * 100))
-  const currentDepositCents = Math.max(0, Math.round(Number(row.deposit_amount || 0) * 100))
-  const requiredDepositCents = Math.max(10000, Number(row.deposit_required_cents || 10000))
-  const currentBalance = Math.max(0, Number(row.balance_due_cents || 0))
-  const newBalance = paymentType === 'full_balance' ? 0 : Math.max(0, currentBalance - amountCents)
-  const paidAmountCents = currentPaidCents + amountCents
-  const depositAmountCents = Math.min(requiredDepositCents, Math.max(currentDepositCents, paidAmountCents))
-  const depositDueCents = Math.max(0, requiredDepositCents - depositAmountCents)
-  const full = newBalance <= 0
-  const depositCovered = depositDueCents <= 0
-  return {
+async function redeemCouponForSession(booking: Row, session: Stripe.Checkout.Session, draftId: string) {
+  const meta = session.metadata || {}
+  const couponId = text(meta.coupon_id)
+  const couponCode = text(meta.coupon_code).toUpperCase()
+  const discount = Math.max(0, Number(meta.coupon_discount_cents || 0)) / 100
+  if (!couponId || !couponCode || discount <= 0) return booking
+  const currentCode = text(booking.applied_coupon_code).toUpperCase()
+  const currentDiscount = moneyField(booking.coupon_discount)
+  const managerDiscount = moneyField(booking.manager_discount)
+  if (managerDiscount > 0 || currentCode !== couponCode || Math.abs(currentDiscount - discount) > 0.005) {
+    await releaseCouponForSession(session.id)
+    return booking
+  }
+
+  const reservationId = text(meta.coupon_reservation_id)
+  let reservation: Row | null = null
+  if (reservationId) {
+    const { data, error } = await db.from('coupon_redemptions').select('*').eq('id', reservationId).maybeSingle()
+    if (error) throw new Error(error.message)
+    reservation = data as Row | null
+  }
+  if (!reservation) {
+    const { data, error } = await db.from('coupon_redemptions').select('*').eq('checkout_session_id', session.id).maybeSingle()
+    if (error) throw new Error(error.message)
+    reservation = data as Row | null
+  }
+  if (!reservation) {
+    const { data, error } = await db.rpc('phx_reserve_coupon_redemption', {
+      p_coupon_id:couponId,
+      p_booking_id:booking.id,
+      p_draft_id:null,
+      p_customer_id:booking.customer_id || null,
+      p_customer_email:lower(booking.customer_email) || null,
+      p_code:couponCode,
+      p_discount:discount,
+    })
+    if (error) throw new Error(error.message)
+    const { data: created, error: createdError } = await db.from('coupon_redemptions').select('*').eq('id', data).single()
+    if (createdError) throw new Error(createdError.message)
+    reservation = created as Row
+  }
+
+  if (lower(reservation.status) !== 'redeemed') {
+    await db.from('coupon_redemptions').update({
+      status:'released',
+      released_at:new Date().toISOString(),
+    }).eq('booking_id', booking.id).eq('status', 'reserved').neq('id', reservation.id)
+
+    const { error: redeemError } = await db.from('coupon_redemptions').update({
+      booking_id:booking.id,
+      draft_id:null,
+      customer_id:booking.customer_id || null,
+      customer_email:lower(booking.customer_email) || null,
+      code:couponCode,
+      discount_amount:discount,
+      status:'redeemed',
+      redeemed_at:new Date().toISOString(),
+      released_at:null,
+      checkout_session_id:session.id,
+    }).eq('id', reservation.id)
+    if (redeemError) throw new Error(redeemError.message)
+  }
+
+  const couponPatch = {
+    applied_coupon_id:couponId,
+    applied_coupon_code:couponCode,
+    coupon_discount:discount,
+  }
+  const { data: updated, error: bookingError } = await db.from('bookings').update(couponPatch).eq('id', booking.id).select('*').single()
+  if (bookingError) throw new Error(bookingError.message)
+  return updated as Row
+}
+async function releaseCouponForSession(sessionId: string) {
+  if (!sessionId) return
+  const { error } = await db.from('coupon_redemptions').update({
+    status:'released',
+    released_at:new Date().toISOString(),
+  }).eq('checkout_session_id', sessionId).eq('status', 'reserved')
+  if (error) throw new Error(error.message)
+}
+async function promotePaidDraft(draft: Row) {
+  const patch = {
     request_status:'submitted',
-    status:full ? 'New request - paid in full' : depositCovered ? 'New request - deposit paid' : 'New request - partial payment received',
+    status:'New request - payment verification pending',
     activated_at:new Date().toISOString(),
     checkout_expires_at:null,
     abandoned_at:null,
-    deposit_status:depositCovered ? 'paid' : 'partially_paid',
-    deposit_amount:depositAmountCents / 100,
-    paid_amount:paidAmountCents / 100,
-    deposit_due_cents:depositDueCents,
-    balance_due_cents:newBalance,
-    deposit_deferred:!depositCovered,
-    deposit_paid_at:depositCovered ? (row.deposit_paid_at || new Date().toISOString()) : row.deposit_paid_at,
-    stripe_checkout_session_id:session.id,
-    stripe_payment_intent_id:String(session.payment_intent || ''),
-    payment_preference:'stripe',
-    payment_verification_status:'verified',
-    payment_status:full ? 'paid in full' : depositCovered ? 'deposit received' : 'partial payment received'
   }
-}
-async function promotePaidDraft(draft: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
-  const existing = await activeByNumber(text(draft.booking_number)); if (existing) return existing
-  const { draft_status, draft_updated_at, finalized_at, ...payload } = draft
-  Object.assign(payload, paymentPatch(draft, session, amountCents, paymentType))
-  const { data, error } = await db.from('bookings').insert(payload).select('*').single()
-  if (error) { const retry = await activeByNumber(text(draft.booking_number)); if (retry) return retry; throw new Error(error.message) }
-  await db.from('booking_drafts').delete().eq('id', draft.id)
+  const { data, error } = await db.rpc('phx_promote_booking_draft', { p_draft_id:draft.id, p_patch:patch })
+  if (error) throw new Error(`Paid draft promotion failed: ${error.message}`)
+  if (!data?.id) throw new Error('Paid draft promotion did not return the booking.')
   return data as Row
 }
-async function updateActive(booking: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
-  const sameVerifiedSession = String(booking.stripe_checkout_session_id || '') === session.id && String(booking.payment_verification_status || '') === 'verified'
-  if (sameVerifiedSession) return booking
-  const alreadyFull = Number(booking.balance_due_cents || 0) <= 0 && String(booking.payment_verification_status || '') === 'verified'
-  const alreadyDeposit = paymentType === 'deposit' && ['paid','paid_by_benefits'].includes(String(booking.deposit_status || '')) && String(booking.payment_verification_status || '') === 'verified'
-  if (alreadyFull || alreadyDeposit) return booking
-  const { data, error } = await db.from('bookings').update(paymentPatch(booking, session, amountCents, paymentType)).eq('id', booking.id).select('*').single()
-  if (error) throw new Error(error.message); return data as Row
+async function applyStripePayment(event: Stripe.Event, booking: Row, session: Stripe.Checkout.Session, amountCents: number, paymentType: string) {
+  const { data, error } = await db.rpc('phx_apply_stripe_checkout_payment', {
+    p_event_id:event.id,
+    p_booking_id:booking.id,
+    p_session_id:session.id,
+    p_payment_intent_id:String(session.payment_intent || ''),
+    p_amount_cents:amountCents,
+    p_payment_type:paymentType,
+    p_currency:session.currency || 'usd',
+    p_event_type:event.type,
+    p_raw_summary:{
+      object_id:session.id,
+      payment_intent:session.payment_intent || null,
+      payment_type:paymentType,
+      expected_amount_cents:session.metadata?.expected_amount_cents || null,
+      draft_id:session.metadata?.draft_id || null,
+      coupon_code:session.metadata?.coupon_code || null,
+      coupon_discount_cents:session.metadata?.coupon_discount_cents || null,
+    },
+  })
+  if (error) throw new Error(`Atomic Stripe payment update failed: ${error.message}`)
+  const updated = data?.booking as Row | undefined
+  if (!updated?.id) throw new Error('Atomic Stripe payment update did not return the booking.')
+  return { booking:updated, applied:data?.applied === true }
 }
 async function logEvent(event: Stripe.Event, session: Stripe.Checkout.Session, bookingId: string | null, paymentType: string, amountCents: number, extra: Record<string, any> = {}) {
   const { error } = await db.from('payment_events').upsert({ booking_id:bookingId, provider:'stripe', provider_event_id:event.id, event_type:event.type, amount:amountCents/100, currency:session.currency || 'usd', payment_status:session.payment_status || session.status || null, raw_summary:{ object_id:session.id, payment_intent:session.payment_intent, payment_type:paymentType, expected_amount_cents:session.metadata?.expected_amount_cents || null, ...extra } }, { onConflict:'provider_event_id', ignoreDuplicates:true })
@@ -297,18 +384,19 @@ Deno.serve(async req => {
       let booking: Row | null = null
       if (draftId) {
         const draft = await draftById(draftId)
-        if (draft) booking = await promotePaidDraft(draft, session, amountCents, paymentType)
+        if (draft) booking = await promotePaidDraft(draft)
         else booking = await activeById(draftId) || await activeByNumber(bookingNumber)
       } else if (bookingId) booking = await activeById(bookingId)
       if (!booking) booking = await activeByNumber(bookingNumber)
       if (!booking) return new Response('Booking reference missing', { status:400 })
-      booking = await updateActive(booking, session, amountCents, paymentType)
-      await logEvent(event, session, booking.id, paymentType, amountCents, { draft_id:draftId || null })
+      const appliedPayment = await applyStripePayment(event, booking, session, amountCents, paymentType)
+      booking = await redeemCouponForSession(appliedPayment.booking, session, draftId)
       const eventType = notificationType(paymentType, booking)
       await dispatchMake(booking, eventType, amountCents, session.id)
       return new Response('ok', { status:200 })
     }
     if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
+      await releaseCouponForSession(session.id)
       const patch = { payment_verification_status:event.type === 'checkout.session.expired' ? 'session_expired' : 'payment_failed', stripe_checkout_session_id:null }
       if (draftId) { const draftPatch: any = { ...patch }; if (paymentType !== 'full_balance') Object.assign(draftPatch, { deposit_status:'unpaid', deposit_deferred:true }); await db.from('booking_drafts').update(draftPatch).eq('id', draftId) }
       if (bookingId) await db.from('bookings').update(patch).eq('id', bookingId)

@@ -22,6 +22,23 @@
     if(!ref) return '';
     try{return sessionStorage.getItem(`phoenix_payment_access_${ref}`)||''}catch{return ''}
   }
+  function pendingCouponKey(ref=bookingRef()){return ref?`phoenix_pending_coupon_${ref}`:''}
+  function pendingCouponCode(ref=bookingRef()){
+    if(!ref) return '';
+    try{return sessionStorage.getItem(pendingCouponKey(ref))||''}catch{return ''}
+  }
+  function savePendingCoupon(ref,code){
+    if(!ref) return;
+    try{if(code)sessionStorage.setItem(pendingCouponKey(ref),code);else sessionStorage.removeItem(pendingCouponKey(ref))}catch{}
+    try{if(typeof lastSubmittedOrder!=='undefined'&&lastSubmittedOrder&&String(lastSubmittedOrder.id||'')===String(ref))lastSubmittedOrder.pendingCouponCode=code}catch{}
+  }
+  window.phoenixPendingCouponCodeV253=pendingCouponCode;
+  window.phoenixPendingCouponCodeV251=pendingCouponCode; // compatibility with the existing V234 finalization wrapper
+  function setBenefitStatus(message,state=''){
+    if(!benefitStatus)return;
+    benefitStatus.textContent=String(message||'');
+    benefitStatus.className=`phx-v225-benefit-status${state?` ${state}`:''}`;
+  }
   function statusCopy(method){
     if(depositVerified) return 'Stripe verified the $200 deposit. The request still requires manager approval.';
     if(method==='cash') return 'Cash selected. You can submit the request without paying now.';
@@ -57,25 +74,29 @@
 
   async function applyBenefit(type){
     const ref=bookingRef();
-    const code=type==='coupon'?document.getElementById('phoenixCouponCode')?.value.trim():type==='gift_card'?document.getElementById('phoenixGiftCardCode')?.value.trim():'';
-    let customerEmail=''; try{ if(typeof lastSubmittedOrder!=='undefined'&&lastSubmittedOrder) customerEmail=lastSubmittedOrder.email||'' }catch{}
-    if((type==='coupon'||type==='gift_card')&&!code){benefitStatus.textContent='Enter a code first.';benefitStatus.className='phx-v225-benefit-status error';return}
+    const code=document.getElementById('phoenixCouponCode')?.value.trim().toUpperCase()||'';
+    let customerEmail=''; try{ if(typeof lastSubmittedOrder!=='undefined'&&lastSubmittedOrder) customerEmail=lastSubmittedOrder.email||lastSubmittedOrder.customer_email||'' }catch{}
+    if(type!=='coupon') return;
+    if(!ref){setBenefitStatus('Create the booking request first, then apply the coupon on this payment screen.','error');return}
+    if(!code){setBenefitStatus('Enter a coupon code first.','error');return}
     if(features.benefits!==true||!cfg.supabaseFunctionsBaseUrl||!cfg.applyBenefitsFunction){
-      benefitStatus.textContent='Benefit lookup is prepared but not connected yet. Codes and balances must be verified by the Supabase Edge Function, never by browser-only code.';
-      benefitStatus.className='phx-v225-benefit-status';return;
+      setBenefitStatus('Secure coupon verification is unavailable. The code was not applied.','error');return;
     }
     try{
-      benefitStatus.textContent='Checking secure balance…';benefitStatus.className='phx-v225-benefit-status';
+      setBenefitStatus('Checking coupon securely…');
       const endpoint=`${cfg.supabaseFunctionsBaseUrl.replace(/\/$/,'')}/${cfg.applyBenefitsFunction}`;
       let authHeader={}; try{const client=typeof initSupabaseClient==='function'?initSupabaseClient():null; const session=client?(await client.auth.getSession()).data.session:null; if(session?.access_token) authHeader={Authorization:`Bearer ${session.access_token}`}}catch{}
-      const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...authHeader},body:JSON.stringify({action:type==='coupon'?'apply_coupon':'apply_benefit',bookingNumber:ref,customerEmail,type,code,paymentAccessToken:paymentAccessToken(ref)})});
-      const data=await res.json(); if(!res.ok) throw new Error(data.error||'Unable to apply benefit');
-      document.getElementById('v225DiscountTotal').textContent=data.discountFormatted||'$0.00';
-      document.getElementById('v225StoredValueTotal').textContent=data.storedValueFormatted||'$0.00';
-      document.getElementById('v225DepositDue').textContent=data.depositDueFormatted||'$200.00';const balanceEl=document.getElementById('v225OrderBalance');if(balanceEl)balanceEl.textContent=data.balanceDueFormatted||'Calculated securely';
-      benefitStatus.textContent=data.message||'Benefit applied.';benefitStatus.className='phx-v225-benefit-status success';
-    }catch(err){benefitStatus.textContent=err.message;benefitStatus.className='phx-v225-benefit-status error'}
+      const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...authHeader},body:JSON.stringify({action:'preview_coupon',bookingNumber:ref,customerEmail,code,paymentAccessToken:paymentAccessToken(ref)})});
+      const data=await res.json(); if(!res.ok) throw new Error(data.error||'Unable to verify coupon');
+      savePendingCoupon(ref,code);
+      const discountEl=document.getElementById('v225DiscountTotal');if(discountEl)discountEl.textContent=data.discountFormatted||'$0.00';
+      const storedEl=document.getElementById('v225StoredValueTotal');if(storedEl)storedEl.textContent='$0.00';
+      const depositEl=document.getElementById('v225DepositDue');if(depositEl)depositEl.textContent=data.depositDueFormatted||'$200.00';
+      const balanceEl=document.getElementById('v225OrderBalance');if(balanceEl)balanceEl.textContent=data.balanceDueFormatted||'Calculated securely';
+      setBenefitStatus(data.message||`Coupon ${code} is valid and will be applied when you finish the booking request.`,'success');
+    }catch(err){savePendingCoupon(ref,'');setBenefitStatus(err?.message||'Coupon could not be verified.','error')}
   }
+
   document.querySelectorAll('[data-v225-apply]').forEach(btn=>btn.addEventListener('click',()=>applyBenefit(btn.dataset.v225Apply)));
 
 

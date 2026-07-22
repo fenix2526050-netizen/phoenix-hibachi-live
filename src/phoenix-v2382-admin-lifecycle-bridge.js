@@ -218,10 +218,17 @@
             : claimedMethod;
     const method = panelMethod || (quickDeposit ? (normalizedClaimedMethod || 'Manual transfer') : '');
     const chosenStatus = clean(panel.querySelector('[data-v107-payment-status]')?.value);
+    const managerDiscount = moneyNumber(panel.querySelector('[data-v107-discount]')?.value);
+    const travelFee = moneyNumber(panel.querySelector('[data-v107-travel-fee]')?.value);
+    const waiveTravelFee = !!panel.querySelector('[data-v107-waive-travel]')?.checked;
+    const reason = clean(panel.querySelector('[data-v107-reason]')?.value);
+    const customerNote = clean(panel.querySelector('[data-v107-customer-note]')?.value);
     const calculated = (() => {
       try {
+        const direct = Number(order?.finalTotal ?? order?.final_total ?? ((order?.orderTotalCents ?? order?.order_total_cents) != null ? Number(order?.orderTotalCents ?? order?.order_total_cents) / 100 : 0));
+        if (Number.isFinite(direct) && direct > 0) return direct;
         const m = typeof calculateOrderMoney === 'function' ? calculateOrderMoney(order) : {};
-        return Number(m?.guestTotalBeforeDeposit || order?.finalTotal || order?.final_total || 0);
+        return Number(m?.guestTotalBeforeDeposit || 0);
       } catch { return 0; }
     })();
     const paidInFull = /paid\s*in\s*full|full/i.test(chosenStatus)
@@ -241,7 +248,12 @@
         amountReceived: amount,
         paymentMethod: method || (quickDeposit ? 'cash' : ''),
         paymentStatus: paidInFull ? 'paid in full' : (chosenStatus || 'deposit received'),
-        paidInFull
+        paidInFull,
+        managerDiscount,
+        travelFee,
+        waiveTravelFee,
+        reason,
+        customerNote
       });
       await refreshAdmin();
       alert(notificationMessage(
@@ -308,7 +320,7 @@
     if (!window.__PHX_V241_LOADER__ && !document.querySelector('script[data-phoenix-patch="v241-order-modification"]')) {
       window.__PHX_V241_LOADER__ = true;
       const script = document.createElement('script');
-      script.src = 'src/phoenix-v241-order-modification.js?v=248';
+      script.src = 'src/phoenix-v241-order-modification.js?v=254';
       script.defer = true;
       script.dataset.phoenixPatch = 'v241-order-modification';
       (document.currentScript?.parentNode || document.body || document.documentElement).appendChild(script);

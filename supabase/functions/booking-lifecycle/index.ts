@@ -30,6 +30,7 @@ function json(req: Request, body: unknown, status = 200) {
 }
 function text(v: unknown) { return String(v ?? '').trim() }
 function lower(v: unknown) { return text(v).toLowerCase() }
+function exactLike(v: unknown) { return text(v).replace(/[\\%_]/g, match => `\\${match}`) }
 function digits(v: unknown) { return text(v).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') }
 function normalizePhone(v: unknown) { const d = digits(v); return d.length === 10 ? `+1${d}` : '' }
 function normalizeNumber(v: unknown) {
@@ -89,25 +90,88 @@ function njTollFee(b: Row) {
 function travelFee(b: Row) { return moneyField(b.travel_fee, b.travelFee) }
 function salesTax(b: Row) { return moneyField(b.sales_tax, centsField(b.sales_tax_cents)) }
 function balanceDueDollars(b: Row) {
-  const centsBalance = centsField(b.balance_due_cents)
-  if (centsBalance) return centsBalance
-  return moneyField(b.balance_due, b.balanceDue)
+  if (b.balance_due_cents !== null && b.balance_due_cents !== undefined && b.balance_due_cents !== '') return centsField(b.balance_due_cents)
+  if (b.balance_due !== null && b.balance_due !== undefined && b.balance_due !== '') return moneyField(b.balance_due)
+  return moneyField(b.balanceDue)
 }
 function finalTotalDollars(b: Row, amountPaid = 0, balanceDue = 0) {
-  const direct = moneyField(b.final_total, b.finalTotal, centsField(b.order_total_cents), b.guest_total_before_deposit)
-  return direct || Math.max(0, amountPaid + balanceDue)
+  if (b.final_total !== null && b.final_total !== undefined && b.final_total !== '') return moneyField(b.final_total)
+  if (b.finalTotal !== null && b.finalTotal !== undefined && b.finalTotal !== '') return moneyField(b.finalTotal)
+  if (b.order_total_cents !== null && b.order_total_cents !== undefined && b.order_total_cents !== '') return centsField(b.order_total_cents)
+  if (b.guest_total_before_deposit !== null && b.guest_total_before_deposit !== undefined && b.guest_total_before_deposit !== '') return moneyField(b.guest_total_before_deposit)
+  return Math.max(0, amountPaid + balanceDue)
 }
 
-const PACKAGE_PRICES: Record<string, number> = { Classic:55, Premium:65, Signature:110 }
-const ADDON_PRICES: Record<string, number> = {
-  'Sushi Roll Tray':85,
-  'Premium Sushi Tray':130,
-  'Sushi & Sashimi Combo':160,
-  'Extra Gyoza Tray':45,
-  'Extra Edamame Tray':35,
-  'Noodle / Yakisoba Tray':50,
+
+type PricingConfig = {
+  packages: Record<string, number>
+  packageProteinPortions: Record<string, number>
+  proteinUpcharge: number
+  premiumProteins: string[]
+  addons: Record<string, number>
+  moneyRules: Record<string, number>
 }
-const PREMIUM_PROTEINS = new Set(['filet','filet mignon','lobster','scallop','scallops'])
+const DEFAULT_PRICING: PricingConfig = {
+  packages:{ Classic:55, Premium:65, Signature:110 },
+  packageProteinPortions:{ Classic:2, Premium:3, Signature:4 },
+  proteinUpcharge:5,
+  premiumProteins:['Scallop','Lobster','Filet Mignon'],
+  addons:{
+    'Sushi Roll Tray':85,
+    'Premium Sushi Tray':130,
+    'Sushi & Sashimi Combo':160,
+    'Extra Gyoza Tray':45,
+    'Extra Edamame Tray':35,
+    'Noodle / Yakisoba Tray':50,
+  },
+  moneyRules:{
+    minimumFoodOrder:550,
+    depositRequired:200,
+    defaultTravelFee:50,
+    travelFeeBase:50,
+    travelFeeIncludedMiles:20,
+    travelFeePerExtraMile:2,
+    njTollFee:30,
+    travelFeeCustomQuoteMiles:100,
+    salesTaxRate:8.875,
+  },
+}
+function numberMap(raw: unknown, fallback: Record<string, number>) {
+  const out = { ...fallback }
+  if (!raw || typeof raw !== 'object') return out
+  for (const [key, value] of Object.entries(raw as Row)) {
+    const num = Number(value)
+    if (Number.isFinite(num) && num >= 0) out[key] = num
+  }
+  return out
+}
+function mergePricing(raw: unknown): PricingConfig {
+  const value = raw && typeof raw === 'object' ? raw as Row : {}
+  const premium = Array.isArray(value.premiumProteins) ? value.premiumProteins.map(text).filter(Boolean) : DEFAULT_PRICING.premiumProteins
+  return {
+    packages:numberMap(value.packages, DEFAULT_PRICING.packages),
+    packageProteinPortions:numberMap(value.packageProteinPortions, DEFAULT_PRICING.packageProteinPortions),
+    proteinUpcharge:Math.max(0, Number(value.proteinUpcharge ?? DEFAULT_PRICING.proteinUpcharge) || DEFAULT_PRICING.proteinUpcharge),
+    premiumProteins:premium,
+    addons:numberMap(value.addons, DEFAULT_PRICING.addons),
+    moneyRules:numberMap(value.moneyRules, DEFAULT_PRICING.moneyRules),
+  }
+}
+let pricingCache: { value: PricingConfig, expires: number } | null = null
+async function loadPricingSettings() {
+  if (pricingCache && pricingCache.expires > Date.now()) return pricingCache.value
+  const { data, error } = await service.from('app_settings').select('value').eq('key', 'pricing_settings_v140').maybeSingle()
+  if (error) console.warn('Pricing settings fallback to defaults:', error.message)
+  const value = mergePricing(data?.value)
+  pricingCache = { value, expires:Date.now() + 60_000 }
+  return value
+}
+function requiredDepositCents(pricing: PricingConfig, booking: Row = {}) {
+  const base = Math.max(20000, Math.round(Math.max(0, Number(pricing.moneyRules.depositRequired ?? 200) || 200) * 100))
+  const guests = Math.max(0, Number(booking.guest_count || 0), Number(booking.adults || 0) + Number(booking.kids || 0))
+  return guests >= 31 ? Math.max(base, 30000) : base
+}
+
 function inferState(b: Row) {
   const raw = text(b.state || b.event_state).toUpperCase().replace(/[^A-Z]/g, '').slice(0,2)
   if (raw) return raw
@@ -117,12 +181,23 @@ function inferState(b: Row) {
   if (/\bPA\b|PENNSYLVANIA/.test(address) || /^(15|16|17|18|19)/.test(zip)) return 'PA'
   return 'NY'
 }
-function taxRate(b: Row) {
+function taxRate(b: Row, pricing: PricingConfig) {
   const state = inferState(b), address = text(b.address).toUpperCase(), zip = text(b.zip || b.postal_code)
-  if (state === 'NJ') return 0.06625
-  if (state === 'CT') return 0.0635
-  if (state === 'PA') return 0
-  return (/^11[5789]/.test(zip) || /LONG ISLAND|NASSAU|SUFFOLK/.test(address)) ? 0.08625 : 0.08875
+  const rules = pricing.moneyRules
+  if (state === 'NJ') return Math.max(0, Number(rules.njSalesTaxRate ?? 6.625)) / 100
+  if (state === 'CT') return Math.max(0, Number(rules.ctSalesTaxRate ?? 6.35)) / 100
+  if (state === 'PA') return Math.max(0, Number(rules.paSalesTaxRate ?? 0)) / 100
+  if (/^11[5789]/.test(zip) || /LONG ISLAND|NASSAU|SUFFOLK/.test(address)) {
+    return Math.max(0, Number(rules.longIslandSalesTaxRate ?? 8.625)) / 100
+  }
+  return Math.max(0, Number(rules.salesTaxRate ?? 8.875)) / 100
+}
+function normalizeAddonName(raw: unknown) {
+  return text(raw)
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .replace(/\s*[×x]\s*\d+.*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 function addonQuantity(raw: unknown, name: string) {
   const line = text(raw)
@@ -130,23 +205,34 @@ function addonQuantity(raw: unknown, name: string) {
   const m = line.match(new RegExp(`^${safe}\\s*(?:[×x]\\s*(\\d+))?`, 'i'))
   return m ? Math.max(1, Number(m[1] || 1)) : 0
 }
-function canonicalAddonsTotal(raw: unknown) {
+function canonicalAddonsTotal(raw: unknown, pricing: PricingConfig) {
   const rows = Array.isArray(raw) ? raw : splitLines(raw)
+  const priceEntries = Object.entries(pricing.addons)
   let total = 0
   for (const row of rows) {
-    const name = typeof row === 'object' && row ? text((row as Row).name || (row as Row).label) : text(row).replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*[×x]\s*\d+.*$/, '').trim()
-    if (!(name in ADDON_PRICES)) continue
-    const qty = typeof row === 'object' && row ? Math.max(1, Number((row as Row).qty || (row as Row).quantity || 1)) : addonQuantity(row, name)
-    total += ADDON_PRICES[name] * qty
+    const rawName = typeof row === 'object' && row ? text((row as Row).name || (row as Row).label) : normalizeAddonName(row)
+    const match = priceEntries.find(([name]) => lower(name) === lower(rawName))
+    if (!match) continue
+    const [name, price] = match
+    const qty = typeof row === 'object' && row
+      ? Math.max(1, Math.floor(Number((row as Row).qty || (row as Row).quantity || 1)))
+      : addonQuantity(row, name)
+    total += Math.max(0, price) * qty
   }
   return total
 }
-function premiumProteinCount(raw: unknown) {
+function premiumProteinCount(raw: unknown, pricing: PricingConfig) {
   if (!raw || typeof raw !== 'object') return 0
+  const premium = new Set(pricing.premiumProteins.flatMap(name => {
+    const clean = lower(name)
+    return clean === 'scallop' ? ['scallop','scallops'] : clean === 'filet mignon' ? ['filet','filet mignon'] : [clean]
+  }))
   let total = 0
   for (const [name, value] of Object.entries(raw as Row)) {
-    if (!PREMIUM_PROTEINS.has(lower(name))) continue
-    const n = typeof value === 'object' && value ? Number((value as Row).qty || (value as Row).quantity || (value as Row).count || 0) : Number(value || 0)
+    if (!premium.has(lower(name))) continue
+    const n = typeof value === 'object' && value
+      ? Number((value as Row).qty || (value as Row).quantity || (value as Row).count || 0)
+      : Number(value || 0)
     total += Math.max(0, n)
   }
   return total
@@ -158,30 +244,58 @@ function staffingFee(b: Row) {
   const extraChef = /Additional chef requested:\s*Yes/i.test(notes) && guests <= 30 ? 150 : 0
   return waitstaff + extraChef
 }
-function secureMoney(b: Row, options: Row = {}) {
+function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const toRad = (value: number) => value * Math.PI / 180
+  const earthMiles = 3958.8
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2
+  return 2 * earthMiles * Math.asin(Math.sqrt(a))
+}
+function secureTravelFee(b: Row, options: Row, pricing: PricingConfig) {
+  if (options.waiveTravel === true) return 0
+  const rules = pricing.moneyRules
+  const base = Math.max(0, Number(rules.travelFeeBase ?? rules.defaultTravelFee ?? 50) || 50)
+  const explicit = Math.max(0, moneyField(options.travelFee, b.travel_fee, b.travelFee))
+  if (options.adminTravel === true || options.preserveTravel === true) return explicit
+  const lat = Number(b.latitude ?? b.addressLat), lon = Number(b.longitude ?? b.addressLon)
+  let coordinateFloor = base
+  if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && lat !== 0 && lon !== 0) {
+    const straight = haversineMiles(40.6169, -74.0132, lat, lon)
+    const conservativeRoadMiles = straight * 1.12
+    const limit = Math.max(1, Number(rules.travelFeeCustomQuoteMiles ?? 100) || 100)
+    if (conservativeRoadMiles > limit) throw new Error('This address needs a custom travel quote before the booking can be completed.')
+    const included = Math.max(0, Number(rules.travelFeeIncludedMiles ?? 20) || 20)
+    const rate = Math.max(0, Number(rules.travelFeePerExtraMile ?? 2) || 2)
+    coordinateFloor = base + Math.max(0, Math.ceil(conservativeRoadMiles - included)) * rate
+  }
+  // The browser quote may be higher because it uses road routing. Never allow a lower value than either quote floor.
+  return Math.min(5000, Math.max(base, explicit, coordinateFloor))
+}
+function secureMoney(b: Row, options: Row = {}, pricing: PricingConfig = DEFAULT_PRICING) {
   const packageName = text(b.package_name || b.package || 'Classic')
-  const price = PACKAGE_PRICES[packageName] || PACKAGE_PRICES.Classic
+  const price = pricing.packages[packageName] ?? pricing.packages.Classic ?? 55
   const adults = Math.max(0, Math.floor(Number(b.adults || 0)))
   const kids = Math.max(0, Math.floor(Number(b.kids || 0)))
   const kidPrice = packageName === 'Classic' ? 28 : Math.ceil(price / 2)
-  const addons = canonicalAddonsTotal(b.add_ons || b.addons)
-  const proteinUpcharge = premiumProteinCount(b.protein_selections || b.proteinSelections) * 5
+  const addons = canonicalAddonsTotal(b.add_ons || b.addons, pricing)
+  const proteinUpcharge = premiumProteinCount(b.protein_selections || b.proteinSelections, pricing) * pricing.proteinUpcharge
   const qualifyingFood = adults * price + kids * kidPrice + addons + proteinUpcharge
-  const foodSubtotal = Math.max(550, qualifyingFood)
-  const travel = Math.max(0, moneyField(options.travelFee, b.travel_fee, b.travelFee))
+  const foodSubtotal = Math.max(Number(pricing.moneyRules.minimumFoodOrder ?? 550) || 550, qualifyingFood)
+  const travel = secureTravelFee(b, options, pricing)
   const staff = staffingFee(b)
-  const toll = njTollFee(b)
-  // Tax is deliberately calculated before manager/coupon discounts. Discounts never lower tax.
-  const tax = Math.round((foodSubtotal + travel + staff) * taxRate(b) * 100) / 100
+  const toll = Math.max(0, njTollFee(b) || (inferState(b) === 'NJ' ? Number(pricing.moneyRules.njTollFee ?? 30) : 0))
+  // Tax and suggested tips are based on the original amount. Manager/coupon discounts never lower them.
+  const tax = Math.round((foodSubtotal + travel + staff + toll) * taxRate(b, pricing) * 100) / 100
   const managerDiscount = Math.min(foodSubtotal, Math.max(0, moneyField(options.managerDiscount, b.manager_discount)))
-  const couponDiscount = Math.min(Math.max(0, foodSubtotal - managerDiscount), Math.max(0, moneyField(options.couponDiscount, b.coupon_discount)))
+  const requestedCouponDiscount = Math.max(0, moneyField(options.couponDiscount, b.coupon_discount))
+  const couponDiscount = managerDiscount > 0 ? 0 : Math.min(foodSubtotal, requestedCouponDiscount)
   const total = Math.max(0, foodSubtotal + travel + staff + toll + tax - managerDiscount - couponDiscount)
   const paid = Math.max(0, moneyField(b.paid_amount, b.deposit_amount))
   const balance = Math.max(0, total - paid)
   return { foodSubtotal, travel, staff, toll, tax, managerDiscount, couponDiscount, total, paid, balance }
 }
-function secureMoneyPatch(b: Row, options: Row = {}) {
-  const m = secureMoney(b, options)
+function secureMoneyPatch(b: Row, options: Row = {}, pricing: PricingConfig = DEFAULT_PRICING) {
+  const m = secureMoney(b, options, pricing)
   return {
     food_subtotal:Number(m.foodSubtotal.toFixed(2)), food_subtotal_cents:Math.round(m.foodSubtotal * 100),
     travel_fee:Number(m.travel.toFixed(2)), sales_tax:Number(m.tax.toFixed(2)), sales_tax_cents:Math.round(m.tax * 100),
@@ -202,19 +316,22 @@ function activeBooking(b: Row) {
   return true
 }
 function publicOrder(b: Row) {
+  const paid = Number(b.paid_amount ?? b.deposit_amount ?? 0)
+  const balance = balanceDueDollars(b)
+  const finalTotal = finalTotalDollars(b, paid, balance)
   return {
-    id: b.booking_number, booking_number: b.booking_number, eventDate: b.event_date, eventTime: b.event_time,
-    status: b.status, requestStatus: b.request_status, paymentStatus: b.payment_status, depositStatus: b.deposit_status,
-    depositPaid: Number(b.deposit_amount || 0), depositDueCents: Number(b.deposit_due_cents || 0), balanceDueCents: Number(b.balance_due_cents || 0),
-    paidAmount: Number(b.paid_amount || b.deposit_amount || 0), paid_amount: Number(b.paid_amount || b.deposit_amount || 0),
-    balanceDue: balanceDueDollars(b), balance_due: balanceDueDollars(b),
-    name: b.customer_name ? `${text(b.customer_name).slice(0, 1)}***` : 'Guest', phone: b.customer_phone ? `***${digits(b.customer_phone).slice(-4)}` : '',
-    email: b.customer_email ? text(b.customer_email).replace(/^(.).+(@.+)$/, '$1***$2') : '',
-    address: b.address ? text(b.address).split(',').slice(-2).join(',').trim() : '', package: b.package_name || 'Classic',
-    adults: Number(b.adults || 0), kids: Number(b.kids || 0), totalGuests: Number(b.guest_count || 0), travelFee: Number(b.travel_fee || 0), finalTotal: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)), final_total: finalTotalDollars(b, Number(b.paid_amount || b.deposit_amount || 0), balanceDueDollars(b)), order_total_cents: Number(b.order_total_cents || 0),
-    foodSubtotal:Number(b.food_subtotal || 0), food_subtotal:Number(b.food_subtotal || 0), salesTax:Number(b.sales_tax || 0), sales_tax:Number(b.sales_tax || 0),
-    managerDiscount:Number(b.manager_discount || 0), manager_discount:Number(b.manager_discount || 0), couponDiscount:Number(b.coupon_discount || 0), coupon_discount:Number(b.coupon_discount || 0),
-    couponCode:text(b.applied_coupon_code), applied_coupon_code:text(b.applied_coupon_code),
+    id:b.booking_number, booking_number:b.booking_number, eventDate:b.event_date, eventTime:b.event_time,
+    status:b.status, requestStatus:b.request_status, paymentStatus:b.payment_status, depositStatus:b.deposit_status,
+    depositPaid:Number(b.deposit_amount ?? 0), depositDueCents:Number(b.deposit_due_cents ?? 0), balanceDueCents:Number(b.balance_due_cents ?? 0),
+    paidAmount:paid, paid_amount:paid, balanceDue:balance, balance_due:balance,
+    name:b.customer_name ? `${text(b.customer_name).slice(0, 1)}***` : 'Guest', phone:b.customer_phone ? `***${digits(b.customer_phone).slice(-4)}` : '',
+    email:b.customer_email ? text(b.customer_email).replace(/^(.).+(@.+)$/, '$1***$2') : '',
+    address:b.address ? text(b.address).split(',').slice(-2).join(',').trim() : '', package:b.package_name || 'Classic',
+    adults:Number(b.adults ?? 0), kids:Number(b.kids ?? 0), totalGuests:Number(b.guest_count ?? 0), travelFee:Number(b.travel_fee ?? 0),
+    finalTotal, final_total:finalTotal, order_total_cents:Number(b.order_total_cents ?? 0),
+    foodSubtotal:Number(b.food_subtotal ?? 0), food_subtotal:Number(b.food_subtotal ?? 0), salesTax:Number(b.sales_tax ?? 0), sales_tax:Number(b.sales_tax ?? 0),
+    managerDiscount:Number(b.manager_discount ?? 0), manager_discount:Number(b.manager_discount ?? 0), couponDiscount:Number(b.coupon_discount ?? 0), coupon_discount:Number(b.coupon_discount ?? 0),
+    couponCode:text(b.applied_coupon_code), applied_coupon_code:text(b.applied_coupon_code), appliedCouponId:b.applied_coupon_id ?? null, applied_coupon_id:b.applied_coupon_id ?? null,
   }
 }
 function editableCustomerOrder(b: Row) {
@@ -279,21 +396,42 @@ async function getDraft(number: string) {
 }
 async function validateDraft(draft: Row, rawToken: string, suppliedEmail: string) {
   const recent = Date.now() - new Date(draft.created_at || 0).getTime() <= 2 * 60 * 60 * 1000
-  if (rawToken && draft.payment_access_token_hash && await sha256(rawToken) === draft.payment_access_token_hash) return true
-  return recent && suppliedEmail && lower(draft.customer_email) === lower(suppliedEmail)
+  if (draft.payment_access_token_hash) {
+    return !!rawToken && await sha256(rawToken) === draft.payment_access_token_hash
+  }
+  // Legacy drafts created before secure browser tokens existed may fall back to a short-lived email match.
+  return recent && !!suppliedEmail && lower(draft.customer_email) === lower(suppliedEmail)
 }
 async function expireDrafts() {
   const now = new Date().toISOString()
-  const { error } = await service.from('booking_drafts').update({ draft_status:'expired', request_status:'expired', status:'Expired', abandoned_at:now, draft_updated_at:now }).eq('draft_status', 'open').lt('checkout_expires_at', now)
-  if (error) console.warn('Draft expiry cleanup skipped', error.message)
+  const { data: expiredRows, error: lookupError } = await service.from('booking_drafts')
+    .select('id')
+    .eq('draft_status', 'open')
+    .lt('checkout_expires_at', now)
+  if (lookupError) {
+    console.warn('Draft expiry lookup skipped', lookupError.message)
+    return
+  }
+  const ids = (expiredRows || []).map((row: Row) => row.id).filter(Boolean)
+  if (!ids.length) return
+  const { error } = await service.from('booking_drafts')
+    .update({ draft_status:'expired', request_status:'expired', status:'Expired', abandoned_at:now, draft_updated_at:now })
+    .in('id', ids)
+  if (error) {
+    console.warn('Draft expiry cleanup skipped', error.message)
+    return
+  }
+  const { error: releaseError } = await service.from('coupon_redemptions')
+    .update({ status:'released', released_at:now })
+    .in('draft_id', ids)
+    .eq('status', 'reserved')
+  if (releaseError) console.warn('Expired draft coupon release skipped', releaseError.message)
 }
 async function promoteDraft(draft: Row, patch: Record<string, any>) {
-  const existing = await getActive(text(draft.booking_number)); if (existing) return existing
-  const { draft_status, draft_updated_at, finalized_at, ...payload } = draft
-  Object.assign(payload, patch, { activated_at:patch.activated_at || new Date().toISOString(), checkout_expires_at:null, abandoned_at:null })
-  const { data, error } = await service.from('bookings').insert(payload).select('*').single()
-  if (error) { const again = await getActive(text(draft.booking_number)); if (again) return again; throw new Error(`Active booking creation failed: ${error.message}`) }
-  await service.from('booking_drafts').delete().eq('id', draft.id)
+  const securePatch = { ...patch, activated_at:patch.activated_at || new Date().toISOString(), checkout_expires_at:null, abandoned_at:null }
+  const { data, error } = await service.rpc('phx_promote_booking_draft', { p_draft_id:draft.id, p_patch:securePatch })
+  if (error) throw new Error(`Active booking creation failed: ${error.message}`)
+  if (!data?.id) throw new Error('Active booking creation did not return the booking.')
   return data as Row
 }
 async function adminRole(req: Request, body?: Row) {
@@ -304,11 +442,16 @@ async function adminRole(req: Request, body?: Row) {
   const { data, error } = await service.auth.getUser(token)
   if (error || !data.user) return ''
   const { data: profile } = await service.from('profiles').select('role').eq('id', data.user.id).maybeSingle()
-  return lower(profile?.role || data.user.user_metadata?.role)
+  // raw user_metadata is user-editable and must never grant staff access.
+  return lower(profile?.role || data.user.app_metadata?.role)
 }
 async function requireAdmin(req: Request, body?: Row) {
   const role = await adminRole(req, body)
   if (!['admin','owner','manager','customer_service','customer service'].includes(role)) throw new Error('Admin or manager login is required.')
+}
+async function requireManager(req: Request, body?: Row) {
+  const role = await adminRole(req, body)
+  if (!['admin','owner','manager'].includes(role)) throw new Error('Admin or manager authorization is required for financial adjustments.')
 }
 function upsertNote(notes: unknown, label: string, value: unknown) {
   const cleanLabel = text(label)
@@ -362,6 +505,156 @@ function verifyCustomerForModify(b: Row, body: Row) {
   const supplied = digits(verify)
   return supplied && supplied === digits(b.customer_phone)
 }
+async function validateCouponCandidate(b: Row, rawCode: unknown, pricing: PricingConfig, moneyOptions: Row = {}) {
+  const code = text(rawCode).toUpperCase()
+  if (!code) throw new Error('Enter a coupon code.')
+  if (moneyField(b.manager_discount) > 0) throw new Error('A manager discount is already applied. Coupons cannot be combined with another discount.')
+  const { data: coupon, error: couponError } = await service.from('coupons').select('*').eq('code', code).maybeSingle()
+  if (couponError) throw new Error(couponError.message)
+  if (!coupon || lower(coupon.status) !== 'active') throw new Error('This coupon is invalid or inactive.')
+  if (coupon.assigned_customer_id && text(coupon.assigned_customer_id) !== text(b.customer_id)) {
+    throw new Error('This coupon is assigned to another customer account.')
+  }
+  const now = Date.now()
+  if (coupon.starts_at && new Date(coupon.starts_at).getTime() > now) throw new Error('This coupon is not active yet.')
+  if (coupon.expires_at && new Date(coupon.expires_at).getTime() < now) throw new Error('This coupon has expired.')
+  const eventDate = text(b.event_date)
+  if (coupon.applicable_event_date_start && eventDate < text(coupon.applicable_event_date_start)) throw new Error('This coupon is not valid for the selected event date.')
+  if (coupon.applicable_event_date_end && eventDate > text(coupon.applicable_event_date_end)) throw new Error('This coupon is not valid for the selected event date.')
+  if (coupon.applicable_month && Number(eventDate.slice(5,7)) !== Number(coupon.applicable_month)) throw new Error('This coupon is not valid for the selected event month.')
+  const base = secureMoney({ ...b, manager_discount:0, coupon_discount:0 }, { ...moneyOptions, managerDiscount:0, couponDiscount:0 }, pricing)
+  if (base.foodSubtotal < moneyField(coupon.minimum_order_amount)) throw new Error(`This coupon requires at least ${moneyFromDollars(coupon.minimum_order_amount)} in food subtotal.`)
+  const existingCode = text(b.applied_coupon_code).toUpperCase()
+  if (moneyField(b.paid_amount, b.deposit_amount) > 0 && existingCode !== code) {
+    throw new Error('A new coupon cannot be added after payment has been received.')
+  }
+  let ownReservation: Row | null = null
+  if (b.id) {
+    const redemptionResourceColumn = /draft/.test(`${lower(b.request_status)} ${lower(b.draft_status)} ${lower(b.status)}`) ? 'draft_id' : 'booking_id'
+    const { data: own, error: ownError } = await service.from('coupon_redemptions')
+      .select('id,coupon_id,status')
+      .eq(redemptionResourceColumn, b.id)
+      .in('status', ['reserved','redeemed'])
+      .order('created_at', { ascending:false })
+      .limit(1)
+      .maybeSingle()
+    if (ownError) throw new Error(ownError.message)
+    ownReservation = own as Row | null
+  }
+  const ownsThisCoupon = text(ownReservation?.coupon_id) === text(coupon.id)
+
+  const maximum = Number(coupon.max_redemptions || 0)
+  if (maximum > 0) {
+    const { count: usedCount, error: usedError } = await service.from('coupon_redemptions')
+      .select('id', { count:'exact', head:true })
+      .eq('coupon_id', coupon.id)
+      .in('status', ['reserved','redeemed'])
+    if (usedError) throw new Error(usedError.message)
+    const effectiveUsed = Math.max(0, Number(usedCount || 0) - (ownsThisCoupon ? 1 : 0))
+    if (effectiveUsed >= maximum) throw new Error('This coupon has reached its usage limit.')
+  }
+
+  const perCustomer = Number(coupon.max_redemptions_per_customer || 0)
+  if (perCustomer > 0 && b.customer_id) {
+    const { count: customerCount, error: customerError } = await service.from('coupon_redemptions')
+      .select('id', { count:'exact', head:true })
+      .eq('coupon_id', coupon.id)
+      .eq('customer_id', b.customer_id)
+      .in('status', ['reserved','redeemed'])
+    if (customerError) throw new Error(customerError.message)
+    const effectiveCustomerCount = Math.max(0, Number(customerCount || 0) - (ownsThisCoupon ? 1 : 0))
+    if (effectiveCustomerCount >= perCustomer) throw new Error('This coupon has already been used by this customer.')
+  } else if (perCustomer > 0 && text(b.customer_email)) {
+    const { count: emailCount, error: emailError } = await service.from('coupon_redemptions')
+      .select('id', { count:'exact', head:true })
+      .eq('coupon_id', coupon.id)
+      .ilike('customer_email', exactLike(lower(b.customer_email)))
+      .in('status', ['reserved','redeemed'])
+    if (emailError) throw new Error(emailError.message)
+    const effectiveEmailCount = Math.max(0, Number(emailCount || 0) - (ownsThisCoupon ? 1 : 0))
+    if (effectiveEmailCount >= perCustomer) throw new Error('This coupon has already been used by this customer.')
+  }
+
+  if (coupon.first_time_customer_only === true && text(b.customer_email)) {
+    let priorQuery = service.from('bookings').select('id', { count:'exact', head:true }).ilike('customer_email', exactLike(lower(b.customer_email)))
+    if (b.id) priorQuery = priorQuery.neq('id', b.id)
+    const { count: priorCount, error: priorError } = await priorQuery
+    if (priorError) throw new Error(priorError.message)
+    if (Number(priorCount || 0) > 0) throw new Error('This coupon is limited to first-time customers.')
+  }
+
+  const discount = lower(coupon.discount_type) === 'percent'
+    ? Math.min(base.foodSubtotal, Math.round(base.foodSubtotal * Number(coupon.discount_value || 0)) / 100)
+    : Math.min(base.foodSubtotal, moneyField(coupon.discount_value))
+  const moneyPatch = secureMoneyPatch(
+    { ...b, manager_discount:0, coupon_discount:discount },
+    { ...moneyOptions, managerDiscount:0, couponDiscount:discount },
+    pricing,
+  )
+  return { code, coupon:coupon as Row, discount, moneyPatch }
+}
+async function applyCouponCandidate(booking: Row, candidate: { code:string, coupon:Row, discount:number, moneyPatch:Row }) {
+  const { data: reservationId, error: reserveError } = await service.rpc('phx_reserve_coupon_redemption', {
+    p_coupon_id:candidate.coupon.id,
+    p_booking_id:booking.id,
+    p_draft_id:null,
+    p_customer_id:booking.customer_id || null,
+    p_customer_email:lower(booking.customer_email) || null,
+    p_code:candidate.code,
+    p_discount:candidate.discount,
+  })
+  if (reserveError) throw new Error(reserveError.message)
+  try {
+    return await updateBookingCompat(booking.id, {
+      ...candidate.moneyPatch,
+      manager_discount:0,
+      applied_coupon_id:candidate.coupon.id,
+      applied_coupon_code:candidate.code,
+      coupon_discount:candidate.discount,
+    }) as Row
+  } catch (error) {
+    if (reservationId) {
+      await service.from('coupon_redemptions').update({ status:'released', released_at:new Date().toISOString() })
+        .eq('id', reservationId).eq('status', 'reserved')
+    }
+    throw error
+  }
+}
+async function repriceExistingCoupon(booking: Row, candidate: Row, pricing: PricingConfig, moneyOptions: Row) {
+  const code = text(booking.applied_coupon_code)
+  if (!code) {
+    return {
+      moneyPatch:secureMoneyPatch({ ...candidate, coupon_discount:0 }, { ...moneyOptions, couponDiscount:0 }, pricing),
+      couponCandidate:null,
+      couponRemoved:false,
+      couponMessage:'',
+    }
+  }
+  try {
+    const couponCandidate = await validateCouponCandidate(candidate, code, pricing, moneyOptions)
+    return { moneyPatch:couponCandidate.moneyPatch, couponCandidate, couponRemoved:false, couponMessage:'' }
+  } catch (error) {
+    if (moneyField(booking.paid_amount, booking.deposit_amount) > 0) {
+      throw new Error(`This paid order's coupon can no longer be removed automatically. ${error instanceof Error ? error.message : String(error)}`)
+    }
+    if (booking.id) {
+      await service.from('coupon_redemptions').update({ status:'released', released_at:new Date().toISOString() }).eq('booking_id', booking.id).eq('status', 'reserved')
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      moneyPatch:{
+        ...secureMoneyPatch({ ...candidate, manager_discount:0, coupon_discount:0 }, { ...moneyOptions, managerDiscount:0, couponDiscount:0 }, pricing),
+        applied_coupon_id:null,
+        applied_coupon_code:null,
+        coupon_discount:0,
+      },
+      couponCandidate:null,
+      couponRemoved:true,
+      couponMessage:`Coupon ${code} was removed because the updated order no longer qualifies: ${message}`,
+    }
+  }
+}
+
 function splitLines(v: unknown) {
   if (Array.isArray(v)) return v.map(text).filter(Boolean)
   return text(v).split(/\n+/).map(item => item.trim()).filter(Boolean)
@@ -387,7 +680,48 @@ async function updateBookingCompat(id: string, patch: Record<string, any>) {
   if (result.error) throw new Error(result.error.message)
   return result.data as Row
 }
-function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin') {
+
+const ALLOWED_PROTEINS = new Map([
+  ['chicken','Chicken'], ['steak','Steak'], ['shrimp','Shrimp'], ['salmon','Salmon'], ['tofu','Tofu'],
+  ['scallop','Scallop'], ['scallops','Scallop'], ['lobster','Lobster'], ['filet','Filet Mignon'], ['filet mignon','Filet Mignon'],
+])
+function canonicalizeAddons(raw: unknown, pricing: PricingConfig) {
+  const rows = Array.isArray(raw) ? raw : splitLines(raw)
+  const names = Object.keys(pricing.addons)
+  const out: string[] = []
+  for (const row of rows) {
+    const supplied = typeof row === 'object' && row ? text((row as Row).name || (row as Row).label) : normalizeAddonName(row)
+    if (!supplied) continue
+    const canonical = names.find(name => lower(name) === lower(supplied))
+    if (!canonical) throw new Error(`Unknown add-on: ${supplied}. Please refresh and choose an item from the current menu.`)
+    const qtyRaw = typeof row === 'object' && row ? (row as Row).qty || (row as Row).quantity || 1 : addonQuantity(row, canonical)
+    const qty = Math.max(1, Math.min(100, Math.floor(Number(qtyRaw || 1))))
+    out.push(qty > 1 ? `${canonical} × ${qty}` : canonical)
+  }
+  return out
+}
+function canonicalizeProteins(raw: unknown, packageName: string, adults: number, kids: number, pricing: PricingConfig) {
+  if (!raw || typeof raw !== 'object') return null
+  const selections: Row = {}
+  let total = 0
+  for (const [name, value] of Object.entries(raw as Row)) {
+    const canonical = ALLOWED_PROTEINS.get(lower(name))
+    if (!canonical) throw new Error(`Unknown protein selection: ${text(name)}.`)
+    const qty = Math.max(0, Math.min(1000, Math.floor(Number(typeof value === 'object' && value ? (value as Row).qty || (value as Row).quantity || (value as Row).count : value) || 0)))
+    if (qty > 0) {
+      selections[canonical] = (selections[canonical] || 0) + qty
+      total += qty
+    }
+  }
+  const portions = Math.max(1, Number(pricing.packageProteinPortions[packageName] ?? pricing.packageProteinPortions.Classic ?? 2))
+  const required = Math.ceil(Math.max(0, adults + kids * 0.5) * portions)
+  if (required > 0 && total !== required) throw new Error(`Protein selections must total ${required} portions for this package and guest count.`)
+  return selections
+}
+function safeCustomerNote(value: unknown) {
+  return text(value).replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').slice(0, 500)
+}
+function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin', pricing: PricingConfig) {
   const raw = (body.patch && typeof body.patch === 'object') ? body.patch : body
   const patch: Record<string, any> = {}
   const changes: string[] = []
@@ -395,49 +729,71 @@ function modificationPatch(body: Row, booking: Row, actor: 'customer' | 'admin')
     const clean = text(value)
     if (clean) { patch[column] = clean; changes.push(label) }
   }
-  const setNumber = (column: string, value: unknown, label: string) => {
+  const setNumber = (column: string, value: unknown, label: string, maximum = 500) => {
     if (value === undefined || value === null || value === '') return
-    const clean = Math.max(0, Number(value || 0))
+    const clean = Math.max(0, Math.min(maximum, Math.floor(Number(value || 0))))
     if (Number.isFinite(clean)) { patch[column] = clean; changes.push(label) }
   }
-  const eventDate = datePart(raw.eventDate || raw.event_date)
-  if (eventDate) { patch.event_date = eventDate; changes.push('Event date') }
-  const eventTime = timePart(raw.eventTime || raw.event_time)
-  if (eventTime) { patch.event_time = eventTime; changes.push('Event time') }
-  setText('package_name', raw.packageName || raw.package_name || raw.package, 'Package')
-  setText('address', raw.address || raw.event_address, 'Address')
+
+  if (actor === 'admin') {
+    const eventDate = datePart(raw.eventDate || raw.event_date)
+    if (eventDate) { patch.event_date = eventDate; changes.push('Event date') }
+    const eventTime = timePart(raw.eventTime || raw.event_time)
+    if (eventTime) { patch.event_time = eventTime; changes.push('Event time') }
+    setText('address', raw.address || raw.event_address, 'Address')
+  }
+
+  const requestedPackage = text(raw.packageName || raw.package_name || raw.package)
+  if (requestedPackage) {
+    const packageName = Object.keys(pricing.packages).find(name => lower(name) === lower(requestedPackage))
+    if (!packageName) throw new Error('The selected package is not available in the current pricing settings.')
+    patch.package_name = packageName
+    changes.push('Package')
+  }
   setNumber('adults', raw.adults, 'Adults')
   setNumber('kids', raw.kids, 'Children')
   const adults = patch.adults ?? Number(booking.adults || 0)
   const kids = patch.kids ?? Number(booking.kids || 0)
+  const packageName = patch.package_name || text(booking.package_name || 'Classic')
   if (raw.guest_count !== undefined || raw.totalGuests !== undefined || patch.adults !== undefined || patch.kids !== undefined) {
-    patch.guest_count = Math.max(0, Number(raw.guest_count ?? raw.totalGuests ?? (Number(adults || 0) + Number(kids || 0))))
+    patch.guest_count = Math.max(0, Math.min(500, Number(adults || 0) + Number(kids || 0)))
     changes.push('Guest count')
   }
   if (raw.addOns !== undefined || raw.addons !== undefined || raw.add_ons !== undefined) {
-    patch.add_ons = splitLines(raw.addOns ?? raw.addons ?? raw.add_ons)
+    patch.add_ons = canonicalizeAddons(raw.addOns ?? raw.addons ?? raw.add_ons, pricing)
     changes.push('Add-ons')
   }
   if (raw.proteinSelections !== undefined || raw.protein_selections !== undefined || raw.proteins !== undefined) {
-    const selections = raw.proteinSelections ?? raw.protein_selections ?? raw.proteins
-    patch.protein_selections = selections && typeof selections === 'object' ? selections : null
+    patch.protein_selections = canonicalizeProteins(
+      raw.proteinSelections ?? raw.protein_selections ?? raw.proteins,
+      packageName,
+      Number(adults || 0),
+      Number(kids || 0),
+      pricing,
+    )
     changes.push('Protein selections')
   }
   if (raw.allergyNotes !== undefined || raw.allergy_notes !== undefined) {
-    patch.allergy_notes = text(raw.allergyNotes ?? raw.allergy_notes) || null
+    patch.allergy_notes = text(raw.allergyNotes ?? raw.allergy_notes).slice(0, 1000) || null
     changes.push('Allergies')
   }
-  if (actor === 'admin') setNumber('travel_fee', raw.travelFee ?? raw.travel_fee, 'Travel Fee')
-  // Security: browser-submitted totals, balances, paid amounts and discounts are never trusted here.
+  if (actor === 'admin' && (raw.travelFee !== undefined || raw.travel_fee !== undefined)) {
+    const travel = Math.max(0, Math.min(5000, Number(raw.travelFee ?? raw.travel_fee ?? booking.travel_fee ?? 0)))
+    if (!Number.isFinite(travel)) throw new Error('Travel fee is invalid.')
+    patch.travel_fee = travel
+    changes.push('Travel Fee')
+  }
+
+  // Security: browser-submitted totals, balances, paid amounts, taxes and discounts are never trusted here.
   const source = actor === 'admin' ? 'Admin dashboard' : 'Customer portal'
   let notes = text(booking.admin_notes)
   notes = upsertNote(notes, actor === 'admin' ? 'Admin modified at' : 'Customer modified at', new Date().toISOString())
   notes = upsertNote(notes, 'Last order modification source', source)
-  const proteinSummary = text(raw.proteinSummary || raw.protein_summary)
+  const proteinSummary = safeCustomerNote(raw.proteinSummary || raw.protein_summary)
   if (proteinSummary) { patch.protein_summary = proteinSummary; notes = upsertNote(notes, 'Protein summary', proteinSummary); changes.push('Protein selections') }
-  const changeNote = text(raw.changeNote || raw.modificationNote || raw.customerNote || raw.adminNote)
+  const changeNote = safeCustomerNote(raw.changeNote || raw.modificationNote || raw.customerNote || raw.adminNote)
   if (changeNote) notes = appendNote(notes, actor === 'admin' ? 'Admin modification note' : 'Customer modification note', changeNote)
-  const paymentAdjustmentNote = text(raw.paymentAdjustmentNote || raw.payment_adjustment_note || raw.noRefundNote || raw.no_refund_note)
+  const paymentAdjustmentNote = actor === 'admin' ? safeCustomerNote(raw.paymentAdjustmentNote || raw.payment_adjustment_note || raw.noRefundNote || raw.no_refund_note) : ''
   if (paymentAdjustmentNote) { notes = appendNote(notes, 'Payment modification rule', paymentAdjustmentNote); changes.push('Payment adjustment rule') }
   patch.admin_notes = notes
   return { patch, changes:Array.from(new Set(changes)).filter(Boolean), source }
@@ -1109,7 +1465,7 @@ Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers:cors(req) })
   if (req.method !== 'POST') return json(req, { ok:false, error:'Method not allowed' }, 405)
   try {
-    const body = await req.json().catch(() => ({})); const action = lower(body.action); await expireDrafts()
+    const body = await req.json().catch(() => ({})); const action = lower(body.action); const pricing = await loadPricingSettings(); await expireDrafts()
     if (action === 'lookup') {
       const query = text(body.query), verify = text(body.verificationContact); if (!query) return json(req, { ok:true, orders:[] })
       let rows: Row[] = []
@@ -1120,28 +1476,102 @@ Deno.serve(async req => {
           if (ok) rows = [b]
         }
       } else if (query.includes('@')) {
-        const { data, error } = await service.from('bookings').select('*').ilike('customer_email', lower(query)).order('event_date', { ascending:true }).limit(10)
+        const { data, error } = await service.from('bookings').select('*').ilike('customer_email', exactLike(lower(query))).order('event_date', { ascending:true }).limit(10)
         if (error) throw new Error(error.message); rows = (data || []) as Row[]
       } else {
         const q = digits(query), today = new Date().toISOString().slice(0, 10)
+        if (q.length !== 10) return json(req, { ok:true, orders:[] })
         const { data, error } = await service.from('bookings').select('*').gte('event_date', today).order('event_date', { ascending:true }).limit(200)
         if (error) throw new Error(error.message); rows = ((data || []) as Row[]).filter(b => digits(b.customer_phone) === q)
       }
       return json(req, { ok:true, orders:rows.filter(activeBooking).slice(0, 5).map(publicOrder) })
     }
 
+    if (action === 'preview_coupon') {
+      const number = normalizeNumber(body.bookingNumber)
+      const active = await getActive(number)
+      let source: Row | null = active
+      if (active) {
+        if (!verifyCustomerForModify(active, body)) return json(req, { ok:false, error:'Email or phone verification is required to check a coupon.' }, 403)
+      } else {
+        const draft = await getDraft(number)
+        if (!draft) return json(req, { ok:false, error:'Booking request was not found.' }, 404)
+        const allowed = await validateDraft(draft, text(body.paymentAccessToken), text(body.customerEmail))
+        if (!allowed) return json(req, { ok:false, error:'Secure booking verification failed.' }, 403)
+        source = draft
+      }
+      const candidate = await validateCouponCandidate(source as Row, body.code || body.couponCode, pricing, active ? { preserveTravel:true } : {})
+      return json(req, {
+        ok:true,
+        code:candidate.code,
+        discountFormatted:moneyFromDollars(candidate.discount),
+        storedValueFormatted:'$0.00',
+        depositDueFormatted:moneyFromCents(Math.max(0, requiredDepositCents(pricing, source as Row) - Math.round(moneyField((source as Row).paid_amount, (source as Row).deposit_amount) * 100))),
+        balanceDueFormatted:moneyFromDollars(candidate.moneyPatch.balance_due),
+        finalTotalFormatted:moneyFromDollars(candidate.moneyPatch.final_total),
+        message:`Coupon ${candidate.code} is valid for ${moneyFromDollars(candidate.discount)} off. It will be applied when you finish the booking request. Tax, travel fee, NJ toll and tip basis are unchanged.`,
+      })
+    }
+
     const number = normalizeNumber(body.bookingNumber)
     if (action === 'finalize' || action === 'abandon') {
+      const existingActive = await getActive(number)
+      if (existingActive) {
+        const suppliedEmail = lower(body.customerEmail)
+        if (!suppliedEmail || suppliedEmail !== lower(existingActive.customer_email)) {
+          return json(req, { ok:false, error:'Secure booking verification failed.' }, 403)
+        }
+        return json(req, { ok:true, alreadyActive:true, booking:publicOrder(existingActive) })
+      }
       const draft = await getDraft(number)
-      if (!draft) { const active = await getActive(number); if (active) return json(req, { ok:true, alreadyActive:true, booking:publicOrder(active) }); return json(req, { ok:false, error:'Provisional booking was not found.' }, 404) }
+      if (!draft) return json(req, { ok:false, error:'Provisional booking was not found.' }, 404)
       const allowed = await validateDraft(draft, text(body.paymentAccessToken), text(body.customerEmail)); if (!allowed) return json(req, { ok:false, error:'Secure draft verification failed.' }, 403)
       if (action === 'abandon') {
-        await service.from('booking_drafts').update({ draft_status:'abandoned', request_status:'abandoned', status:'Abandoned', abandoned_at:new Date().toISOString(), draft_updated_at:new Date().toISOString() }).eq('id', draft.id)
+        const abandonedAt = new Date().toISOString()
+        await service.from('booking_drafts').update({ draft_status:'abandoned', request_status:'abandoned', status:'Abandoned', abandoned_at:abandonedAt, draft_updated_at:abandonedAt }).eq('id', draft.id)
+        await service.from('coupon_redemptions').update({ status:'released', released_at:abandonedAt }).eq('draft_id', draft.id).eq('status', 'reserved')
         return json(req, { ok:true })
       }
       if (draft.checkout_expires_at && new Date(draft.checkout_expires_at).getTime() < Date.now()) return json(req, { ok:false, error:'This provisional booking expired. Please start a new booking.' }, 410)
       const pref = lower(body.paymentPreference) || 'cash', manual = body.manualPaymentClaimed === true
-      const active = await promoteDraft(draft, { request_status:'submitted', status:'New request', payment_preference:pref, deposit_deferred:true, payment_verification_status:manual?'pending_manual_verification':'not_verified', deposit_status:manual?'pending_manual_verification':'unpaid' })
+      const pendingCoupon = text(body.couponCode || body.code || draft.applied_coupon_code)
+      const couponCandidate = pendingCoupon ? await validateCouponCandidate(draft, pendingCoupon, pricing) : null
+      if (couponCandidate) {
+        const { error: reserveError } = await service.rpc('phx_reserve_coupon_redemption', {
+          p_coupon_id:couponCandidate.coupon.id,
+          p_booking_id:null,
+          p_draft_id:draft.id,
+          p_customer_id:draft.customer_id || null,
+          p_customer_email:lower(draft.customer_email) || null,
+          p_code:couponCandidate.code,
+          p_discount:couponCandidate.discount,
+        })
+        if (reserveError) throw new Error(reserveError.message)
+      } else {
+        await service.from('coupon_redemptions')
+          .update({ status:'released', released_at:new Date().toISOString() })
+          .eq('draft_id', draft.id)
+          .eq('status', 'reserved')
+      }
+      // Never promote browser-supplied totals. Recalculate every money field on the server first.
+      const secureDraftMoney = couponCandidate
+        ? couponCandidate.moneyPatch
+        : secureMoneyPatch({ ...draft, manager_discount:0, coupon_discount:0 }, {}, pricing)
+      const active = await promoteDraft(draft, {
+        ...secureDraftMoney,
+        manager_discount:0,
+        applied_coupon_id:couponCandidate?.coupon?.id || null,
+        applied_coupon_code:couponCandidate?.code || null,
+        coupon_discount:couponCandidate?.discount || 0,
+        request_status:'submitted',
+        status:'New request',
+        payment_preference:pref,
+        deposit_required_cents:requiredDepositCents(pricing, draft),
+        deposit_due_cents:Math.max(0, requiredDepositCents(pricing, draft) - Math.round(moneyField(draft.paid_amount, draft.deposit_amount) * 100)),
+        deposit_deferred:true,
+        payment_verification_status:manual?'pending_manual_verification':'not_verified',
+        deposit_status:manual?'pending_manual_verification':'unpaid'
+      })
       const notification = await dispatchMake(active, 'booking_request_received')
       return json(req, { ok:true, booking:publicOrder(active), notification })
     }
@@ -1149,40 +1579,19 @@ Deno.serve(async req => {
     const booking = await getActive(number); if (!booking) return json(req, { ok:false, error:'Active booking was not found.' }, 404)
     if (action === 'apply_coupon') {
       if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Email or phone verification is required to apply a coupon.' }, 403)
-      const code = text(body.code || body.couponCode).toUpperCase()
-      if (!code) return json(req, { ok:false, error:'Enter a coupon code.' }, 400)
-      if (moneyField(booking.manager_discount) > 0) return json(req, { ok:false, error:'A manager discount is already applied. Coupons cannot be combined with another discount.' }, 409)
-      const { data: coupon, error: couponError } = await service.from('coupons').select('*').eq('code', code).maybeSingle()
-      if (couponError) throw new Error(couponError.message)
-      if (!coupon || lower(coupon.status) !== 'active') return json(req, { ok:false, error:'This coupon is invalid or inactive.' }, 404)
-      const now = Date.now()
-      if (coupon.starts_at && new Date(coupon.starts_at).getTime() > now) return json(req, { ok:false, error:'This coupon is not active yet.' }, 400)
-      if (coupon.expires_at && new Date(coupon.expires_at).getTime() < now) return json(req, { ok:false, error:'This coupon has expired.' }, 400)
-      const eventDate = text(booking.event_date)
-      if (coupon.applicable_event_date_start && eventDate < text(coupon.applicable_event_date_start)) return json(req, { ok:false, error:'This coupon is not valid for the selected event date.' }, 400)
-      if (coupon.applicable_event_date_end && eventDate > text(coupon.applicable_event_date_end)) return json(req, { ok:false, error:'This coupon is not valid for the selected event date.' }, 400)
-      if (coupon.applicable_month && Number(eventDate.slice(5,7)) !== Number(coupon.applicable_month)) return json(req, { ok:false, error:'This coupon is not valid for the selected event month.' }, 400)
-      const base = secureMoney({ ...booking, manager_discount:0, coupon_discount:0 })
-      if (base.foodSubtotal < moneyField(coupon.minimum_order_amount)) return json(req, { ok:false, error:`This coupon requires at least ${moneyFromDollars(coupon.minimum_order_amount)} in food subtotal.` }, 400)
-      const { count: usedCount } = await service.from('coupon_redemptions').select('id', { count:'exact', head:true }).eq('coupon_id', coupon.id).in('status', ['reserved','redeemed'])
-      if (Number(usedCount || 0) >= Number(coupon.max_redemptions || 1)) return json(req, { ok:false, error:'This coupon has reached its usage limit.' }, 409)
-      if (booking.customer_id) {
-        const { count: customerCount } = await service.from('coupon_redemptions').select('id', { count:'exact', head:true }).eq('coupon_id', coupon.id).eq('customer_id', booking.customer_id).in('status', ['reserved','redeemed'])
-        if (Number(customerCount || 0) >= Number(coupon.max_redemptions_per_customer || 1)) return json(req, { ok:false, error:'This coupon has already been used by this customer.' }, 409)
-      } else {
-        const { count: emailCount } = await service.from('bookings').select('id', { count:'exact', head:true }).ilike('customer_email', lower(booking.customer_email)).eq('applied_coupon_code', code).neq('id', booking.id)
-        if (Number(emailCount || 0) >= Number(coupon.max_redemptions_per_customer || 1)) return json(req, { ok:false, error:'This coupon has already been used by this customer.' }, 409)
-      }
-      const discount = lower(coupon.discount_type) === 'percent'
-        ? Math.min(base.foodSubtotal, Math.round(base.foodSubtotal * Number(coupon.discount_value || 0)) / 100)
-        : Math.min(base.foodSubtotal, moneyField(coupon.discount_value))
-      await service.from('coupon_redemptions').update({ status:'released', released_at:new Date().toISOString() }).eq('booking_id', booking.id).eq('status', 'reserved')
-      const moneyPatch = secureMoneyPatch({ ...booking, manager_discount:0, coupon_discount:discount }, { managerDiscount:0, couponDiscount:discount })
-      const data = await updateBookingCompat(booking.id, { ...moneyPatch, applied_coupon_id:coupon.id, applied_coupon_code:code, coupon_discount:discount })
-      const { error: reserveError } = await service.from('coupon_redemptions').insert({ coupon_id:coupon.id, booking_id:booking.id, customer_id:booking.customer_id || null, code, discount_amount:discount, status:'reserved' })
-      if (reserveError) throw new Error(reserveError.message)
-      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), discountFormatted:moneyFromDollars(discount), storedValueFormatted:'$0.00', depositDueFormatted:moneyFromCents(data.deposit_due_cents), balanceDueFormatted:moneyFromCents(data.balance_due_cents), message:`Coupon ${code} applied: ${moneyFromDollars(discount)} off. Tax, travel fee and tip basis are unchanged.` })
+      const candidate = await validateCouponCandidate(booking, body.code || body.couponCode, pricing, { preserveTravel:true })
+      const data = await applyCouponCandidate(booking, candidate)
+      return json(req, {
+        ok:true,
+        booking:editableCustomerOrder(data),
+        discountFormatted:moneyFromDollars(candidate.discount),
+        storedValueFormatted:'$0.00',
+        depositDueFormatted:moneyFromCents(data.deposit_due_cents),
+        balanceDueFormatted:moneyFromCents(data.balance_due_cents),
+        message:`Coupon ${candidate.code} applied: ${moneyFromDollars(candidate.discount)} off. Tax, travel fee, NJ toll and tip basis are unchanged.`,
+      })
     }
+
     if (action === 'customer_edit_order') {
       if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
       return json(req, { ok:true, locked:!customerCanModify(booking), booking:editableCustomerOrder(booking) })
@@ -1190,22 +1599,24 @@ Deno.serve(async req => {
     if (action === 'customer_modify_order') {
       if (!verifyCustomerForModify(booking, body)) return json(req, { ok:false, error:'Phone or email verification is required to modify this order.' }, 403)
       if (!customerCanModify(booking)) return json(req, { ok:false, locked:true, error:'This order is within 48 hours of the event and is locked. Please call Phoenix Hibachi support to ask whether a change is still possible.' }, 423)
-      const built = modificationPatch(body, booking, 'customer')
+      const built = modificationPatch(body, booking, 'customer', pricing)
       const candidate = { ...booking, ...built.patch }
-      const moneyPatch = secureMoneyPatch(candidate)
-      const patch = { ...built.patch, ...moneyPatch, request_status:'modified', status:/cancel|complete/i.test(text(booking.status)) ? booking.status : 'Customer updated - manager review' }
+      const repriced = await repriceExistingCoupon(booking, candidate, pricing, { preserveTravel:true })
+      const patch = { ...built.patch, ...repriced.moneyPatch, request_status:'modified', status:/cancel|complete/i.test(text(booking.status)) ? booking.status : 'Customer updated - manager review' }
       const data = await updateBookingCompat(booking.id, patch)
+      if (repriced.couponCandidate) await service.from('coupon_redemptions').update({ discount_amount:repriced.couponCandidate.discount }).eq('booking_id', booking.id).eq('status', 'reserved')
       const notification = await dispatchMake(data as Row, 'booking_modified', { source:'Customer portal', changes:built.changes, modifiedAt:new Date().toISOString() })
-      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification })
+      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification, couponRemoved:repriced.couponRemoved, message:repriced.couponMessage })
     }
     if (action === 'admin_modify_order') {
       await requireAdmin(req, body)
-      const built = modificationPatch(body, booking, 'admin')
+      const built = modificationPatch(body, booking, 'admin', pricing)
       const candidate = { ...booking, ...built.patch }
-      const moneyPatch = secureMoneyPatch(candidate, { travelFee:candidate.travel_fee })
-      const data = await updateBookingCompat(booking.id, { ...built.patch, ...moneyPatch })
+      const repriced = await repriceExistingCoupon(booking, candidate, pricing, { adminTravel:true, travelFee:candidate.travel_fee })
+      const data = await updateBookingCompat(booking.id, { ...built.patch, ...repriced.moneyPatch })
+      if (repriced.couponCandidate) await service.from('coupon_redemptions').update({ discount_amount:repriced.couponCandidate.discount }).eq('booking_id', booking.id).eq('status', 'reserved')
       const notification = await dispatchMake(data as Row, 'booking_modified', { source:'Admin dashboard', changes:built.changes, modifiedAt:new Date().toISOString() })
-      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification })
+      return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification, couponRemoved:repriced.couponRemoved, message:repriced.couponMessage })
     }
     if (action === 'admin_confirm') {
       await requireAdmin(req, body)
@@ -1229,44 +1640,81 @@ Deno.serve(async req => {
       const reason = text(body.reason) || 'Cancelled by Phoenix Hibachi after manager review.'
       const { data, error } = await service.from('bookings').update({ request_status:'cancelled', status:'Cancelled', cancelled_at:new Date().toISOString(), cancellation_reason:reason }).eq('id', booking.id).select('*').single()
       if (error) throw new Error(error.message)
+      await service.from('coupon_redemptions').update({ status:'released', released_at:new Date().toISOString() }).eq('booking_id', booking.id).eq('status', 'reserved')
       const notification = await dispatchMake(data as Row, 'booking_cancelled', { reason })
       return json(req, { ok:true, notification })
     }
     if (action === 'admin_payment_update') {
-      await requireAdmin(req, body)
-      const amount = Math.max(0, Number(body.amountReceived ?? booking.paid_amount ?? 0))
+      await requireManager(req, body)
+      const currentPaid = Math.max(0, moneyField(booking.paid_amount, booking.deposit_amount))
+      const requestedAmount = body.amountReceived === undefined || body.amountReceived === null || body.amountReceived === ''
+        ? currentPaid
+        : Math.max(0, Number(body.amountReceived))
+      if (!Number.isFinite(requestedAmount)) throw new Error('Payment received must be a valid amount.')
+      if (requestedAmount + 0.005 < currentPaid) {
+        throw new Error('Confirmed payment cannot be reduced in this screen. Use the verified refund/adjustment workflow instead.')
+      }
+      const amount = requestedAmount
       const paidInFull = body.paidInFull === true
       const managerDiscount = Math.max(0, Number(body.managerDiscount ?? body.manager_discount ?? booking.manager_discount ?? 0))
+      if (managerDiscount > 0 && moneyField(booking.paid_amount, booking.deposit_amount) > 0 && text(booking.applied_coupon_code)) {
+        throw new Error('A redeemed coupon cannot be replaced with a manager discount after payment has been received.')
+      }
       const waiveTravel = body.waiveTravelFee === true || body.waive_travel_fee === true
       const requestedTravel = waiveTravel ? 0 : Math.max(0, Number(body.travelFee ?? body.travel_fee ?? booking.travel_fee ?? 0))
-      if (managerDiscount > 0 && text(booking.applied_coupon_code)) throw new Error('Manager discount cannot be combined with an applied coupon.')
       const candidate = { ...booking, paid_amount:amount, deposit_amount:amount, manager_discount:managerDiscount, coupon_discount:managerDiscount > 0 ? 0 : booking.coupon_discount, travel_fee:requestedTravel }
-      const moneyPatch = secureMoneyPatch(candidate, { managerDiscount, couponDiscount:candidate.coupon_discount, travelFee:requestedTravel })
-      const depositRequired = Math.max(0, Number(booking.deposit_required_cents || 20000)) / 100
-      const depositAmount = amount > 0 ? Math.min(amount, depositRequired) : Number(booking.deposit_amount || 0)
-      const actuallyPaidInFull = paidInFull || amount >= Number(moneyPatch.final_total || 0)
+      const moneyPatch = secureMoneyPatch(candidate, { adminTravel:true, waiveTravel, managerDiscount, couponDiscount:candidate.coupon_discount, travelFee:requestedTravel }, pricing)
+      const appliedManagerDiscount = Number(moneyPatch.manager_discount || 0)
+      const secureFinalTotal = Number(moneyPatch.final_total || 0)
+      if (amount > secureFinalTotal + 0.005) {
+        throw new Error(`Payment received cannot exceed the secure order total of ${moneyFromDollars(secureFinalTotal)}.`)
+      }
+      const depositRequired = Math.max(requiredDepositCents(pricing, booking), Number(booking.deposit_required_cents || 0)) / 100
+      const depositAmount = Math.min(amount, depositRequired)
+      const depositDue = Math.max(0, depositRequired - depositAmount)
+      const depositCovered = depositDue <= 0.005
+      const calculatedPaidInFull = amount >= Number(moneyPatch.final_total || 0) - 0.005
+      if (paidInFull && !calculatedPaidInFull) {
+        throw new Error(`Paid in full requires at least ${moneyFromDollars(Number(moneyPatch.final_total || 0))} in confirmed payment.`)
+      }
+      const actuallyPaidInFull = calculatedPaidInFull
+      const paymentDelta = Math.max(0, amount - currentPaid)
       const patch: Row = {
         ...moneyPatch,
-        payment_status:actuallyPaidInFull ? 'paid in full' : (text(body.paymentStatus) || booking.payment_status),
+        payment_status:actuallyPaidInFull
+          ? 'paid in full'
+          : (depositCovered ? (text(body.paymentStatus) || 'deposit received') : (amount > 0 ? 'partial payment received' : (text(body.paymentStatus) || booking.payment_status))),
         payment_preference:lower(body.paymentMethod) || booking.payment_preference,
         paid_amount:amount,
         deposit_amount:depositAmount,
-        manager_discount:managerDiscount,
+        deposit_status:depositCovered ? 'paid' : (amount > 0 ? 'partially_paid' : 'unpaid'),
+        deposit_due_cents:Math.round(depositDue * 100),
+        deposit_deferred:!depositCovered,
+        manager_discount:appliedManagerDiscount,
         balance_due:actuallyPaidInFull ? 0 : moneyPatch.balance_due,
         balance_due_cents:actuallyPaidInFull ? 0 : moneyPatch.balance_due_cents,
       }
-      if (managerDiscount > 0) Object.assign(patch, { applied_coupon_id:null, applied_coupon_code:null, coupon_discount:0 })
-      if (amount > 0) Object.assign(patch, { deposit_status:'paid', deposit_due_cents:0, deposit_deferred:false, deposit_paid_at:booking.deposit_paid_at || new Date().toISOString(), payment_verification_status:'verified' })
+      if (appliedManagerDiscount > 0) Object.assign(patch, { applied_coupon_id:null, applied_coupon_code:null, coupon_discount:0 })
+      if (amount > 0) Object.assign(patch, { deposit_paid_at:depositCovered ? (booking.deposit_paid_at || new Date().toISOString()) : booking.deposit_paid_at, payment_verification_status:'verified' })
       if (actuallyPaidInFull) Object.assign(patch, { payment_status:'paid in full', payment_verification_status:'verified' })
       let notes = text(booking.admin_notes)
-      notes = upsertNote(notes, 'Manager discount', managerDiscount.toFixed(2))
+      notes = upsertNote(notes, 'Manager discount', appliedManagerDiscount.toFixed(2))
       notes = upsertNote(notes, 'Travel fee waived', waiveTravel ? 'yes' : 'no')
       const reason = text(body.reason || body.adjustmentReason)
       if (reason) notes = appendNote(notes, 'Adjustment reason', reason)
+      const customerNote = text(body.customerNote || body.customer_note)
+      if (customerNote) notes = upsertNote(notes, 'Customer payment note', customerNote)
       patch.admin_notes = notes
       const data = await updateBookingCompat(booking.id, patch)
+      if (appliedManagerDiscount > 0) {
+        await service.from('coupon_redemptions').update({ status:'released', released_at:new Date().toISOString() }).eq('booking_id', booking.id).eq('status', 'reserved')
+      } else if (amount > 0 && text(data.applied_coupon_code)) {
+        await service.from('coupon_redemptions').update({ status:'redeemed', redeemed_at:new Date().toISOString() }).eq('booking_id', booking.id).eq('status', 'reserved')
+      }
       const eventType: EventType = actuallyPaidInFull ? 'paid_in_full' : 'deposit_paid'
-      const notification = amount > 0 ? await dispatchMake(data as Row, eventType, { amountCents:Math.round(amount * 100), amountPaid:amount, source:'admin_payment_update' }) : { sentAny:false }
+      const notification = paymentDelta > 0
+        ? await dispatchMake(data as Row, eventType, { amountCents:Math.round(paymentDelta * 100), amountPaid:paymentDelta, totalPaid:amount, source:'admin_payment_update' })
+        : { sentAny:false }
       return json(req, { ok:true, booking:editableCustomerOrder(data as Row), notification })
     }
     return json(req, { ok:false, error:'Unsupported booking action.' }, 400)

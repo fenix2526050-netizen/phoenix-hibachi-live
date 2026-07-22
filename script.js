@@ -1339,7 +1339,7 @@ const PHX_DEFAULT_PRICING_V140 = {
     'Noodle / Yakisoba Tray':50
   },
   moneyRules: {
-    depositRequired: 100,
+    depositRequired: 200,
     memberCreditBuy: 1000,
     memberCreditBonus: 100,
     firstPartyCoupon: 50,
@@ -2886,8 +2886,7 @@ async function prepareBookingPaymentAccessToken(order) {
 function phoenixDepositRequiredForGuests(value) {
   const guests = Math.max(10, Math.ceil(Number(value || 0)));
   if (guests >= 31) return 300;
-  if (guests >= 21) return 200;
-  return 100;
+  return 200;
 }
 window.phoenixDepositRequiredForGuests = phoenixDepositRequiredForGuests;
 
@@ -3036,28 +3035,61 @@ function calculateOrderMoney(order = {}) {
   const staffingFee = waitstaffFee + additionalChefFee;
   const qualifyingFoodTotal = packageSubtotal + proteinUpcharge + addonsTotal;
   const minimumOrderAdjustment = Math.max(0, minimumFoodTotal - qualifyingFoodTotal);
-  const foodSubtotal = qualifyingFoodTotal + minimumOrderAdjustment;
-  const discount = Math.max(0, numberValue(order.couponDiscount, 0) + numberValue(order.memberCreditUsed, 0));
+  const locallyCalculatedFoodSubtotal = qualifyingFoodTotal + minimumOrderAdjustment;
+  const managerDiscount = Math.max(0, numberValue(order.managerDiscount ?? order.manager_discount, 0));
+  const couponDiscount = managerDiscount > 0 ? 0 : Math.max(0, numberValue(order.couponDiscount ?? order.coupon_discount, 0));
+  const memberCreditUsed = Math.max(0, numberValue(order.memberCreditUsed, 0));
+  const discount = managerDiscount + couponDiscount + memberCreditUsed;
   const depositRequired = numberValue(order.depositRequired, MONEY_RULES.depositRequired);
-  const depositPaid = Math.max(0, numberValue(order.depositPaid ?? order.deposit_amount, 0));
-  const travelFee = Math.max(0, numberValue(order.travelFee, 0));
-  const companyFoodTotalAfterDiscount = Math.max(0, foodSubtotal - discount);
+  const depositPaid = Math.max(0, numberValue(order.paidAmount ?? order.paid_amount ?? order.depositPaid ?? order.deposit_amount, 0));
+  let travelFee = Math.max(0, numberValue(order.travelFee ?? order.travel_fee, 0));
   const taxRate = salesTaxRateForOrder(order);
   const taxLabel = salesTaxLabelForOrder(order);
-  const taxableSubtotal = Math.max(0, companyFoodTotalAfterDiscount + travelFee + staffingFee);
-  const salesTax = Math.round(taxableSubtotal * taxRate * 100) / 100;
-  const companyBalanceDue = Math.max(0, companyFoodTotalAfterDiscount + staffingFee + salesTax - depositPaid);
-  const guestTotalBeforeDeposit = companyFoodTotalAfterDiscount + travelFee + staffingFee + salesTax;
-  const guestTotalAfterDeposit = Math.max(0, guestTotalBeforeDeposit - depositPaid);
+  let foodSubtotal = locallyCalculatedFoodSubtotal;
+  let taxableSubtotal = Math.max(0, foodSubtotal + travelFee + staffingFee);
+  let salesTax = Math.round(taxableSubtotal * taxRate * 100) / 100;
+  let tipBasisBeforeDiscount = foodSubtotal + travelFee + staffingFee + salesTax;
+  let guestTotalBeforeDeposit = Math.max(0, tipBasisBeforeDiscount - discount);
+  let guestTotalAfterDeposit = Math.max(0, guestTotalBeforeDeposit - depositPaid);
+
+  const hasServerPricing = order.serverPricingVerified === true || (
+    Number(order.orderTotalCents ?? order.order_total_cents ?? 0) > 0 &&
+    (order.foodSubtotal !== undefined || order.food_subtotal !== undefined) &&
+    (order.salesTax !== undefined || order.sales_tax !== undefined)
+  );
+  if (hasServerPricing) {
+    foodSubtotal = Math.max(0, numberValue(order.foodSubtotal ?? order.food_subtotal, foodSubtotal));
+    travelFee = Math.max(0, numberValue(order.travelFee ?? order.travel_fee, travelFee));
+    salesTax = Math.max(0, numberValue(order.salesTax ?? order.sales_tax, salesTax));
+    const serverTotal = numberValue(
+      order.finalTotal ?? order.final_total,
+      Number(order.orderTotalCents ?? order.order_total_cents ?? 0) / 100
+    );
+    const hasServerBalance = [order.balanceDue, order.balance_due, order.balanceDueCents, order.balance_due_cents]
+      .some(value => value !== undefined && value !== null && value !== '');
+    const serverBalance = numberValue(
+      order.balanceDue ?? order.balance_due,
+      Number(order.balanceDueCents ?? order.balance_due_cents ?? 0) / 100
+    );
+    taxableSubtotal = Math.max(0, foodSubtotal + travelFee + staffingFee + Math.max(0, numberValue(order.njTollFee ?? order.nj_toll_fee, 0)));
+    guestTotalBeforeDeposit = Math.max(0, serverTotal);
+    guestTotalAfterDeposit = hasServerBalance
+      ? Math.max(0, serverBalance)
+      : Math.max(0, serverTotal - depositPaid);
+    tipBasisBeforeDiscount = Math.max(0, guestTotalBeforeDeposit + discount);
+  }
+
+  const companyFoodTotalAfterDiscount = Math.max(0, foodSubtotal - discount);
+  const companyBalanceDue = Math.max(0, guestTotalAfterDeposit - travelFee - Math.max(0, numberValue(order.njTollFee ?? order.nj_toll_fee, 0)));
   const chefGuestRaw = adults * MONEY_RULES.chefAdultRate + kids * MONEY_RULES.chefKidRate;
   const chefGuestPayout = Math.max(MONEY_RULES.chefMinimumPayout, chefGuestRaw);
   const chefKeepsBeforeTip = chefGuestPayout + travelFee;
   const chefReturnToCompany = Math.max(0, companyBalanceDue - chefGuestPayout);
   const ownerOwesChef = Math.max(0, chefGuestPayout - companyBalanceDue);
-  const tip20 = Math.round(guestTotalBeforeDeposit * 0.20);
-  const tip25 = Math.round(guestTotalBeforeDeposit * 0.25);
-  const tip30 = Math.round(guestTotalBeforeDeposit * 0.30);
-  return { adults, kids, totalGuests, billableGuests, packageName, packagePrice, adultFoodTotal, kidFoodPrice, kidFoodTotal, minimumFoodTotal, packageSubtotal, proteinSelections, proteinSelectedTotal, proteinRequiredTotal, proteinPremiumCount, proteinUpcharge, addons, addonsTotal, qualifyingFoodTotal, minimumOrderAdjustment, foodSubtotal, waitstaffCount, waitstaffFee, additionalChefRequested, additionalChefFee, staffingFee, discount, depositRequired, depositPaid, travelFee, taxRate, taxLabel, taxableSubtotal, salesTax, companyFoodTotalAfterDiscount, companyBalanceDue, guestTotalBeforeDeposit, guestTotalAfterDeposit, chefGuestRaw, chefGuestPayout, chefKeepsBeforeTip, chefReturnToCompany, ownerOwesChef, tip20, tip25, tip30 };
+  const tip20 = Math.round(tipBasisBeforeDiscount * 0.20);
+  const tip25 = Math.round(tipBasisBeforeDiscount * 0.25);
+  const tip30 = Math.round(tipBasisBeforeDiscount * 0.30);
+  return { adults, kids, totalGuests, billableGuests, packageName, packagePrice, adultFoodTotal, kidFoodPrice, kidFoodTotal, minimumFoodTotal, packageSubtotal, proteinSelections, proteinSelectedTotal, proteinRequiredTotal, proteinPremiumCount, proteinUpcharge, addons, addonsTotal, qualifyingFoodTotal, minimumOrderAdjustment, foodSubtotal, waitstaffCount, waitstaffFee, additionalChefRequested, additionalChefFee, staffingFee, managerDiscount, couponDiscount, memberCreditUsed, discount, depositRequired, depositPaid, travelFee, taxRate, taxLabel, taxableSubtotal, salesTax, tipBasisBeforeDiscount, companyFoodTotalAfterDiscount, companyBalanceDue, guestTotalBeforeDeposit, guestTotalAfterDeposit, chefGuestRaw, chefGuestPayout, chefKeepsBeforeTip, chefReturnToCompany, ownerOwesChef, tip20, tip25, tip30, serverPricingVerified:hasServerPricing };
 }
 function invoiceDateLine(order) {
   return [order.eventDate, order.eventTime].filter(Boolean).join(' ');
@@ -6439,7 +6471,7 @@ setTimeout(() => {
 
   // Last-resort: after clicking a delete confirmation button, clean visible rows again.
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -6596,7 +6628,7 @@ setTimeout(() => {
   }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -6812,7 +6844,7 @@ setTimeout(() => {
   }, true);
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -7079,7 +7111,7 @@ setTimeout(() => {
   // Account dropdown cleanup: no separate customer-management shortcut.
   document.querySelector('[data-account-action="customers"]')?.remove();
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -7352,7 +7384,7 @@ setTimeout(() => {
   }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -7377,7 +7409,7 @@ setTimeout(() => {
 
   // Keep forgot-password button working after the profile form is rebuilt.
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -7877,7 +7909,7 @@ setTimeout(() => {
   }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -8154,7 +8186,7 @@ setTimeout(() => {
         <p><b>Event date / time</b><br>${v101Escape(order.eventDate || '-')}<br>${v101Escape(order.eventTime || '-')}<br><small>${v101Escape(modifiedAt ? `Last updated: ${modifiedAt}` : 'No manager time change yet')}</small></p>
         <p><b>Address</b><br>${v101Escape(order.address || 'Address pending')}</p>
         <p><b>Package / guests</b><br>${v101Escape(order.package || 'Classic')} · ${v101Escape(order.totalGuests || '')} actual guests<br>${formatGuestNumber(m.billableGuests)} billable · ${v101Escape(proteinSummary(m.proteinSelections))}</p>
-        <p><b>Estimated total</b><br>${v101Money(m.guestTotalBeforeDeposit)}<br><small>Payment: ${v101Escape(order.paymentStatus || 'Not paid yet')}</small></p>
+        <p><b>Estimated total</b><br>${v101Money(Number(order.finalTotal ?? order.final_total ?? m.guestTotalBeforeDeposit ?? 0))}<br><small>${Number(order.managerDiscount ?? order.manager_discount ?? 0) > 0 ? `Manager discount: ${v101Money(Number(order.managerDiscount ?? order.manager_discount ?? 0))} · ` : ''}${order.couponCode || order.applied_coupon_code ? `Coupon ${v101Escape(order.couponCode || order.applied_coupon_code)}: ${v101Money(Number(order.couponDiscount ?? order.coupon_discount ?? 0))} · ` : ''}Payment: ${v101Escape(order.paymentStatus || 'Not paid yet')}</small></p>
         <p><b>Assigned chef</b><br>${v101Escape(chefLine)}<br><small>${chef.name === 'Pending chef assignment' ? 'Chef name appears after Phoenix confirms dispatch.' : 'Your chef assignment has been updated by Phoenix.'}</small></p>
         <p><b>Customer service</b><br>${v101Escape(supportPhone)}<br><small>${v101Escape(supportEmail)}</small></p>
         <p><b>Manager note</b><br>${v101Escape(visibleNote || cancellationMessage(order))}</p>
@@ -8288,7 +8320,7 @@ setTimeout(() => {
   try { customerOrderCard = v101MemberOrderCard; } catch (error) { console.warn('V101 member order card patch skipped:', error); }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -8604,7 +8636,7 @@ setTimeout(() => {
   }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -8769,7 +8801,7 @@ setTimeout(() => {
   } catch (error) { console.warn('V103 lookup print patch skipped:', error); }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -8898,8 +8930,8 @@ setTimeout(() => {
     const notes = notesOf(order);
     const method = readNote(notes, LABELS.paymentMethod) || order.paymentMethod || order.paymentPreference || '';
     const status = readNote(notes, LABELS.paymentStatus) || order.paymentStatus || order.payment_status || 'unpaid';
-    const received = Math.max(numberV107(order.depositPaid ?? order.deposit_amount, 0), numberV107(readNote(notes, LABELS.paymentReceived), 0));
-    const discount = Math.max(0, numberV107(readNote(notes, LABELS.managerDiscount), 0));
+    const received = Math.max(numberV107(order.paidAmount ?? order.paid_amount ?? order.depositPaid ?? order.deposit_amount, 0), numberV107(readNote(notes, LABELS.paymentReceived), 0));
+    const discount = Math.max(0, numberV107(order.managerDiscount ?? order.manager_discount ?? readNote(notes, LABELS.managerDiscount), 0));
     const finalRaw = readNote(notes, LABELS.finalTotal);
     const finalTotal = finalRaw === '' ? null : Math.max(0, numberV107(finalRaw, 0));
     const waived = /^yes|true|1|waived$/i.test(readNote(notes, LABELS.travelWaived));
@@ -8916,51 +8948,66 @@ setTimeout(() => {
     };
   }
 
-  // Make all totals shown after this patch honor manager price/payment adjustments.
+  // Keep the legacy V107 display compatible, but always prefer server-priced fields.
   const originalCalculateOrderMoneyV107 = typeof calculateOrderMoney === 'function' ? calculateOrderMoney : null;
   if (originalCalculateOrderMoneyV107 && !window.__PHX_V107_CALC_WRAP__) {
     window.__PHX_V107_CALC_WRAP__ = true;
     calculateOrderMoney = function(order = {}){
-      const base = originalCalculateOrderMoneyV107(order);
+      const base = originalCalculateOrderMoneyV107(order) || {};
       const meta = paymentMeta(order);
+      const hasServerTotal = [order.finalTotal, order.final_total, order.orderTotalCents, order.order_total_cents]
+        .some(value => value !== undefined && value !== null && value !== '');
+      const hasServerBalance = [order.balanceDue, order.balance_due, order.balanceDueCents, order.balance_due_cents]
+        .some(value => value !== undefined && value !== null && value !== '');
+      const serverTotal = Number(order.finalTotal ?? order.final_total ?? (Number(order.orderTotalCents ?? order.order_total_cents ?? 0) / 100));
+      const serverBalance = Number(order.balanceDue ?? order.balance_due ?? (Number(order.balanceDueCents ?? order.balance_due_cents ?? 0) / 100));
       const originalTravel = Number(base.travelFee || 0);
-      const travelFee = meta.waived ? 0 : originalTravel;
-      let discount = Number(base.discount || 0) + Number(meta.discount || 0);
-      let guestTotalBeforeDeposit = Number(base.guestTotalBeforeDeposit || 0);
-
-      if (meta.waived) guestTotalBeforeDeposit = Math.max(0, guestTotalBeforeDeposit - originalTravel);
-      if (meta.discount) guestTotalBeforeDeposit = Math.max(0, guestTotalBeforeDeposit - Number(meta.discount || 0));
-      if (meta.finalTotal !== null) guestTotalBeforeDeposit = Number(meta.finalTotal || 0);
-
-      const depositPaid = Math.max(Number(base.depositPaid || 0), Number(meta.received || 0));
-      const guestTotalAfterDeposit = Math.max(0, guestTotalBeforeDeposit - depositPaid);
-      const tip20 = Math.round(guestTotalBeforeDeposit * 0.20);
-      const tip25 = Math.round(guestTotalBeforeDeposit * 0.25);
-      const tip30 = Math.round(guestTotalBeforeDeposit * 0.30);
-      const companyBalanceDue = Math.max(0, Number(base.companyBalanceDue || 0) - depositPaid - Number(meta.discount || 0));
+      const travelFee = hasServerTotal ? originalTravel : (meta.waived ? 0 : originalTravel);
+      const baseManagerDiscount = Math.max(0, Number(base.managerDiscount || 0));
+      const managerDiscount = Math.max(baseManagerDiscount, Number(meta.discount || 0));
+      const discount = Math.max(Number(base.discount || 0), managerDiscount + Number(base.couponDiscount || 0) + Number(base.memberCreditUsed || 0));
+      let guestTotalBeforeDeposit = hasServerTotal ? Math.max(0, serverTotal) : Number(base.guestTotalBeforeDeposit || 0);
+      if (!hasServerTotal) {
+        if (meta.waived) guestTotalBeforeDeposit = Math.max(0, guestTotalBeforeDeposit - originalTravel);
+        const missingManagerDiscount = Math.max(0, managerDiscount - baseManagerDiscount);
+        if (missingManagerDiscount) guestTotalBeforeDeposit = Math.max(0, guestTotalBeforeDeposit - missingManagerDiscount);
+      }
+      const depositPaid = Math.max(Number((order.paidAmount ?? order.paid_amount ?? base.depositPaid) || 0), Number(meta.received || 0));
+      const guestTotalAfterDeposit = hasServerBalance ? Math.max(0, serverBalance) : Math.max(0, guestTotalBeforeDeposit - depositPaid);
+      const tipBasisBeforeDiscount = Math.max(0, Number(base.tipBasisBeforeDiscount ?? (guestTotalBeforeDeposit + discount)));
+      const tip20 = Math.round(tipBasisBeforeDiscount * 0.20);
+      const tip25 = Math.round(tipBasisBeforeDiscount * 0.25);
+      const tip30 = Math.round(tipBasisBeforeDiscount * 0.30);
+      const companyBalanceDue = hasServerBalance
+        ? Math.max(0, guestTotalAfterDeposit - travelFee - Number(base.njTollFee || 0))
+        : Math.max(0, Number(base.companyBalanceDue || 0) - Math.max(0, managerDiscount - baseManagerDiscount));
       const chefKeepsBeforeTip = Number(base.chefGuestPayout || 0) + travelFee;
       const chefReturnToCompany = Math.max(0, companyBalanceDue - Number(base.chefGuestPayout || 0));
+      const ownerOwesChef = Math.max(0, Number(base.chefGuestPayout || 0) - companyBalanceDue);
       return {
         ...base,
         travelFee,
         discount,
-        managerDiscount: meta.discount,
-        finalTotalOverride: meta.finalTotal,
+        managerDiscount,
+        finalTotalOverride:null,
         depositPaid,
-        paymentReceived: depositPaid,
-        paymentMethod: meta.method,
-        paymentStatusOverride: meta.status,
-        paymentConfirmedAt: meta.confirmedAt,
-        paymentCustomerNote: meta.customerNote,
-        paymentAdjustmentReason: meta.reason,
+        paymentReceived:depositPaid,
+        paymentMethod:meta.method,
+        paymentStatusOverride:meta.status,
+        paymentConfirmedAt:meta.confirmedAt,
+        paymentCustomerNote:meta.customerNote,
+        paymentAdjustmentReason:meta.reason,
         guestTotalBeforeDeposit,
         guestTotalAfterDeposit,
         companyBalanceDue,
         chefKeepsBeforeTip,
         chefReturnToCompany,
+        ownerOwesChef,
+        tipBasisBeforeDiscount,
         tip20,
         tip25,
-        tip30
+        tip30,
+        serverPricingVerified:hasServerTotal || base.serverPricingVerified === true
       };
     };
   }
@@ -8992,21 +9039,10 @@ setTimeout(() => {
   }
 
   async function updateBooking(orderId, dbPatch = {}, localPatch = {}){
-    patchLocalOrder(orderId, localPatch);
-    const client = initSupabaseClient?.();
-    let remoteOk = false;
-    if (client && supabaseSession) {
-      try {
-        const { error } = await client.from('bookings').update(dbPatch).eq('booking_number', orderId);
-        if (error) console.warn('V107 payment update failed:', error);
-        else remoteOk = true;
-      } catch (error) { console.warn('V107 payment update threw:', error); }
-    }
-    if (remoteOk) { try { await loadDashboardDataFromSupabase?.(); } catch {} }
-    try { renderDashboard?.(currentDashboardRole || 'Admin'); } catch {}
-    setTimeout(applyPaymentTools, 80);
-    setTimeout(applyPaymentTools, 300);
-    return remoteOk;
+    // V252 security: legacy browser-to-table payment writes are disabled.
+    // Payment/discount/travel changes must go through booking-lifecycle with an authenticated staff session.
+    console.warn('Legacy V107 direct booking update blocked for security.', orderId, Object.keys(dbPatch || {}));
+    return false;
   }
 
   function paymentPanel(order = {}){
@@ -9014,11 +9050,11 @@ setTimeout(() => {
     const m = calculateOrderMoney?.(order) || {};
     const meta = paymentMeta(order);
     const currentTravel = meta.waived ? 0 : Number(order.travelFee || m.travelFee || 0);
-    const finalTotal = meta.finalTotal === null ? '' : Number(meta.finalTotal || 0).toFixed(2);
+    const serverTotal = Number(m.guestTotalBeforeDeposit || order.finalTotal || order.final_total || 0).toFixed(2);
     const received = Number(meta.received || 0).toFixed(2);
     const discount = Number(meta.discount || 0).toFixed(2);
     return `<section class="v107-payment-panel" data-v107-payment-panel="${esc(id)}" hidden>
-      <header><div><h4>Payment / price adjustment</h4><p>Use this when you waive travel fee, discount a missed item, accept cash/Zelle, or manually override the final total.</p></div><span class="v107-balance-badge">Balance due ${moneyV107(m.guestTotalAfterDeposit || 0)}</span></header>
+      <header><div><h4>Payment / price adjustment</h4><p>Manager discount reduces food only. Tax, travel fee, NJ toll and tip basis stay unchanged. Supabase calculates the final total.</p></div><span class="v107-balance-badge">Balance due ${moneyV107(m.guestTotalAfterDeposit || 0)}</span></header>
       <div class="v107-payment-grid">
         <label>Payment status<select data-v107-payment-status="${esc(id)}">
           ${['unpaid','transfer pending','deposit received','paid in full','cash deposit received','zelle deposit received','balance due','refunded / adjusted'].map(s => `<option value="${esc(s)}" ${String(meta.status).toLowerCase() === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
@@ -9028,7 +9064,7 @@ setTimeout(() => {
         </select></label>
         <label>Deposit / payment received<input type="number" min="0" step="0.01" data-v107-payment-received="${esc(id)}" value="${esc(received)}"></label>
         <label>Manager discount / credit<input type="number" min="0" step="0.01" data-v107-discount="${esc(id)}" value="${esc(discount)}"></label>
-        <label>Final total override<input type="number" min="0" step="0.01" placeholder="Leave blank for calculated total" data-v107-final-total="${esc(id)}" value="${esc(finalTotal)}"></label>
+        <label>Server final total<input type="text" readonly value="${esc(moneyV107(Number(serverTotal || 0)))}" aria-label="Server calculated final total"></label>
         <label>Travel fee<input type="number" min="0" step="0.01" data-v107-travel-fee="${esc(id)}" value="${esc(Number(currentTravel || 0).toFixed(2))}"></label>
       </div>
       <label class="v107-check"><input type="checkbox" data-v107-waive-travel="${esc(id)}" ${meta.waived ? 'checked' : ''}> Waive travel fee / 免车费</label>
@@ -9072,6 +9108,7 @@ setTimeout(() => {
   }
 
   function applyPaymentTools(){
+    if (window.__PHX_V120_ORDER_DISPATCH__) return;
     if (!canManagePayments()) return;
     const roots = [document.getElementById('orderList'), document.getElementById('calendarSummaryList'), document.getElementById('chefDispatch')].filter(Boolean);
     roots.forEach(root => root.querySelectorAll('article.order-card').forEach(card => {
@@ -9115,16 +9152,13 @@ setTimeout(() => {
     const originalTravel = Number(base.travelFee || 0);
     const received = Math.max(0, numberV107(panel.querySelector(`[data-v107-payment-received]`)?.value, 0));
     const discount = Math.max(0, numberV107(panel.querySelector(`[data-v107-discount]`)?.value, 0));
-    const finalRaw = text(panel.querySelector(`[data-v107-final-total]`)?.value || '');
     const travelFeeInput = Math.max(0, numberV107(panel.querySelector(`[data-v107-travel-fee]`)?.value, originalTravel));
     const waiveTravel = !!panel.querySelector(`[data-v107-waive-travel]`)?.checked;
     const draftTravel = waiveTravel ? 0 : travelFeeInput;
 
-    let adjustedTotal = originalTotal - originalTravel + draftTravel - discount;
-    if (finalRaw) adjustedTotal = Math.max(0, numberV107(finalRaw, 0));
-    adjustedTotal = Math.max(0, adjustedTotal);
+    const adjustedTotal = Math.max(0, originalTotal - originalTravel + draftTravel - discount);
     const balance = Math.max(0, adjustedTotal - received);
-    return { originalTotal, originalTravel, draftTravel, received, discount, finalRaw, finalOverride: finalRaw ? Number(finalRaw) : null, waiveTravel, adjustedTotal, balance };
+    return { originalTotal, originalTravel, draftTravel, received, discount, finalOverride:null, waiveTravel, adjustedTotal, balance };
   }
 
   function updatePaymentPreview(orderId){
@@ -9147,7 +9181,6 @@ setTimeout(() => {
       chips.push(`<b>Balance:</b> ${moneyV107(draft.balance)}`);
       if (draft.discount > 0) chips.push(`<b>Discount:</b> -${moneyV107(draft.discount)}`);
       if (draft.waiveTravel) chips.push(`<b>Travel fee:</b> waived`);
-      if (draft.finalOverride !== null) chips.push(`<b>Final override:</b> ${moneyV107(draft.finalOverride)}`);
       summary.innerHTML = chips.join(' · ');
       summary.classList.toggle('is-paid', draft.balance <= 0);
     }
@@ -9158,52 +9191,47 @@ setTimeout(() => {
     if (!order) return alert('Order not found.');
     const panel = document.querySelector(`[data-v107-payment-panel="${CSS.escape(String(orderId))}"]`);
     if (!panel) return alert('Payment panel not found.');
-    const baseMoney = calculateOrderMoney?.(order) || {};
+    if (typeof window.phoenixAdminBookingActionV234 !== 'function') {
+      return alert('Secure payment service is unavailable. No database change was made.');
+    }
     const status = panel.querySelector(`[data-v107-payment-status]`)?.value || 'unpaid';
     const method = panel.querySelector(`[data-v107-payment-method]`)?.value || '';
-    const quickRequiredDeposit = (() => {
-      try {
-        const guests = Number(order.totalGuests || order.guest_count || (Number(order.adults || 0) + Number(order.kids || 0)) || 0);
-        if (typeof phoenixDepositRequiredForGuests === 'function') return Number(phoenixDepositRequiredForGuests(guests)) || 100;
-        if (guests >= 31) return 300;
-        if (guests >= 21) return 200;
-        return 100;
-      } catch { return 100; }
-    })();
-    const received = quickDeposit ? quickRequiredDeposit : numberV107(panel.querySelector(`[data-v107-payment-received]`)?.value, 0);
-    const discount = numberV107(panel.querySelector(`[data-v107-discount]`)?.value, 0);
-    const finalRaw = text(panel.querySelector(`[data-v107-final-total]`)?.value || '');
-    const travelFeeInput = numberV107(panel.querySelector(`[data-v107-travel-fee]`)?.value, Number(order.travelFee || baseMoney.travelFee || 0));
+    const requiredDeposit = Math.max(200, Number(order.depositRequired || 0));
+    const received = quickDeposit ? requiredDeposit : Math.max(0, numberV107(panel.querySelector(`[data-v107-payment-received]`)?.value, 0));
+    const discount = Math.max(0, numberV107(panel.querySelector(`[data-v107-discount]`)?.value, 0));
+    const travelFee = Math.max(0, numberV107(panel.querySelector(`[data-v107-travel-fee]`)?.value, Number(order.travelFee || 0)));
     const waiveTravel = !!panel.querySelector(`[data-v107-waive-travel]`)?.checked;
     const reason = text(panel.querySelector(`[data-v107-reason]`)?.value || '');
-    let customerNote = text(panel.querySelector(`[data-v107-customer-note]`)?.value || '');
+    const customerNote = text(panel.querySelector(`[data-v107-customer-note]`)?.value || '');
     const effectiveStatus = quickDeposit ? 'deposit received' : status;
     const effectiveMethod = quickDeposit && !method ? 'Zelle/Cash' : method;
-    if (!customerNote && received > 0) {
-      const methodText = effectiveMethod ? ` by ${effectiveMethod}` : '';
-      customerNote = `Phoenix Hibachi confirmed ${moneyV107(received)} received${methodText}. Remaining balance will be confirmed on the invoice.`;
+    const paidInFull = String(effectiveStatus).toLowerCase().includes('paid in full');
+    try {
+      const result = await window.phoenixAdminBookingActionV234('admin_payment_update', orderId, {
+        paymentStatus:effectiveStatus,
+        paymentMethod:effectiveMethod,
+        amountReceived:received,
+        paidInFull,
+        managerDiscount:discount,
+        travelFee,
+        waiveTravelFee:waiveTravel,
+        reason,
+        customerNote
+      });
+      try { if (typeof loadDashboardDataFromSupabase === 'function') await loadDashboardDataFromSupabase(); } catch {}
+      try { if (typeof renderDashboard === 'function') renderDashboard(window.currentDashboardRole || 'Manager'); } catch {}
+      const saved = result?.booking || {};
+      const savedTotal = Number(saved.finalTotal ?? saved.final_total ?? 0);
+      const savedBalance = Number(saved.balanceDue ?? saved.balance_due ?? 0);
+      alert(`Payment / price saved securely. Total ${moneyV107(savedTotal)}; balance ${moneyV107(savedBalance)}.`);
+    } catch (error) {
+      console.error('Secure V107 payment update failed:', error);
+      alert(`Payment / price was not saved: ${error?.message || error}`);
     }
-
-    let notes = notesOf(order);
-    notes = upsertNote(notes, LABELS.paymentStatus, effectiveStatus);
-    notes = upsertNote(notes, LABELS.paymentMethod, effectiveMethod);
-    notes = upsertNote(notes, LABELS.paymentReceived, received.toFixed(2));
-    notes = upsertNote(notes, LABELS.paymentConfirmedAt, received > 0 ? nowLabel() : '');
-    notes = upsertNote(notes, LABELS.managerDiscount, discount > 0 ? discount.toFixed(2) : '');
-    notes = upsertNote(notes, LABELS.finalTotal, finalRaw);
-    notes = upsertNote(notes, LABELS.travelWaived, waiveTravel ? 'yes' : '');
-    notes = upsertNote(notes, LABELS.adjustmentReason, reason);
-    notes = upsertNote(notes, LABELS.customerPaymentNote, customerNote);
-
-    const newTravel = waiveTravel ? 0 : travelFeeInput;
-    const localPatch = { specialNotes: notes, paymentStatus: effectiveStatus, depositPaid: received, travelFee: newTravel };
-    const dbPatch = { admin_notes: notes, payment_status: effectiveStatus, deposit_amount: received, travel_fee: newTravel };
-    const ok = await updateBooking(orderId, dbPatch, localPatch);
-    alert(ok ? 'Payment / price saved. Customer lookup and invoice now show the updated payment status.' : 'Saved locally, but Supabase did not confirm. Check Admin update permission/RLS before relying on customer lookup.');
   }
 
   function handlePaymentPreviewEvent(event){
-    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-final-total], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
+    const field = event.target?.closest?.('[data-v107-payment-status], [data-v107-payment-method], [data-v107-payment-received], [data-v107-discount], [data-v107-travel-fee], [data-v107-waive-travel], [data-v107-reason], [data-v107-customer-note]');
     const orderId = paymentFieldOrderId(field);
     if (orderId) updatePaymentPreview(orderId);
   }
@@ -9764,13 +9792,15 @@ setTimeout(() => {
   function paymentMeta(order = {}){
     const notes = noteText(order);
     const m = (typeof calculateOrderMoney === 'function' ? calculateOrderMoney(order) : {}) || {};
+    const balanceRaw = order.balanceDue ?? order.balance_due ?? ((order.balanceDueCents ?? order.balance_due_cents) != null ? Number(order.balanceDueCents ?? order.balance_due_cents) / 100 : m.guestTotalAfterDeposit);
+    const totalRaw = order.finalTotal ?? order.final_total ?? ((order.orderTotalCents ?? order.order_total_cents) != null ? Number(order.orderTotalCents ?? order.order_total_cents) / 100 : m.guestTotalBeforeDeposit);
     return {
       status: readNote(notes, LABELS.paymentStatus) || order.paymentStatus || order.payment_status || 'Not paid yet',
       method: readNote(notes, LABELS.paymentMethod) || order.paymentMethod || order.paymentPreference || '',
       note: readNote(notes, LABELS.customerPaymentNote),
       received: Math.max(Number(order.depositPaid || order.deposit_amount || 0), Number(readNote(notes, LABELS.paymentReceived) || 0)),
-      balance: Number(m.guestTotalAfterDeposit || 0),
-      total: Number(m.guestTotalBeforeDeposit || order.total || 0)
+      balance: Number(balanceRaw || 0),
+      total: Number(totalRaw || order.total || 0)
     };
   }
   function publicLookupHtml(order = {}){
@@ -9791,6 +9821,8 @@ setTimeout(() => {
       <b>Address:</b> ${esc(order.address || 'Not entered')}<br>
       <b>Package:</b> ${esc(order.package || order.packageName || 'Classic')} · ${esc(billable)} billable guests<br>
       <b>Estimated total:</b> ${moneySafe(pay.total)}<br>
+      ${Number(order.managerDiscount ?? order.manager_discount ?? 0) > 0 ? `<b>Manager discount:</b> -${moneySafe(Number(order.managerDiscount ?? order.manager_discount ?? 0))}<br>` : ''}
+      ${order.couponCode || order.applied_coupon_code ? `<b>Coupon:</b> ${esc(order.couponCode || order.applied_coupon_code)} · -${moneySafe(Number(order.couponDiscount ?? order.coupon_discount ?? 0))}<br>` : ''}
       <b>Received:</b> ${moneySafe(pay.received)} · <b>Balance:</b> ${moneySafe(pay.balance)}<br>
       <b>Chef:</b> ${esc(publicChef(order))}<br>
       <b>Payment:</b> ${esc(paymentLine)}</p>
@@ -13766,7 +13798,7 @@ setTimeout(() => {
       row.request_status = order?.requestStatus || 'pending_review';
       row.payment_preference = order?.paymentPreference || 'cash';
       row.deposit_status = Number(order?.depositPaid || order?.deposit_amount || 0) > 0 ? 'pending_manual_verification' : 'unpaid';
-      row.deposit_required_cents = Math.round(Number(order?.depositRequired || 100) * 100);
+      row.deposit_required_cents = Math.round(Number(order?.depositRequired || 200) * 100);
       row.deposit_due_cents = Math.max(0, row.deposit_required_cents - Math.round(Number(order?.depositPaid || 0) * 100));
       row.deposit_deferred = row.deposit_due_cents > 0;
       row.payment_verification_status = 'not_verified';
@@ -13790,10 +13822,29 @@ setTimeout(() => {
         : (typeof proteinSelectionsFromText === 'function' ? proteinSelectionsFromText(row?.protein_summary || row?.admin_notes || '') : {});
       order.proteinSelections = selections;
       if (typeof proteinSummary === 'function') order.proteinSummary = row?.protein_summary || proteinSummary(selections);
-      order.proteinUpcharge = Number(row?.protein_upcharge || order.proteinUpcharge || 0);
-      order.travelFee = Number(row?.travel_fee || order.travelFee || 0);
-      order.finalTotal = Number(row?.final_total || order.finalTotal || 0);
-      order.balanceDue = Number(row?.balance_due || order.balanceDue || 0);
+      order.proteinUpcharge = Number(row?.protein_upcharge ?? order.proteinUpcharge ?? 0);
+      order.travelFee = Number(row?.travel_fee ?? order.travelFee ?? 0);
+      order.travel_fee = Number(row?.travel_fee ?? order.travelFee ?? 0);
+      order.foodSubtotal = Number(row?.food_subtotal ?? order.foodSubtotal ?? 0);
+      order.food_subtotal = Number(row?.food_subtotal ?? order.foodSubtotal ?? 0);
+      order.salesTax = Number(row?.sales_tax ?? order.salesTax ?? 0);
+      order.sales_tax = Number(row?.sales_tax ?? order.salesTax ?? 0);
+      order.managerDiscount = Number(row?.manager_discount ?? order.managerDiscount ?? 0);
+      order.manager_discount = Number(row?.manager_discount ?? order.managerDiscount ?? 0);
+      order.couponDiscount = Number(row?.coupon_discount ?? order.couponDiscount ?? 0);
+      order.coupon_discount = Number(row?.coupon_discount ?? order.couponDiscount ?? 0);
+      order.couponCode = row?.applied_coupon_code ?? order.couponCode ?? '';
+      order.applied_coupon_code = row?.applied_coupon_code ?? order.applied_coupon_code ?? '';
+      order.appliedCouponId = row?.applied_coupon_id ?? order.appliedCouponId ?? null;
+      order.finalTotal = Number(row?.final_total ?? order.finalTotal ?? 0);
+      order.final_total = Number(row?.final_total ?? order.finalTotal ?? 0);
+      order.orderTotalCents = row?.order_total_cents == null ? order.orderTotalCents : Number(row.order_total_cents);
+      order.order_total_cents = row?.order_total_cents == null ? order.order_total_cents : Number(row.order_total_cents);
+      order.balanceDue = Number(row?.balance_due ?? order.balanceDue ?? 0);
+      order.balance_due = Number(row?.balance_due ?? order.balanceDue ?? 0);
+      order.balanceDueCents = row?.balance_due_cents == null ? order.balanceDueCents : Number(row.balance_due_cents);
+      order.balance_due_cents = row?.balance_due_cents == null ? order.balance_due_cents : Number(row.balance_due_cents);
+      order.serverPricingVerified = Number(row?.order_total_cents || 0) > 0 && row?.food_subtotal !== undefined && row?.sales_tax !== undefined;
       if (row?.service_notes) order.specialNotes = row.service_notes;
       return order;
     };
@@ -13998,6 +14049,13 @@ window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';
     window.__PHX_V234_DRAFT_SAVE__ = true;
     saveBookingToSupabase = async function(order){
       let payload = orderToBookingRow(order);
+      const protectedMoneyFields = [
+        'food_subtotal','food_subtotal_cents','sales_tax','sales_tax_cents','final_total','order_total_cents',
+        'balance_due','balance_due_cents','paid_amount','deposit_amount','deposit_required_cents','deposit_due_cents',
+        'manager_discount','coupon_discount','applied_coupon_id','applied_coupon_code','payment_status','deposit_status',
+        'payment_verification_status','stripe_checkout_session_id','stripe_payment_intent_id'
+      ];
+      protectedMoneyFields.forEach(key => { delete payload[key]; });
       const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
       let firstError = null;
       if (client) {
@@ -14068,9 +14126,12 @@ window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';
       const data = await lifecycle('finalize', {
         bookingNumber: bookingNumber(order), customerEmail: email(order.email || order.customer_email),
         paymentAccessToken: paymentTokenFor(order), paymentPreference:selected, manualPaymentClaimed:manualClaimed,
+        couponCode: (typeof (window.phoenixPendingCouponCodeV253 || window.phoenixPendingCouponCodeV251) === 'function' ? (window.phoenixPendingCouponCodeV253 || window.phoenixPendingCouponCodeV251)(bookingNumber(order)) : '') || order.pendingCouponCode || '',
       });
-      order.requestStatus = 'submitted'; order.status = 'New request'; order.activatedAt = new Date().toISOString();
+      Object.assign(order, data?.booking || {});
+      order.requestStatus = 'submitted'; order.status = data?.booking?.status || 'New request'; order.activatedAt = new Date().toISOString();
       order.paymentPreference = selected;
+      try { sessionStorage.removeItem(`phoenix_pending_coupon_${bookingNumber(order)}`); } catch {}
       try {
         const orders = getStoredOrders().filter(existing => String(existing.id) !== String(order.id));
         orders.unshift(order); saveStoredOrders(orders);
@@ -14101,7 +14162,7 @@ window.PHX_BUILD_VERSION = 'V229_STRIPE_SANDBOX_GATED';
       order.paymentPreference = 'stripe';
       order.depositStatus = depositCovered ? 'paid' : 'partially_paid';
       order.paymentVerificationStatus = 'verified';
-      order.depositPaid = Number(details.depositAmount || order.depositPaid || Math.min(Number(order.depositRequired || 100), paidDollars));
+      order.depositPaid = Number(details.depositAmount || order.depositPaid || Math.min(Number(order.depositRequired || 200), paidDollars));
       order.paidAmount = paidDollars;
       order.balanceDueCents = full ? 0 : Number(details.balanceDueCents ?? order.balanceDueCents ?? 0);
       order.paymentStatus = full ? 'paid in full' : depositCovered ? 'deposit received' : 'partial payment received';

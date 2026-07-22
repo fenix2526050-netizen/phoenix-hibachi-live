@@ -24,7 +24,7 @@
     updatePreferenceFunction: 'update-booking-payment-preference',
     lookupBookingFunction: 'booking-lifecycle',
     bookingLifecycleFunction: 'booking-lifecycle',
-    depositAmountCents: 10000,
+    depositAmountCents: 20000,
     currency: 'usd',
     features: Object.freeze({
       preferenceUpdate: false,

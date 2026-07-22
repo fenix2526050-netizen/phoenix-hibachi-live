@@ -6,7 +6,7 @@
   window.__PHX_V241_ORDER_MODIFICATION__ = true;
 
   const EDIT_WINDOW_HOURS = 48;
-  const PATCH_VERSION = 'V248';
+  const PATCH_VERSION = 'V254';
   const lookupOrders = new Map();
 
   const text = value => String(value ?? '').trim();
@@ -265,6 +265,12 @@
       #phxPaymentTopDialogV241 .phx-payment-card{width:min(960px,calc(100vw - 24px));max-height:92vh;overflow:auto;margin:0 auto;border:1px solid rgba(255,215,121,.42);box-shadow:0 30px 95px rgba(0,0,0,.72)}
       .phx-v241-payment-note{border:1px solid rgba(255,215,121,.24);background:rgba(255,215,121,.07);border-radius:12px;padding:9px 11px;color:#fff2cf;font-size:.84rem;line-height:1.42}
       .phx-v241-payment-note b{color:#ffd778}
+      .phx-v253-payment-coupon{margin:14px 0;padding:14px;border:1px solid rgba(255,215,121,.28);border-radius:14px;background:rgba(255,215,121,.06);display:grid;gap:10px}
+      .phx-v253-payment-coupon p{margin:3px 0 0;color:#d7c7aa;font-size:.86rem;line-height:1.45}
+      .phx-v253-payment-coupon-fields{display:grid;grid-template-columns:minmax(160px,1fr) minmax(220px,1.4fr) auto;gap:10px;align-items:end}
+      .phx-v253-payment-coupon-fields label{display:grid;gap:5px;font-weight:800;font-size:.82rem}
+      .phx-v253-payment-coupon-fields input{min-width:0;padding:10px 11px;border-radius:10px;border:1px solid rgba(255,215,121,.28);background:#0b0805;color:#fff}
+      @media(max-width:720px){.phx-v253-payment-coupon-fields{grid-template-columns:1fr}.phx-v253-payment-coupon-fields button{width:100%}}
       .phx-v241-locked-stamp{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.08);color:#a9a098;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
       @media(max-width:720px){.phx-v241-edit-summary{grid-template-columns:1fr}.phx-v241-choice-grid{grid-template-columns:1fr}.phx-v241-edit-grid{grid-template-columns:1fr;max-height:calc(92dvh - 178px)}.phx-v241-edit-card{padding:14px}.phx-v241-edit-actions{justify-content:stretch}.phx-v241-edit-actions button{flex:1 1 auto}#orderLookupModal{width:calc(100vw - 14px)!important;max-width:calc(100vw - 14px)!important;height:auto!important;max-height:92dvh!important;margin:auto!important;overflow-y:auto!important;overflow-x:hidden!important}#orderLookupModal .order-lookup-card{width:100%!important;height:auto!important;max-height:none!important;padding:16px 13px;overflow:visible!important;gap:10px}#orderLookupModal .order-lookup-card h2{font-size:clamp(1.9rem,8vw,2.8rem);line-height:1.08;margin:.15rem 0 .35rem;letter-spacing:0}#orderLookupModal .order-lookup-card .modal-help{font-size:.95rem;line-height:1.45;margin:.1rem 0 .4rem}#orderLookupModal .order-lookup-card label{font-size:.9rem;gap:6px}#orderLookupModal .order-lookup-result{min-height:96px;max-height:none!important;overflow:visible!important;margin-top:4px}#orderLookupModal .modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}#orderLookupModal input{font-size:16px;padding:12px 14px}#paymentModal .phx-payment-grid,#phxPaymentTopDialogV241 .phx-payment-grid{grid-template-columns:1fr}#paymentModal .phx-payment-option img,#phxPaymentTopDialogV241 .phx-payment-option img{max-height:210px}}
     `;
@@ -308,30 +314,51 @@
     styleOnce();
     forceOrderLookupWholeWindow();
     const orders = collectOrders();
-    document.querySelectorAll('#orderList article.order-card, #calendarSummaryList article.order-card, [data-v120-order-card], [data-v102-order-card], [data-v101-order-card], .lookup-card').forEach(card => {
-      if (!card || card.querySelector('[data-v241-edit-order], .phx-v241-lock-note')) return;
+    const selector = '#orderList article.order-card, #calendarSummaryList article.order-card, [data-v120-order-card], [data-v102-order-card], [data-v101-order-card], .lookup-card';
+    document.querySelectorAll(selector).forEach(card => {
+      if (!card) return;
       const order = orderForCard(card, orders);
       if (!order) return;
       const actions = actionsFor(card);
       if (!actions) return;
       const id = esc(idOf(order));
+      if (!id) return;
       const member = isMemberCard(card);
       const staff = !member && (isStaffRole() || hasStaffControls(card));
+
       if (member) {
         const open = customerCanModify(order);
-        const note = document.createElement('div');
-        note.className = 'phx-v241-lock-note';
-        note.innerHTML = open
+        let note = card.querySelector('.phx-v241-lock-note');
+        if (!note) {
+          note = document.createElement('div');
+          note.className = 'phx-v241-lock-note';
+          actions.parentNode?.insertBefore(note, actions);
+        }
+        const desiredNote = open
           ? `<strong>Order changes</strong><span>You can modify this order until ${EDIT_WINDOW_HOURS} hours before the event. Saved changes notify Phoenix Hibachi for manager review.</span>`
           : `<strong>Order locked <span class="phx-v241-locked-stamp">locked</span></strong><span>This order is within ${EDIT_WINDOW_HOURS} hours of the event. Please call <a href="${esc(supportHref())}">${esc(supportPhone())}</a> to ask whether a change is still possible.</span>`;
-        actions.parentNode.insertBefore(note, actions);
-        if (!card.querySelector('.phx-v241-payment-note')) actions.parentNode.insertBefore(document.createRange().createContextualFragment(paymentNoteHtml()), actions);
-        actions.insertAdjacentHTML('afterbegin', open
-          ? `<button type="button" data-v241-edit-order="${id}" data-v241-mode="customer">Modify order</button>`
-          : `<button type="button" class="phx-v241-customer-locked" data-v241-locked-order="${id}" title="Call support for changes within ${EDIT_WINDOW_HOURS} hours" disabled>Modify locked</button>`);
+        if (note.innerHTML !== desiredNote) note.innerHTML = desiredNote;
+
+        if (!card.querySelector('.phx-v241-payment-note')) {
+          actions.parentNode?.insertBefore(document.createRange().createContextualFragment(paymentNoteHtml()), actions);
+        }
+
+        const existingEdit = actions.querySelector('[data-v241-edit-order], [data-v241-locked-order]');
+        const correctEdit = open
+          ? existingEdit?.matches?.('[data-v241-edit-order][data-v241-mode="customer"]')
+          : existingEdit?.matches?.('[data-v241-locked-order]');
+        if (!correctEdit) {
+          existingEdit?.remove();
+          actions.insertAdjacentHTML('afterbegin', open
+            ? `<button type="button" data-v241-edit-order="${id}" data-v241-mode="customer">Modify order</button>`
+            : `<button type="button" class="phx-v241-customer-locked" data-v241-locked-order="${id}" title="Call support for changes within ${EDIT_WINDOW_HOURS} hours" disabled>Modify locked</button>`);
+        }
+
         if (!actions.querySelector('[data-open-payment]')) actions.insertAdjacentHTML('beforeend', paymentButtonHtml(id));
       } else if (staff) {
-        actions.insertAdjacentHTML('afterbegin', `<button type="button" data-v241-edit-order="${id}" data-v241-mode="admin">Modify order</button>`);
+        if (!actions.querySelector('[data-v241-edit-order][data-v241-mode="admin"]')) {
+          actions.insertAdjacentHTML('afterbegin', `<button type="button" data-v241-edit-order="${id}" data-v241-mode="admin">Modify order</button>`);
+        }
       }
     });
   }
@@ -926,10 +953,61 @@
     const ref = card.querySelector('#paymentOrderReference');
     const id = normalizedBookingNumber(orderId);
     if (ref) ref.textContent = id ? `Booking ${id}` : 'Select a confirmed order from your dashboard.';
+    const order = collectOrders().get(id.toLowerCase()) || {};
+    const couponInput = card.querySelector('[data-v253-payment-coupon-code]');
+    const contactInput = card.querySelector('[data-v253-payment-coupon-contact]');
+    const couponStatus = card.querySelector('[data-v253-payment-coupon-status]');
+    const appliedCode = text(order.applied_coupon_code || order.couponCode).toUpperCase();
+    const appliedAmount = num(order.coupon_discount ?? order.couponDiscount, 0);
+    if (couponInput) couponInput.value = appliedCode;
+    const knownContact = cleanVerificationContact(order.__v241VerificationContact || order.customer_email || order.email || order.customer_phone || order.phone || lookupContactValue());
+    if (contactInput && knownContact) contactInput.value = knownContact;
+    if (couponStatus) {
+      couponStatus.textContent = appliedCode ? `Applied coupon ${appliedCode}: -${money(appliedAmount)}. Tax, travel fee, NJ toll, and tip basis are unchanged.` : 'No coupon applied.';
+      couponStatus.className = `phx-v225-benefit-status${appliedCode ? ' success' : ''}`;
+    }
     try { dialog.showModal(); } catch { dialog.setAttribute('open', ''); }
     setTimeout(() => {
       try { dialog.scrollTop = 0; card.scrollTop = 0; card.querySelector('[data-close-payment]')?.focus?.(); } catch {}
     }, 20);
+  }
+
+  async function applyPaymentCoupon() {
+    const dialog = document.getElementById('phxPaymentTopDialogV241');
+    const card = dialog?.querySelector?.('.phx-payment-card') || document.querySelector('#paymentModal .phx-payment-card');
+    const refText = card?.querySelector?.('#paymentOrderReference')?.textContent || '';
+    const orderId = normalizedBookingNumber(refText);
+    const codeInput = card?.querySelector?.('[data-v253-payment-coupon-code]');
+    const contactInput = card?.querySelector?.('[data-v253-payment-coupon-contact]');
+    const status = card?.querySelector?.('[data-v253-payment-coupon-status]');
+    const code = text(codeInput?.value).toUpperCase();
+    const verificationContact = cleanVerificationContact(contactInput?.value);
+    const setCouponStatus = (message, error = false) => {
+      if (!status) return;
+      status.textContent = message;
+      status.className = `phx-v225-benefit-status${error ? ' error' : ' success'}`;
+    };
+    if (!orderId) return setCouponStatus('Booking reference is missing.', true);
+    if (!code) return setCouponStatus('Enter a coupon code first.', true);
+    if (!verificationContact) return setCouponStatus('Enter the booking email or phone to verify this order.', true);
+    const button = card?.querySelector?.('[data-v253-apply-payment-coupon]');
+    if (button) button.disabled = true;
+    try {
+      setCouponStatus('Checking and applying coupon securely…');
+      const data = await invokeLifecycle('apply_coupon', { bookingNumber:orderId, verificationContact, code });
+      const booking = data?.booking || {};
+      patchLocal(orderId, booking);
+      rememberLookupOrder({ ...(collectOrders().get(orderId.toLowerCase()) || {}), ...booking, __v241VerificationContact:verificationContact });
+      setPaymentOrderContext(orderId);
+      const appliedCode = text(booking.applied_coupon_code || booking.couponCode || code).toUpperCase();
+      const discount = num(booking.coupon_discount ?? booking.couponDiscount, 0);
+      setCouponStatus(data?.message || `Coupon ${appliedCode} applied: -${money(discount)}. Tax, travel fee, NJ toll, and tip basis are unchanged.`);
+      window.dispatchEvent(new CustomEvent('phoenix:coupon-applied', { detail:{ bookingNumber:orderId, booking } }));
+    } catch (error) {
+      setCouponStatus(friendlyFunctionError(error, 'coupon application'), true);
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function closePaymentDialog() {
@@ -1083,11 +1161,12 @@
       requestStatus:row.request_status || '',
       paymentStatus:row.payment_status || '',
       depositStatus:row.deposit_status || '',
-      depositPaid:num(row.deposit_amount || row.depositPaid, 0),
-      paidAmount:num(row.paid_amount || row.amount_paid || row.deposit_amount || row.depositPaid, 0),
-      paid_amount:num(row.paid_amount || row.amount_paid || row.deposit_amount || row.depositPaid, 0),
-      balance_due:num(row.balance_due || row.balanceDue, 0),
-      balanceDueCents:num(row.balance_due_cents || row.balanceDueCents, 0),
+      depositPaid:num(row.deposit_amount ?? row.depositPaid, 0),
+      paidAmount:num(row.paid_amount ?? row.amount_paid ?? row.deposit_amount ?? row.depositPaid, 0),
+      paid_amount:num(row.paid_amount ?? row.amount_paid ?? row.deposit_amount ?? row.depositPaid, 0),
+      balance_due:num(row.balance_due ?? row.balanceDue, 0),
+      balanceDue:num(row.balance_due ?? row.balanceDue, 0),
+      balanceDueCents:num(row.balance_due_cents ?? row.balanceDueCents, 0),
       name:row.customer_name ? `${text(row.customer_name).slice(0, 1)}***` : 'Guest',
       phone:phoneDigits ? `***${phoneDigits.slice(-4)}` : '',
       email:email ? email.replace(/^(.).+(@.+)$/, '$1***$2') : '',
@@ -1095,11 +1174,25 @@
       package:row.package_name || row.package || 'Classic',
       adults:int(row.adults, 0),
       kids:int(row.kids, 0),
-      totalGuests:int(row.guest_count || row.totalGuests, 0),
-      travelFee:num(row.travel_fee || row.travelFee, 0),
-      finalTotal:num(row.final_total || row.finalTotal, 0),
-      final_total:num(row.final_total || row.finalTotal, 0),
-      order_total_cents:num(row.order_total_cents || row.orderTotalCents, 0),
+      totalGuests:int(row.guest_count ?? row.totalGuests, 0),
+      foodSubtotal:num(row.food_subtotal ?? row.foodSubtotal, 0),
+      food_subtotal:num(row.food_subtotal ?? row.foodSubtotal, 0),
+      foodSubtotalCents:num(row.food_subtotal_cents ?? row.foodSubtotalCents, 0),
+      salesTax:num(row.sales_tax ?? row.salesTax, 0),
+      sales_tax:num(row.sales_tax ?? row.salesTax, 0),
+      salesTaxCents:num(row.sales_tax_cents ?? row.salesTaxCents, 0),
+      travelFee:num(row.travel_fee ?? row.travelFee, 0),
+      managerDiscount:num(row.manager_discount ?? row.managerDiscount, 0),
+      manager_discount:num(row.manager_discount ?? row.managerDiscount, 0),
+      couponDiscount:num(row.coupon_discount ?? row.couponDiscount, 0),
+      coupon_discount:num(row.coupon_discount ?? row.couponDiscount, 0),
+      couponCode:text(row.applied_coupon_code ?? row.couponCode),
+      applied_coupon_code:text(row.applied_coupon_code ?? row.couponCode),
+      appliedCouponId:row.applied_coupon_id ?? row.appliedCouponId ?? null,
+      applied_coupon_id:row.applied_coupon_id ?? row.appliedCouponId ?? null,
+      finalTotal:num(row.final_total ?? row.finalTotal, 0),
+      final_total:num(row.final_total ?? row.finalTotal, 0),
+      order_total_cents:num(row.order_total_cents ?? row.orderTotalCents, 0),
       __v241PublicLookup:true
     });
   }
@@ -1108,7 +1201,7 @@
     if (!orderId || !/^PHX-/i.test(orderId)) return null;
     const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
     if (!client) return null;
-    const fields = 'booking_number,event_date,event_time,status,request_status,payment_status,deposit_status,deposit_amount,paid_amount,balance_due,balance_due_cents,customer_name,customer_phone,customer_email,address,package_name,adults,kids,guest_count,travel_fee,final_total,order_total_cents';
+    const fields = 'booking_number,event_date,event_time,status,request_status,payment_status,deposit_status,deposit_amount,paid_amount,balance_due,balance_due_cents,customer_name,customer_phone,customer_email,address,package_name,adults,kids,guest_count,food_subtotal,food_subtotal_cents,sales_tax,sales_tax_cents,travel_fee,manager_discount,coupon_discount,applied_coupon_id,applied_coupon_code,final_total,order_total_cents';
     const { data, error } = await client.from('bookings').select(fields).eq('booking_number', orderId).order('created_at', { ascending:false }).limit(1).maybeSingle();
     if (error || !data) return null;
     return maskedPublicOrderFromRow(data);
@@ -1153,12 +1246,6 @@
         orders = Array.isArray(data.orders) ? data.orders.map(rememberLookupOrder) : [];
       } catch (error) {
         backendMessage = friendlyFunctionError(error, 'order-number lookup');
-      }
-      if (!orders.length) {
-        try {
-          const direct = await directPublicLookupByNumber(query);
-          if (direct) orders = [direct];
-        } catch {}
       }
       if (orders.length) {
         renderLookupOrders(orders);
@@ -1368,28 +1455,6 @@
     };
   }
 
-  function removeMissingColumn(payload, message) {
-    const match = text(message).match(/Could not find the '([^']+)' column/i) || text(message).match(/column "([^"]+)" .* does not exist/i);
-    const column = match?.[1];
-    if (!column || !(column in payload)) return null;
-    const next = { ...payload };
-    delete next[column];
-    return next;
-  }
-  async function directUpdate(orderId, patch) {
-    const client = typeof initSupabaseClient === 'function' ? initSupabaseClient() : null;
-    if (!client) throw new Error('Supabase client is not available.');
-    let payload = { ...patch };
-    let result = await client.from('bookings').update(payload).eq('booking_number', orderId).select('*').maybeSingle();
-    for (let i = 0; result?.error && i < 12; i += 1) {
-      const retry = removeMissingColumn(payload, result.error.message);
-      if (!retry) break;
-      payload = retry;
-      result = await client.from('bookings').update(payload).eq('booking_number', orderId).select('*').maybeSingle();
-    }
-    if (result?.error) throw new Error(result.error.message);
-    return result?.data || null;
-  }
   async function lifecycleUpdate(orderId, mode, patch, order, verificationContactValue = '') {
     if (mode === 'admin' && typeof window.phoenixAdminLifecycleInvokeV2382 === 'function') {
       return window.phoenixAdminLifecycleInvokeV2382('admin_modify_order', { bookingNumber:orderId, patch });
@@ -1478,6 +1543,13 @@
   }
 
   document.addEventListener('click', async event => {
+    const applyCoupon = event.target?.closest?.('[data-v253-apply-payment-coupon]');
+    if (applyCoupon) {
+      event.preventDefault();
+      event.stopPropagation();
+      await applyPaymentCoupon();
+      return;
+    }
     const cardPay = event.target?.closest?.('[data-v241-card-payment]');
     if (cardPay) {
       event.preventDefault();
@@ -1553,6 +1625,16 @@
       }, 160);
     });
     observer.observe(document.body, { childList:true, subtree:true });
+  } catch {}
+
+  // V253: dashboard/card renderers replace action rows after refresh. Re-check briefly so Modify/Payment controls cannot disappear.
+  try {
+    let passes = 0;
+    const timer = setInterval(() => {
+      injectButtons();
+      passes += 1;
+      if (passes >= 20) clearInterval(timer);
+    }, 750);
   } catch {}
 
   if (document.readyState === 'loading') {

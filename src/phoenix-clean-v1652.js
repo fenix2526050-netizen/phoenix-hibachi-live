@@ -376,8 +376,11 @@
     const giftCardUsed = num(order.giftCardUsed ?? order.gift_card_used, 0);
     const walletUsed = num(order.walletCreditUsed ?? order.wallet_credit_used ?? order.memberCreditUsed, 0);
     const paidExtra = Math.max(0, num(order.paidAmount ?? order.paid_amount, 0) - num(m.depositPaid, 0));
-    const balance = Math.max(0, num(m.guestTotalAfterDeposit, 0) - paidExtra - giftCardUsed - walletUsed - managerDiscount - pointsDiscount);
-    return { couponDiscount, managerDiscount, pointsDiscount, giftCardUsed, walletUsed, paidExtra, balance };
+    const totalRaw = order.finalTotal ?? order.final_total ?? ((order.orderTotalCents ?? order.order_total_cents) != null ? Number(order.orderTotalCents ?? order.order_total_cents) / 100 : null);
+    const balanceRaw = order.balanceDue ?? order.balance_due ?? ((order.balanceDueCents ?? order.balance_due_cents) != null ? Number(order.balanceDueCents ?? order.balance_due_cents) / 100 : null);
+    const total = totalRaw == null || totalRaw === '' ? Math.max(0, num(m.guestTotalBeforeDeposit, 0) - managerDiscount - couponDiscount) : Math.max(0, num(totalRaw, 0));
+    const balance = balanceRaw == null || balanceRaw === '' ? Math.max(0, total - num(order.paidAmount ?? order.paid_amount ?? m.depositPaid, 0) - giftCardUsed - walletUsed - pointsDiscount) : Math.max(0, num(balanceRaw, 0));
+    return { couponDiscount, managerDiscount, pointsDiscount, giftCardUsed, walletUsed, paidExtra, total, balance };
   }
 
   if (typeof guestInvoiceHtml === 'function' && typeof calculateOrderMoney === 'function') {
@@ -390,9 +393,9 @@
       const premiumProteinRow = m.proteinUpcharge > 0 ? `<div class="invoice-row"><span>Premium protein upgrade</span><em>${m.proteinPremiumCount || 0} × $5</em><b>Total: ${moneySafe(m.proteinUpcharge)}</b></div>` : '';
       const allergies = Array.isArray(order.allergies) ? order.allergies.join(', ') : (order.allergies || order.allergyNotes || 'None listed');
       const adj = invoiceAdjustmentRows(order, m);
-      const tip20 = num(m.guestTotalAfterDeposit, 0) + num(m.tip20, 0);
-      const tip25 = num(m.guestTotalAfterDeposit, 0) + num(m.tip25, 0);
-      const tip30 = num(m.guestTotalAfterDeposit, 0) + num(m.tip30, 0);
+      const tip20 = num(adj.balance, 0) + num(m.tip20, 0);
+      const tip25 = num(adj.balance, 0) + num(m.tip25, 0);
+      const tip30 = num(adj.balance, 0) + num(m.tip30, 0);
       const coupon = appliedCoupon(order);
       return `<section class="guest-invoice guest-invoice-v164" data-watermark="PHOENIX HIBACHI ${ref}">
         <div class="invoice-top-line"></div>
@@ -430,7 +433,7 @@
           <div><b>Wallet / Party Credit Applied</b><span>${moneySafe(adj.walletUsed)}</span></div>
         </div>
         <div class="invoice-ledger-grid-v164">
-          <div><b>Total</b><span>${moneySafe(m.guestTotalBeforeDeposit)}</span></div>
+          <div><b>Total</b><span>${moneySafe(adj.total)}</span></div>
           <div><b>Deposit Paid</b><span>${moneySafe(m.depositPaid)}</span></div>
           <div><b>Other Card/Zelle Payments Confirmed</b><span>${moneySafe(adj.paidExtra)}</span></div>
           <div class="balance-due-v164"><b>Balance Due</b><span>${moneySafe(adj.balance)}</span></div>
@@ -639,6 +642,7 @@
     badge.textContent = summary.label;
     badge.title = summary.detail;
   }
+  window.PHX_UPDATE_PAYMENT_BADGE_V233 = updatePaymentBadge;
 
   function enhanceOrderCards(){
     document.querySelectorAll('[data-v102-order-card], [data-v101-order-card]').forEach(card => {
@@ -1268,7 +1272,7 @@
         meta.textContent = orderAgeLabel(order);
         const exact = submittedExactLabel(order);
         if (exact) meta.title = exact;
-        updatePaymentBadge(header, order);
+        window.PHX_UPDATE_PAYMENT_BADGE_V233?.(header, order);
       }
       card.querySelectorAll('[data-v120-action="details"], [data-v102-details], [data-v101-details]').forEach(btn => {
         btn.textContent = 'Order details / edit';
