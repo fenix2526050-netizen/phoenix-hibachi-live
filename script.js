@@ -834,14 +834,9 @@ async function saveBookingToSupabase(order) {
         console.warn('Booking saved in compatibility mode. Run the V226 Supabase schema fix. Removed:', removedColumns);
       }
       if (!result.error) {
-        if (String(order?.requestStatus || order?.request_status || '').toLowerCase() !== 'draft_checkout') {
-          try {
-            // Only active customer-completed requests may trigger confirmation delivery/PDF work.
-            await client.functions.invoke('booking-created', { body: { booking_number: order.id, booking: payload } });
-          } catch (notifyError) {
-            console.warn('Booking saved, but notification/PDF function did not complete:', notifyError);
-          }
-        }
+        // The active booking flow finalizes through booking-lifecycle, which handles
+        // secure server-side pricing and customer notifications. No separate
+        // no separate booking notification Function exists in this project.
         return {ok:true, data:payload, method:'supabase-js'};
       }
       firstError = result.error;
@@ -1334,9 +1329,18 @@ const PHX_DEFAULT_PRICING_V140 = {
     'Sushi Roll Tray':85,
     'Premium Sushi Tray':130,
     'Sushi & Sashimi Combo':160,
+    'Extra Fried Rice Tray':25,
+    'Noodle / Yakisoba Tray':50,
+    'Hibachi Vegetables':28,
+    'Hibachi Tofu':30,
     'Extra Gyoza Tray':45,
     'Extra Edamame Tray':35,
-    'Noodle / Yakisoba Tray':50
+    'Sushi Starter':59,
+    'Party Roll Platter':89,
+    'Deluxe Sushi Platter':119,
+    'Phoenix Party Punch':49,
+    'Japanese Ramune Soda':20,
+    'Mochi Ice Cream':32
   },
   moneyRules: {
     depositRequired: 200,
@@ -1368,7 +1372,7 @@ function phxMergePricingV140(saved = {}) {
     ...saved,
     packages: {...base.packages, ...(saved.packages || {})},
     packageProteinPortions: {...base.packageProteinPortions, ...(saved.packageProteinPortions || {})},
-    addons: saved.addonsOverride === true ? {...(saved.addons || {})} : {...base.addons, ...(saved.addons || {})},
+    addons: {...base.addons, ...(saved.addons || {})},
     moneyRules: {...base.moneyRules, ...(saved.moneyRules || {})},
     premiumProteins: Array.isArray(saved.premiumProteins) ? saved.premiumProteins : base.premiumProteins
   };
@@ -2730,7 +2734,7 @@ async function updateTravelEstimateFromCoords(lat, lon, formatted = '') {
     if (travelFeeInput) travelFeeInput.value = fee.toFixed(2);
     if (travelEstimate) {
       travelEstimate.dataset.travelStatus = 'ready';
-      travelEstimate.innerHTML = `<strong>Estimated travel fee for this address: ${money(fee)}</strong><span>Based on the standard one-way driving-distance tier. Final confirmation may include tolls, paid parking, or unusual access charges.</span>`;
+      travelEstimate.innerHTML = `<strong>Estimated travel fee for this address: ${money(fee)}</strong><span>Based on the standard one-way driving-distance tier. Phoenix Hibachi will confirm the final travel fee.</span>`;
     }
     updateSummary();
   } catch (error) {
@@ -3847,7 +3851,7 @@ document.addEventListener('click', (event) => {
     if (!order) { alert('Order not found.'); return; }
     if (order.pdfUrl) { window.open(order.pdfUrl, '_blank', 'noopener'); return; }
     openPrintModalForOrder(order, 'guest');
-    alert('PDF is not generated yet. Use Print → Save as PDF for now, or deploy the booking-created Edge Function to generate PDFs automatically.');
+    alert('PDF is not generated yet. Use Print → Save as PDF.');
   }
   const prepBtn = event.target.closest('[data-prep-order]');
   if (prepBtn) {
@@ -4284,11 +4288,35 @@ document.getElementById('confirmBookingRequestBtn')?.addEventListener('click', (
 });
 document.getElementById('printGuestInvoiceBtn')?.addEventListener('click', () => openPrintModalForOrder(lastSubmittedOrder, 'guest'));
 document.getElementById('printChefSettlementBtn')?.addEventListener('click', () => openPrintModalForOrder(lastSubmittedOrder, 'chef'));
-document.getElementById('runPrintBtn')?.addEventListener('click', () => {
+async function printPhoenixInvoiceV255(){
+  if (window.__PHX_PRINT_IN_PROGRESS__) return;
+  window.__PHX_PRINT_IN_PROGRESS__ = true;
   document.body.classList.add('printing-invoice');
-  setTimeout(() => window.print(), 50);
+  const area = document.getElementById('printArea');
+  try {
+    const fontReady = document.fonts?.ready ? Promise.resolve(document.fonts.ready).catch(()=>{}) : Promise.resolve();
+    const images = [...(area?.querySelectorAll('img') || [])].filter(img => !img.complete).map(img => new Promise(resolve => {
+      const done = () => resolve();
+      img.addEventListener('load', done, {once:true});
+      img.addEventListener('error', done, {once:true});
+      setTimeout(done, 1200);
+    }));
+    await Promise.race([Promise.all([fontReady, ...images]), new Promise(resolve => setTimeout(resolve, 1500))]);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    window.print();
+  } finally {
+    setTimeout(() => { window.__PHX_PRINT_IN_PROGRESS__ = false; }, 500);
+  }
+}
+window.printPhoenixInvoiceV255 = printPhoenixInvoiceV255;
+document.getElementById('runPrintBtn')?.addEventListener('click', event => {
+  event.preventDefault();
+  printPhoenixInvoiceV255();
 });
-window.addEventListener('afterprint', () => document.body.classList.remove('printing-invoice'));
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('printing-invoice');
+  window.__PHX_PRINT_IN_PROGRESS__ = false;
+});
 
 // V98: booking submit errors must appear inside the booking form immediately.
 // A normal alert or an outside modal can appear behind a native <dialog> on mobile,
@@ -9812,6 +9840,17 @@ setTimeout(() => {
     let billable = '';
     try { billable = (typeof formatGuestNumber === 'function' ? formatGuestNumber(m.billableGuests) : m.billableGuests) || order.totalGuests || ''; } catch { billable = order.totalGuests || ''; }
     const paymentLine = `${pay.status || 'Not paid yet'}${pay.method ? ' · ' + pay.method : ''}`;
+    const lookupAddons = normalizeAddonsForMoney(order.addons || order.add_ons || []);
+    const lookupAddonText = lookupAddons.map(item => `${item.name}${Number(item.qty || 1) > 1 ? ` × ${Number(item.qty)}` : ''}`).join(', ');
+    const lookupProteins = (() => {
+      const raw = order.proteinSelections || order.protein_selections;
+      if (raw && typeof raw === 'object' && Object.keys(raw).length) {
+        try { return proteinSummary(raw); } catch {}
+      }
+      const summary = String(order.proteinSummary || order.protein_summary || '').trim();
+      return /not selected|selected 0/i.test(summary) ? '' : summary;
+    })();
+    const lookupAllergies = Array.isArray(order.allergies) ? order.allergies.join(', ') : String(order.allergyNotes || order.allergy_notes || order.allergies || '');
     return `<div class="lookup-card lookup-card-v103 lookup-card-v107 lookup-card-v109 lookup-card-v110">
       <header><strong>${esc(id || 'Phoenix order')}</strong><span class="tag ${String(order.status || '').toLowerCase().match(/confirm|accept|assigned|complete|updated/) ? 'accepted' : ''}">${esc(statusText(order))}</span></header>
       ${scheduleBanner(order)}
@@ -9820,6 +9859,9 @@ setTimeout(() => {
       <b>Guest:</b> ${esc(order.name || order.customer_name || 'Guest')} · ${esc(order.phone || order.customer_phone || '')}<br>
       <b>Address:</b> ${esc(order.address || 'Not entered')}<br>
       <b>Package:</b> ${esc(order.package || order.packageName || 'Classic')} · ${esc(billable)} billable guests<br>
+      ${lookupAddonText ? `<b>Add-ons:</b> ${esc(lookupAddonText)}<br>` : ''}
+      ${lookupProteins ? `<b>Protein selections:</b> ${esc(lookupProteins)}<br>` : ''}
+      ${lookupAllergies ? `<b>Allergies:</b> ${esc(lookupAllergies)}<br>` : ''}
       <b>Estimated total:</b> ${moneySafe(pay.total)}<br>
       ${Number(order.managerDiscount ?? order.manager_discount ?? 0) > 0 ? `<b>Manager discount:</b> -${moneySafe(Number(order.managerDiscount ?? order.manager_discount ?? 0))}<br>` : ''}
       ${order.couponCode || order.applied_coupon_code ? `<b>Coupon:</b> ${esc(order.couponCode || order.applied_coupon_code)} · -${moneySafe(Number(order.couponDiscount ?? order.coupon_discount ?? 0))}<br>` : ''}

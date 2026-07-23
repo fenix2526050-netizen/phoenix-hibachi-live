@@ -282,11 +282,34 @@
     const reason = noteValue(notes, 'Adjustment reason') || '';
     const customerNote = noteValue(notes, 'Customer payment note') || '';
     const waived = /yes|true|1|waived/i.test(noteValue(notes, 'Travel fee waived'));
+    const addons = Array.isArray(m.addons) ? m.addons.filter(item => Number(item?.qty || 1) > 0) : [];
+    const addonsTotal = Number(m.addonsTotal || addons.reduce((sum, item) => sum + Number(item?.price || 0), 0));
+    const addonsHtml = addons.length
+      ? `<p class="phx-v255-order-addons"><b>Add-ons / side orders</b><br>${addons.map(item => `${esc(item.name || 'Add-on')} × ${Number(item.qty || 1)} — ${money(item.price || 0)}`).join('<br>')}<br><strong>Add-ons total ${money(addonsTotal)}</strong></p>`
+      : '';
+    const packageMoneyBits = [
+      `${esc(order.package || order.packageName || 'Classic')} · ${esc(order.totalGuests || order.total_guests || order.guests || '')} guests`,
+      `Food subtotal ${money(foodSubtotal)}`,
+      travel > 0 ? `Travel ${money(travel)}` : '',
+      discount > 0 ? `Manager discount -${money(discount)}` : '',
+      couponCode ? `Coupon ${esc(couponCode)} -${money(couponDiscount)}` : ''
+    ].filter(Boolean);
+    const paymentSummaryBits = [
+      `<b>Food subtotal:</b> ${money(foodSubtotal)}`,
+      `<b>Tax:</b> ${money(salesTax)}`,
+      travel > 0 ? `<b>Travel:</b> ${money(travel)}` : '',
+      discount > 0 ? `<b>Manager discount:</b> -${money(discount)}` : '',
+      couponCode ? `<b>Coupon:</b> ${esc(couponCode)} (-${money(couponDiscount)})` : '',
+      received > 0 ? `<b>Received:</b> ${money(received)}` : '',
+      `<b>Server total:</b> ${money(serverTotal)}`,
+      `<b>Balance:</b> ${money(serverBalance)}`
+    ].filter(Boolean);
     return `<div class="v102-order-panel" data-v120-panel="${id}" hidden>
       <div class="v102-detail-grid">
         <p><b>Customer</b><br>${esc(order.name || 'Guest')}<br>${esc(order.phone || 'No phone')}<br>${esc(order.email || 'No email')}</p>
         <p><b>Event</b><br>${esc(order.eventDate || order.event_date || '')} · ${esc(order.eventTime || order.event_time || '')}<br>${esc(order.address || order.event_address || 'No address')}</p>
-        <p><b>Package / money</b><br>${esc(order.package || order.packageName || 'Classic')} · ${esc(order.totalGuests || order.total_guests || order.guests || '')} guests<br>Server total ${money(serverTotal)} · Travel ${money(travel)}${discount > 0 ? ` · Manager discount -${money(discount)}` : ''}${couponCode ? ` · Coupon ${esc(couponCode)} -${money(couponDiscount)}` : ''}</p>
+        <p><b>Package / money</b><br>${packageMoneyBits.join('<br>')}<br><strong>Server total ${money(serverTotal)}</strong></p>
+        ${addonsHtml}
         <p><b>Chef visible to customer</b><br>${esc(chefName(order))}<br><small>${esc(noteValue(notes, 'Customer visible note') || noteValue(notes, 'Phoenix customer note') || 'No customer-facing note yet.')}</small></p>
       </div>
       <div class="v102-tool-boxes">
@@ -302,12 +325,12 @@
         <label>Deposit / payment received<input type="number" min="0" step="0.01" data-v120-payment-received="${id}" value="${esc(Number(received || 0).toFixed(2))}"></label>
         <label>Manager discount / credit<input type="number" min="0" step="0.01" data-v120-discount="${id}" value="${esc(Number(discount || 0).toFixed(2))}" ${couponCode ? 'disabled title="Remove the coupon before applying a manager discount"' : ''}></label>
         <label>Server final total<input type="text" readonly value="${esc(money(serverTotal))}" aria-label="Server calculated final total"></label>
-        <label>Travel fee<input type="number" min="0" step="0.01" data-v120-travel-fee="${id}" value="${esc(Number(travel || 0).toFixed(2))}"></label>
+        <label>Travel fee<input type="number" min="0" step="0.01" data-v120-travel-fee="${id}" data-v120-original-travel="${esc(Number(travel || 0).toFixed(2))}" value="${esc(Number(waived ? 0 : travel).toFixed(2))}" ${waived ? 'disabled' : ''}></label>
       </div>
       <label class="v107-check"><input type="checkbox" data-v120-waive-travel="${id}" ${waived ? 'checked' : ''}> Waive travel fee / 免车费</label>
       <label>Reason / internal note<textarea rows="2" data-v120-reason="${id}" placeholder="Example: chef forgot sushi roll tray, manager approved credit.">${esc(reason)}</textarea></label>
       <label>Customer visible payment note<textarea rows="2" data-v120-customer-note="${id}" placeholder="Example: Deposit received by Zelle. Balance due at event.">${esc(customerNote)}</textarea></label>
-      <div class="v107-payment-summary"><b>Food subtotal:</b> ${money(foodSubtotal)} · <b>Tax:</b> ${money(salesTax)} · <b>Travel:</b> ${money(travel)} · <b>Manager discount:</b> -${money(discount)} · <b>Coupon:</b> ${couponCode ? `${esc(couponCode)} (-${money(couponDiscount)})` : 'None'}<br><b>Server total:</b> ${money(serverTotal)} · <b>Received:</b> ${money(received)} · <b>Balance:</b> ${money(serverBalance)}</div>
+      <div class="v107-payment-summary">${paymentSummaryBits.join(' · ')}</div>
       <div class="v107-payment-actions"><button type="button" class="gold-btn-mini" data-v120-save-payment="${id}">Save payment / price</button><button type="button" data-v120-mark-deposit="${id}" data-v120-required-deposit="${requiredDeposit.toFixed(2)}">Quick mark ${money(requiredDeposit)} deposit received</button><button type="button" data-print-guest="${id}">Print updated invoice</button></div>
     </section>`;
   }
@@ -699,8 +722,8 @@
     const method = card?.querySelector(`[data-v120-payment-method="${CSS.escape(String(orderId))}"]`)?.value || '';
     const received = paymentNumber(card, `[data-v120-payment-received="${CSS.escape(String(orderId))}"]`);
     const discount = paymentNumber(card, `[data-v120-discount="${CSS.escape(String(orderId))}"]`);
-    const travel = paymentNumber(card, `[data-v120-travel-fee="${CSS.escape(String(orderId))}"]`, order.travelFee || order.travel_fee || 0);
     const waived = !!card?.querySelector(`[data-v120-waive-travel="${CSS.escape(String(orderId))}"]`)?.checked;
+    const travel = waived ? 0 : paymentNumber(card, `[data-v120-travel-fee="${CSS.escape(String(orderId))}"]`, order.travelFee || order.travel_fee || 0);
     const reason = card?.querySelector(`[data-v120-reason="${CSS.escape(String(orderId))}"]`)?.value || '';
     const customerNote = card?.querySelector(`[data-v120-customer-note="${CSS.escape(String(orderId))}"]`)?.value || '';
     let notes = notesOf(order);
@@ -762,6 +785,22 @@
     } catch(error){ console.warn(error); }
     window.print();
   }
+
+  document.addEventListener('change', function(e){
+    const waive = e.target?.closest?.('[data-v120-waive-travel]');
+    if (!waive) return;
+    const orderId = waive.getAttribute('data-v120-waive-travel');
+    const input = document.querySelector(`[data-v120-travel-fee="${CSS.escape(String(orderId))}"]`);
+    if (!input) return;
+    if (waive.checked) {
+      if (Number(input.value || 0) > 0) input.dataset.v120OriginalTravel = input.value;
+      input.value = '0.00';
+      input.disabled = true;
+    } else {
+      input.disabled = false;
+      input.value = input.dataset.v120OriginalTravel || '0.00';
+    }
+  }, true);
 
   document.addEventListener('click', function(e){
     const actionBtn = e.target.closest('[data-v120-action], [data-v120-save-time], [data-v120-save-chef], [data-v120-save-payment], [data-v120-mark-deposit]');

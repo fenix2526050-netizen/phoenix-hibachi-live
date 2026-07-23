@@ -227,12 +227,10 @@
     const rules = syncRulesFromPricing();
     const toll = isNewJerseyOrder(order) ? rules.njTollFee : 0;
     box.querySelector('.phx-v240-nj-toll-estimate')?.remove();
-    if (toll > 0) {
-      const line = document.createElement('span');
-      line.className = 'phx-v240-nj-toll-estimate';
-      line.textContent = `NJ Toll Fee: ${moneyText(toll)} shown separately from travel fee.`;
-      box.appendChild(line);
-    }
+    const baseFee = asNumber(document.getElementById('travelFeeInput')?.value, 0);
+    const combined = baseFee + toll;
+    const strong = box.querySelector('strong');
+    if (strong && combined > 0) strong.textContent = `Estimated travel fee for this address: ${moneyText(combined)}`;
   }
 
   try {
@@ -260,10 +258,7 @@
         const rules = syncRulesFromPricing();
         const toll = isNewJerseyOrder(order) ? rules.njTollFee : 0;
         order.njTollFee = toll;
-        if (toll > 0) {
-          order.specialNotes = upsertNote(order.specialNotes || order.admin_notes || '', 'NJ Toll Fee', toll.toFixed(2));
-          order.specialNotes = upsertNote(order.specialNotes, 'NJ Toll Rule', 'New Jersey route toll add-on shown separately from travel fee.');
-        }
+        // Keep the route component in the dedicated field; do not add customer-visible toll notes.
         return order;
       };
       buildOrderFromForm = window.buildOrderFromForm;
@@ -355,20 +350,77 @@
     }
   } catch {}
 
-  function tollRowHtml(toll) {
-    return `<div class="invoice-row phx-v240-nj-toll-row"><span>NJ Toll Fee</span><em>New Jersey route add-on</em><b style="color:#c00000;font-weight:800;">Total: ${moneyText(toll)}</b></div>`;
-  }
-
   function patchInvoiceTotals(html, order, m) {
-    let out = String(html || '');
+    const template = document.createElement('template');
+    template.innerHTML = String(html || '');
+    const root = template.content;
+    const travel = asNumber(m.travelFee, 0);
     const toll = asNumber(m.njTollFee, 0);
-    if (toll > 0 && !/NJ Toll Fee/i.test(out)) {
-      out = out.replace(/(<div class="invoice-row[^>]*>\s*<span>Sales Tax<\/span>)/i, `${tollRowHtml(toll)}$1`);
+    const combinedTravel = travel + toll;
+
+    // Lightweight fallback for older browsers/test harnesses without template.content.
+    if (!root || typeof root.querySelectorAll !== 'function') {
+      let out = String(html || '');
+      out = out.replace(/<div class="invoice-row[^"]*phx-v240-nj-toll-row[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+      out = out.replace(/<div class="invoice-row[^"]*"[^>]*>\s*<span>\s*(?:NJ Toll Fee|New Jersey route[^<]*)<\/span>[\s\S]*?<\/div>/gi, '');
+      out = out.replace(/(<div class="invoice-row[^"]*"[^>]*>\s*<span>Travel Fee<\/span>\s*<em>)[\s\S]*?(<\/em>\s*<b[^>]*>)[\s\S]*?(<\/b>\s*<\/div>)/i,
+        combinedTravel > 0 ? `$1$2Total: ${moneyText(combinedTravel)}$3` : '');
+      out = out.replace(/<div class="invoice-brand">[\s\S]*?<\/div>/i,
+        '<div class="invoice-brand invoice-brand-v255"><strong>PHOENIX HIBACHI</strong><span>Phone: <a href="tel:+15165183325">(516) 518-3325</a></span><span>Email: <a href="mailto:booking@phoenix-hibachi.com">booking@phoenix-hibachi.com</a></span><span>Website: <a href="https://phoenix-hibachi.com">phoenix-hibachi.com</a></span></div>');
+      return out;
     }
-    const subtotal = asNumber(m.foodSubtotal, 0) + asNumber(m.staffingFee, 0) + asNumber(m.travelFee, 0) + toll;
-    out = out.replace(/(<b>Subtotal before tax:<\/b>\s*<span>)([^<]*)(<\/span>)/i, `$1${moneyText(subtotal)}$3`);
-    out = out.replace(/(<span>Travel \$[^<]*<\/span>)/i, match => toll > 0 ? `${match}<span>NJ Toll ${moneyText(toll)}</span>` : match);
-    return out;
+
+    root.querySelectorAll('.phx-v240-nj-toll-row').forEach(node => node.remove());
+    root.querySelectorAll('.invoice-row').forEach(row => {
+      const label = text(row.querySelector('span')?.textContent).toLowerCase();
+      if (/nj toll|new jersey route/.test(label)) row.remove();
+    });
+
+    const travelRows = [...root.querySelectorAll('.invoice-row')].filter(row => /^travel fee$/i.test(text(row.querySelector('span')?.textContent)));
+    travelRows.forEach(row => {
+      if (combinedTravel <= 0) { row.remove(); return; }
+      const amount = row.querySelector('b') || row.querySelector('span:last-child');
+      if (amount) amount.textContent = `Total: ${moneyText(combinedTravel)}`;
+      const note = row.querySelector('em');
+      if (note) note.textContent = '';
+    });
+
+    const directFinal = asNumber(order.finalTotal ?? order.final_total ?? ((order.orderTotalCents ?? order.order_total_cents) != null ? asNumber(order.orderTotalCents ?? order.order_total_cents, 0) / 100 : 0), 0);
+    const directBalanceRaw = order.balanceDue ?? order.balance_due ?? ((order.balanceDueCents ?? order.balance_due_cents) != null ? asNumber(order.balanceDueCents ?? order.balance_due_cents, 0) / 100 : null);
+    const directBalance = directBalanceRaw === null || directBalanceRaw === undefined ? null : asNumber(directBalanceRaw, 0);
+    const finalTotal = directFinal > 0 ? directFinal : asNumber(m.guestTotalBeforeDeposit, 0);
+    const balanceDue = directBalance !== null ? directBalance : asNumber(m.guestTotalAfterDeposit, finalTotal);
+    const paidAmount = Math.max(0, asNumber(order.paidAmount ?? order.paid_amount ?? order.depositPaid ?? order.deposit_amount ?? m.depositPaid, 0));
+    const couponDiscount = Math.max(0, asNumber(order.couponDiscount ?? order.coupon_discount ?? m.couponDiscount, 0));
+    const managerDiscount = Math.max(0, asNumber(order.managerDiscount ?? order.manager_discount ?? m.managerDiscount, 0));
+
+    root.querySelectorAll('.invoice-totals div,.invoice-ledger-grid-v164 div,.invoice-payment-grid-v164 div').forEach(row => {
+      const label = text(row.querySelector('b,span')?.textContent).toLowerCase();
+      const value = row.querySelector('span:last-child,b:last-child');
+      if (/nj toll/.test(label)) { row.remove(); return; }
+      if (/subtotal before tax/.test(label) && value) value.textContent = moneyText(asNumber(m.foodSubtotal, 0) + asNumber(m.staffingFee, 0) + combinedTravel);
+      if (/^total$|^final total$/.test(label) && value) value.textContent = moneyText(finalTotal);
+      if (/balance due/.test(label) && value) value.textContent = moneyText(balanceDue);
+      if (/coupon discount/.test(label) && value) value.textContent = moneyText(couponDiscount);
+      if (/manager discount/.test(label) && value) value.textContent = moneyText(managerDiscount);
+      if (/deposit paid|amount paid|payment received/.test(label) && value) value.textContent = moneyText(paidAmount);
+    });
+
+    const brand = root.querySelector('.invoice-brand');
+    if (brand) {
+      const logo = brand.querySelector('img,svg')?.outerHTML || '';
+      brand.classList.add('invoice-brand-v255');
+      brand.innerHTML = `${logo}<strong>PHOENIX HIBACHI</strong><span>Phone: <a href="tel:+15165183325">(516) 518-3325</a></span><span>Email: <a href="mailto:booking@phoenix-hibachi.com">booking@phoenix-hibachi.com</a></span><span>Website: <a href="https://phoenix-hibachi.com">phoenix-hibachi.com</a></span>`;
+    }
+
+    const zeroLabels = /coupon discount|manager discount|points discount|gift card applied|wallet|party credit|promotion code|discount|deposit paid|amount paid|payment received|other card|zelle payments confirmed/i;
+    root.querySelectorAll('.invoice-totals div,.invoice-ledger-grid-v164 div,.invoice-payment-grid-v164 div').forEach(row => {
+      const label = text(row.querySelector('b,span')?.textContent);
+      const value = text(row.querySelector('span:last-child,b:last-child')?.textContent);
+      if (zeroLabels.test(label) && (!value || /^\$?0(?:\.00)?$|^none$/i.test(value))) row.remove();
+    });
+
+    return template.innerHTML;
   }
 
   function linkifyContactLines(html, order = {}) {
@@ -437,9 +489,9 @@
   function priceFields(order = {}) {
     const m = window.calculateOrderMoney ? window.calculateOrderMoney(order) : {};
     const toll = asNumber(m.njTollFee, 0);
+    const combinedTravel = asNumber(m.travelFee, 0) + toll;
     const bits = [
-      `<span>Travel Fee <b>${moneyText(m.travelFee)}</b></span>`,
-      toll > 0 ? `<span>NJ Toll Fee <b>${moneyText(toll)}</b></span>` : '',
+      combinedTravel > 0 ? `<span>Travel Fee <b>${moneyText(combinedTravel)}</b></span>` : '',
       `<span>Final Total <b>${moneyText(m.guestTotalBeforeDeposit)}</b></span>`,
       `<span>Balance Due <b>${moneyText(m.guestTotalAfterDeposit)}</b></span>`
     ].filter(Boolean).join('');
@@ -496,8 +548,8 @@
       const toll = order ? njTollFeeForOrder(order) : 0;
       const travelLabel = panel.querySelector('[data-v107-travel-fee]')?.closest('label') ||
         panel.querySelector('[data-v120-travel-fee]')?.closest('label');
-      if (travelLabel) {
-        travelLabel.insertAdjacentHTML('afterend', `<div class="phx-v240-nj-toll-panel"><b>NJ Toll Fee</b><span>${toll > 0 ? moneyText(toll) : '$0.00'}${toll > 0 ? ' shown separately from Travel Fee' : ' for non-NJ or legacy orders without a toll marker'}</span></div>`);
+      if (travelLabel && toll > 0) {
+        travelLabel.insertAdjacentHTML('afterend', `<div class="phx-v240-nj-toll-panel"><b>NJ Toll Fee</b><span>${moneyText(toll)}</span></div>`);
       }
     });
   }

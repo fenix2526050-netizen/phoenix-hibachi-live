@@ -6,7 +6,7 @@
   window.__PHX_V241_ORDER_MODIFICATION__ = true;
 
   const EDIT_WINDOW_HOURS = 48;
-  const PATCH_VERSION = 'V254';
+  const PATCH_VERSION = 'V255';
   const lookupOrders = new Map();
 
   const text = value => String(value ?? '').trim();
@@ -113,7 +113,7 @@
       if (id) map.set(id.toLowerCase(), order);
     };
     lookupOrders.forEach(add);
-    try { Object.values(window.__PHX_LOOKUP_ORDER_CACHE__ || {}).forEach(order => add({ ...order, __v241PublicLookup:true })); } catch {}
+    try { Object.values(window.__PHX_LOOKUP_ORDER_CACHE__ || {}).forEach(order => add({ ...order, __v241PublicLookup:order.__v241PublicLookup !== false && order.canPrintFullInvoice !== true })); } catch {}
     try { (window.getDashboardOrders?.() || getDashboardOrders?.() || []).forEach(add); } catch {}
     try { (window.getStoredOrders?.() || getStoredOrders?.() || []).forEach(add); } catch {}
     try { if (Array.isArray(remoteOrdersCache)) remoteOrdersCache.forEach(add); } catch {}
@@ -122,7 +122,8 @@
   function rememberLookupOrder(order = {}) {
     const id = idOf(order);
     if (!id) return order;
-    const enriched = { ...order, __v241PublicLookup:true };
+    const isPublic = order.__v241PublicLookup !== false && order.canPrintFullInvoice !== true;
+    const enriched = { ...order, __v241PublicLookup:isPublic, canPrintFullInvoice:!isPublic };
     lookupOrders.set(id.toLowerCase(), enriched);
     window.__PHX_LOOKUP_ORDER_CACHE__ = window.__PHX_LOOKUP_ORDER_CACHE__ || {};
     window.__PHX_LOOKUP_ORDER_CACHE__[id] = enriched;
@@ -327,6 +328,11 @@
       const staff = !member && (isStaffRole() || hasStaffControls(card));
 
       if (member) {
+        const fullInvoice = order.__v241PublicLookup !== true || order.canPrintFullInvoice === true;
+        actions.querySelectorAll('[data-print-lookup],[data-print-guest],[data-download-pdf]').forEach(button => {
+          button.hidden = !fullInvoice;
+          button.setAttribute('aria-hidden', fullInvoice ? 'false' : 'true');
+        });
         const open = customerCanModify(order);
         let note = card.querySelector('.phx-v241-lock-note');
         if (!note) {
@@ -334,9 +340,11 @@
           note.className = 'phx-v241-lock-note';
           actions.parentNode?.insertBefore(note, actions);
         }
-        const desiredNote = open
-          ? `<strong>Order changes</strong><span>You can modify this order until ${EDIT_WINDOW_HOURS} hours before the event. Saved changes notify Phoenix Hibachi for manager review.</span>`
-          : `<strong>Order locked <span class="phx-v241-locked-stamp">locked</span></strong><span>This order is within ${EDIT_WINDOW_HOURS} hours of the event. Please call <a href="${esc(supportHref())}">${esc(supportPhone())}</a> to ask whether a change is still possible.</span>`;
+        const desiredNote = order.__v241PublicLookup === true
+          ? `<strong>Verify to view the full invoice</strong><span>Enter the booking phone or email in the lookup form and search again to view Add-ons, proteins, allergies, and printing.</span>`
+          : (open
+            ? `<strong>Order changes</strong><span>You can modify this order until ${EDIT_WINDOW_HOURS} hours before the event. Saved changes notify Phoenix Hibachi for manager review.</span>`
+            : `<strong>Order locked <span class="phx-v241-locked-stamp">locked</span></strong><span>This order is within ${EDIT_WINDOW_HOURS} hours of the event. Please call <a href="${esc(supportHref())}">${esc(supportPhone())}</a> to ask whether a change is still possible.</span>`);
         if (note.innerHTML !== desiredNote) note.innerHTML = desiredNote;
 
         if (!card.querySelector('.phx-v241-payment-note')) {
@@ -758,7 +766,22 @@
       allergyNotes:form.elements.allergyNotes.value,
       allergy_notes:form.elements.allergyNotes.value,
       travelFee,
-      travel_fee:travelFee
+      travel_fee:travelFee,
+      // Preview the newly selected values. Existing server snapshots belong to the
+      // saved order and must not overwrite this unsaved modification preview.
+      serverPricingVerified:false,
+      finalTotal:null,
+      final_total:null,
+      orderTotalCents:null,
+      order_total_cents:null,
+      foodSubtotal:null,
+      food_subtotal:null,
+      salesTax:null,
+      sales_tax:null,
+      balanceDue:null,
+      balance_due:null,
+      balanceDueCents:null,
+      balance_due_cents:null
     };
   }
 
@@ -884,14 +907,28 @@
   function updatePricePreview(form, order = collectOrders().get(text(form?.elements?.bookingNumber?.value).toLowerCase()) || {}) {
     const box = document.querySelector('#phxOrderModifyModalV241 [data-v241-price-preview]');
     if (!box || !form) return;
-    const { money:m } = estimateOrderFromForm(form, order, text(form.elements.mode.value || 'customer'));
+    const { draft, money:m } = estimateOrderFromForm(form, order, text(form.elements.mode.value || 'customer'));
     const rule = proteinRuleForForm(form);
     const proteinTotal = Object.values(selectedProteinsFromForm(form)).reduce((sum, qty) => sum + int(qty, 0), 0);
     const finalTotal = num(m.guestTotalBeforeDeposit ?? m.total ?? m.grandTotal, 0);
     const policy = paymentPolicyForModification(order, finalTotal);
-    const minimumLine = num(m.minimumOrderAdjustment, 0) > 0
-      ? `<div class="warn"><span>Minimum order adjustment</span><b>${money(m.minimumOrderAdjustment)} to meet ${money(m.minimumFoodTotal || 550)}</b></div>`
-      : `<div><span>Minimum order</span><b>Met</b></div>`;
+    const packageName = text(form.elements.packageName.value || 'Classic');
+    const adults = int(form.elements.adults.value, 0);
+    const kids = int(form.elements.kids.value, 0);
+    const packageBits = [];
+    if (adults > 0) packageBits.push(`${adults} adult${adults === 1 ? '' : 's'} × ${money(m.packagePrice || 0)} = ${money(m.adultFoodTotal || adults * num(m.packagePrice, 0))}`);
+    if (kids > 0) packageBits.push(`${kids} kid${kids === 1 ? '' : 's'} × ${money(m.kidFoodPrice || 0)} = ${money(m.kidFoodTotal || 0)}`);
+    const addons = Array.isArray(m.addons) ? m.addons.filter(item => num(item.price, 0) > 0) : selectedAddonsFromForm(form);
+    const addonLines = addons.length
+      ? `<div class="phx-v255-preview-list"><span>Add-ons</span><b>${addons.map(item => `${esc(item.name)} × ${int(item.qty, 1)} = ${money(item.price)}`).join('<br>')}<br><strong>Add-ons total: ${money(m.addonsTotal || addons.reduce((sum,item)=>sum+num(item.price,0),0))}</strong></b></div>`
+      : '';
+    const premiumLine = num(m.proteinUpcharge, 0) > 0
+      ? `<div><span>Premium protein upgrades</span><b>${int(m.proteinPremiumCount, 0)} portions × ${money(num(m.proteinUpcharge, 0) / Math.max(1, int(m.proteinPremiumCount, 1)))} = ${money(m.proteinUpcharge)}</b></div>`
+      : '';
+    const couponCode = text(order.applied_coupon_code || order.couponCode);
+    const couponDiscount = num(order.coupon_discount ?? order.couponDiscount ?? m.couponDiscount, 0);
+    const managerDiscount = num(order.manager_discount ?? order.managerDiscount ?? m.managerDiscount, 0);
+    const travelShown = num(m.travelAndTollTotal ?? m.travelFee, 0);
     const paymentRuleLine = policy.noRefundCredit > 0.004
       ? `<div class="warn"><span>No-refund rule</span><b>Paid ${money(policy.paid)} stays applied; reductions do not create refunds.</b></div>`
       : (policy.additionalDue > 0.004 && policy.paid > 0
@@ -900,16 +937,23 @@
     box.innerHTML = `
       <h3>Updated price preview</h3>
       <div><span>Protein rule</span><b>${proteinTotal}/${rule.required} portions</b></div>
-      <div><span>Package</span><b>${esc(text(form.elements.packageName.value || 'Classic'))} · ${money(m.packagePrice || 0)}/adult</b></div>
+      <div><span>Package</span><b>${esc(packageName)}${packageBits.length ? ` — ${packageBits.join(' · ')}` : ''}</b></div>
+      ${premiumLine}
+      ${addonLines}
       <div><span>Food subtotal</span><b>${money(m.foodSubtotal || 0)}</b></div>
-      ${minimumLine}
-      <div><span>Travel fee</span><b>${money(m.travelFee || 0)}</b></div>
+      ${couponCode && couponDiscount > 0 ? `<div><span>Coupon</span><b>${esc(couponCode)} = -${money(couponDiscount)}</b></div>` : ''}
+      ${managerDiscount > 0 ? `<div><span>Manager discount</span><b>-${money(managerDiscount)}</b></div>` : ''}
+      ${travelShown > 0 ? `<div><span>Travel fee</span><b>${money(travelShown)}</b></div>` : ''}
       <div><span>Sales tax</span><b>${money(m.salesTax || 0)}</b></div>
       <div><span>Estimated final total</span><b>${money(finalTotal)}</b></div>
-      <div><span>Already paid</span><b>${money(policy.paid)}</b></div>
-      <div><span>Balance after paid/deposit</span><b>${money(policy.balance)}</b></div>
+      ${policy.paid > 0 ? `<div><span>Already paid</span><b>${money(policy.paid)}</b></div>` : ''}
+      <div><span>Balance due</span><b>${money(policy.balance)}</b></div>
       ${paymentRuleLine}
     `;
+    box.dataset.minimumShortfall = String(Math.max(0, num(m.minimumOrderAdjustment, 0)));
+    box.dataset.minimumFoodTotal = String(num(m.minimumFoodTotal, 550));
+    box.dataset.rawFoodSubtotal = String(Math.max(0, num(m.qualifyingFoodTotal, 0)));
+    box.dataset.draftPackage = draft.package || packageName;
   }
 
   function setCustomerBasicMode(dialog, customerMode, order) {
@@ -963,7 +1007,7 @@
     const knownContact = cleanVerificationContact(order.__v241VerificationContact || order.customer_email || order.email || order.customer_phone || order.phone || lookupContactValue());
     if (contactInput && knownContact) contactInput.value = knownContact;
     if (couponStatus) {
-      couponStatus.textContent = appliedCode ? `Applied coupon ${appliedCode}: -${money(appliedAmount)}. Tax, travel fee, NJ toll, and tip basis are unchanged.` : 'No coupon applied.';
+      couponStatus.textContent = appliedCode ? `Applied coupon ${appliedCode}: -${money(appliedAmount)}. Tax, travel fee, and tip basis are unchanged.` : 'No coupon applied.';
       couponStatus.className = `phx-v225-benefit-status${appliedCode ? ' success' : ''}`;
     }
     try { dialog.showModal(); } catch { dialog.setAttribute('open', ''); }
@@ -1001,7 +1045,7 @@
       setPaymentOrderContext(orderId);
       const appliedCode = text(booking.applied_coupon_code || booking.couponCode || code).toUpperCase();
       const discount = num(booking.coupon_discount ?? booking.couponDiscount, 0);
-      setCouponStatus(data?.message || `Coupon ${appliedCode} applied: -${money(discount)}. Tax, travel fee, NJ toll, and tip basis are unchanged.`);
+      setCouponStatus(data?.message || `Coupon ${appliedCode} applied: -${money(discount)}. Tax, travel fee, and tip basis are unchanged.`);
       window.dispatchEvent(new CustomEvent('phoenix:coupon-applied', { detail:{ bookingNumber:orderId, booking } }));
     } catch (error) {
       setCouponStatus(friendlyFunctionError(error, 'coupon application'), true);
@@ -1399,7 +1443,26 @@
       localPatch.travelFee = num(fd.get('travelFee'), 0);
       localPatch.travel_fee = localPatch.travelFee;
     }
-    const updated = { ...order, ...localPatch, addons:pricedAddOns, add_ons:pricedAddOns, proteinSelections:proteinSelectionsValue };
+    const updated = {
+      ...order,
+      ...localPatch,
+      addons:pricedAddOns,
+      add_ons:pricedAddOns,
+      proteinSelections:proteinSelectionsValue,
+      serverPricingVerified:false,
+      finalTotal:null,
+      final_total:null,
+      orderTotalCents:null,
+      order_total_cents:null,
+      foodSubtotal:null,
+      food_subtotal:null,
+      salesTax:null,
+      sales_tax:null,
+      balanceDue:null,
+      balance_due:null,
+      balanceDueCents:null,
+      balance_due_cents:null
+    };
     const m = (() => { try { return typeof calculateOrderMoney === 'function' ? calculateOrderMoney(updated) : {}; } catch { return {}; } })();
     const finalTotal = num(m.guestTotalBeforeDeposit ?? updated.finalTotal ?? updated.final_total, 0);
     const paymentPolicy = paymentPolicyForModification(order, finalTotal);
@@ -1496,6 +1559,16 @@
     if (proteinError) {
       setStatus(proteinError, true);
       updatePricePreview(form, order);
+      return;
+    }
+    const minimumCheck = estimateOrderFromForm(form, order, mode);
+    const minimumShortfall = Math.max(0, num(minimumCheck.money?.minimumOrderAdjustment, 0));
+    if (minimumShortfall > 0.004) {
+      const minimumRequired = num(minimumCheck.money?.minimumFoodTotal, 550);
+      const currentFood = Math.max(0, minimumRequired - minimumShortfall);
+      const message = `Minimum food order is ${money(minimumRequired)}. Current food subtotal is ${money(currentFood)}. Please add ${money(minimumShortfall)} in guests or add-ons before saving.`;
+      setStatus(message, true);
+      alert(message);
       return;
     }
     const submit = form.querySelector('button[type="submit"]');

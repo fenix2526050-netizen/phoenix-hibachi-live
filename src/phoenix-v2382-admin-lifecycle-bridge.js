@@ -173,16 +173,16 @@
     try {
       const guests = Number(order?.totalGuests || order?.guest_count || 0);
       if (typeof window.phoenixDepositRequiredForGuests === 'function') {
-        return Number(window.phoenixDepositRequiredForGuests(guests)) || 100;
+        return Number(window.phoenixDepositRequiredForGuests(guests)) || 200;
       }
       if (typeof phoenixDepositRequiredForGuests === 'function') {
-        return Number(phoenixDepositRequiredForGuests(guests)) || 100;
+        return Number(phoenixDepositRequiredForGuests(guests)) || 200;
       }
       if (guests >= 31) return 300;
       if (guests >= 21) return 200;
-      return 100;
+      return 200;
     } catch {
-      return 100;
+      return 200;
     }
   }
 
@@ -268,6 +268,11 @@
   }
 
   window.phoenixAdminLifecycleInvokeV2382 = invokeAdmin;
+  // Existing dashboard handlers call this legacy name. Route them through the same
+  // authenticated bridge so Authorization, apikey and accessToken are always present.
+  window.phoenixAdminBookingActionV234 = function(action, bookingNumber, payload = {}) {
+    return invokeAdmin(action, { bookingNumber, ...payload });
+  };
 
   window.addEventListener('click', function(event){
     const confirmButton = event.target?.closest?.(
@@ -304,10 +309,10 @@
   }, true);
 
   try {
-    if (!window.__PHX_V240_LOADER__ && !document.querySelector('script[src="src/phoenix-v240-travel-fee-notifications.js"]')) {
+    if (!window.__PHX_V240_LOADER__ && !document.querySelector('script[src^="src/phoenix-v240-travel-fee-notifications.js"]')) {
       window.__PHX_V240_LOADER__ = true;
       const script = document.createElement('script');
-      script.src = 'src/phoenix-v240-travel-fee-notifications.js';
+      script.src = 'src/phoenix-v240-travel-fee-notifications.js?v=255';
       script.defer = true;
       script.dataset.phoenixPatch = 'v240-travel-fee-notifications';
       (document.currentScript?.parentNode || document.body || document.documentElement).appendChild(script);
@@ -320,7 +325,7 @@
     if (!window.__PHX_V241_LOADER__ && !document.querySelector('script[data-phoenix-patch="v241-order-modification"]')) {
       window.__PHX_V241_LOADER__ = true;
       const script = document.createElement('script');
-      script.src = 'src/phoenix-v241-order-modification.js?v=254';
+      script.src = 'src/phoenix-v241-order-modification.js?v=255';
       script.defer = true;
       script.dataset.phoenixPatch = 'v241-order-modification';
       (document.currentScript?.parentNode || document.body || document.documentElement).appendChild(script);
